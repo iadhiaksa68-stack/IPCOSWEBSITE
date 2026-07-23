@@ -1,5 +1,5 @@
-// Link Web App Google Apps Script Terbaru
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzDluqp5X5QQA5UKftRw-cnJnIHKuC8VOS5oKuCvJ7-jtYxNDZJiJxVUEnVWsnhKXV5Cg/exec";
+// Link Web App Google Apps Script Terbaru (SUDAH DIUPDATE)
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxzpIl1qKKLKVB-O6Jsv08OiK_zEztbGOkEIXUze1zsxL8gdC3-oZfQ2bJ6QaW-hoEE8Q/exec";
 
 // ==========================================
 // 1. SISTEM NOTIFIKASI TOAST & LOADER
@@ -629,7 +629,8 @@ async function sendUpdateRequest(id, newStatus, noteText, files = []) {
         if(result.status === "success") { 
             syncDatabase(); 
         } else { 
-            showToast(currentLang === 'id' ? "Gagal update data." : "Failed to update data.", "error"); 
+            // MEMBOCORKAN PESAN ERROR DARI BACKEND
+            showToast("Gagal: " + (result.message || "Error tidak diketahui"), "error"); 
         }
     } catch (err) {
         showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error");
@@ -826,10 +827,18 @@ function renderMasterMahasiswa(students) {
     if(!tbody) return;
     tbody.innerHTML = '';
     students.reverse().forEach(s => {
+        // Tarik data Status dari Spreadsheet (huruf besar/kecil menyesuaikan)
+        const statusMhs = s.Status || s.status || "Aktif";
+        
+        // Atur warna badge dinamis
+        let badgeClass = "badge-accepted"; // Hijau (Aktif)
+        if (statusMhs.toLowerCase() === "tidak aktif") badgeClass = "badge-revision"; // Merah
+        else if (statusMhs.toLowerCase() === "lulus") badgeClass = "badge-resubmitted"; // Biru
+        
         tbody.innerHTML += `<tr>
             <td><b>${s.NIM}</b></td>
             <td>${s.Nama}</td>
-            <td><span class="status-badge badge-accepted">Aktif</span></td>
+            <td><span class="status-badge ${badgeClass}">${statusMhs}</span></td>
             <td><button class="action-btn btn-rev" onclick="deleteStudent('${s.NIM}')">Hapus</button></td>
         </tr>`;
     });
