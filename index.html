@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPCOS UMY - Portal Kewajiban & Akademik Mahasiswa</title>
+    
+    <!-- INI ADALAH KODE UNTUK FAVICON LOGO KUCING -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Zz48cGF0aCBkPSJNMTAgNTAgTDIwIDEwIEw0NSAzNSBMNTUgMzUgTDgwIDEwIEw5MCA1MCBMOTAgMTAwIEwxMCAxMDAgWiIgZmlsbD0iI0Y0QjMyNCIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iNTUiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjU1IiByPSI4IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iMzAiIGN5PSI1NSIgcj0iNCIgZmlsbD0iIzFBMUExQSIvPjxjaXJjbGUgY3g9IjcwIiBjeT0iNTUiIHI9IjQiIGZpbGw9IiMxQTFBMUEiLz48cG9seWdvbiBwb2ludHM9IjQ1LDY4IDU1LDY4IDUwLDc0IiBmaWxsPSIjRkY4REExIi8+PHBhdGggZD0iTTUwIDc0IFE0MCA4NCAzMCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTUwIDc0IFE2MCA4NCA3MCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PGxpbmUgeDE9IjI1IiB5MT0iNjUiIHgyPSI1IiB5Mj0iNjAiIHN0cm9rZT0iIzFBMUExQSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjUiIHkxPSI3MCIgeDI9IjUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjY1IiB4Mj0iOTUiIHkyPSI2MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjcwIiB4Mj0iOTUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=">
+
     <link rel="stylesheet" href="style.css">
     <!-- Tambahan Library Chart.js untuk Grafik -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -56,6 +60,9 @@
             <div style="height: 480px; width: 100%; background: #222; border-radius: 14px; overflow: hidden;">
                 <iframe id="iframe-doc-viewer" src="" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
+            <div style="text-align: center; margin-top: 10px;">
+                <p style="font-size: 13px; color: #ff5722;" class="lang" data-id="Jika dokumen tidak muncul, silakan klik tombol 'Buka di Tab Baru' di bawah." data-en="If the document does not appear, please click the 'Open in New Tab' button below.">Jika dokumen tidak muncul, silakan klik tombol 'Buka di Tab Baru' di bawah.</p>
+            </div>
             <div style="display: flex; justify-content: flex-end; margin-top: 15px; gap: 10px;">
                 <a id="btn-download-direct" href="#" target="_blank" class="btn-primary lang" style="background-color: var(--umy-green); text-decoration: none; width: auto; padding: 10px 20px;" data-id="↗ Buka di Tab Baru" data-en="↗ Open in New Tab">↗ Buka di Tab Baru</a>
                 <button class="btn-secondary lang" style="width: auto; padding: 10px 20px;" onclick="closeModal('modal-doc-preview')" data-id="Tutup" data-en="Close">Tutup</button>
@@ -85,7 +92,7 @@
             
             <div style="text-align: left; margin-bottom: 15px;">
                 <label style="font-size: 13px; font-weight: bold; color: var(--heading-color);">Upload Berkas Revisi (PDF / DOCX) *</label>
-                <input type="file" id="input-reply-file" accept=".pdf,.doc,.docx" required style="margin-top: 5px; background: var(--input-bg);">
+                <input type="file" id="input-reply-file" accept=".pdf,.doc,.docx" required style="margin-top: 5px; background: var(--input-bg);" onchange="validateFile(this)">
             </div>
 
             <div style="text-align: left;">
@@ -96,7 +103,24 @@
             <input type="hidden" id="hidden-reply-id">
             <div style="display: flex; gap: 15px; margin-top: 15px;">
                 <button class="btn-secondary lang" onclick="closeModal('modal-reply')" data-id="Batal" data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" style="background-color: var(--umy-gold);" onclick="submitStudentReply()" data-id="Kirim Ulang" data-en="Resubmit">Kirim Ulang</button>
+                <button class="btn-primary lang" style="background-color: var(--umy-gold);" onclick="submitStudentReply(event)" data-id="Kirim Ulang" data-en="Resubmit">Kirim Ulang</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT KONTEN MAGANG / SKRIPSI DLL (ADMIN) -->
+    <div id="modal-edit-content" class="overlay" style="display: none; z-index: 2500;">
+        <div class="modal-card" style="max-width: 700px; text-align: left;">
+            <h2 id="editor-modal-title">Edit Konten</h2>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Anda dapat mengubah urutan, teks, dan detail list data di bawah ini.</p>
+            
+            <div id="editor-ui-container" style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; padding-right: 10px;">
+                <!-- UI generated by JS -->
+            </div>
+            
+            <div style="display: flex; gap: 15px;">
+                <button class="btn-secondary" onclick="closeModal('modal-edit-content')">Batal</button>
+                <button class="btn-primary" onclick="saveContentChanges()" style="background-color: var(--umy-green);">Simpan Perubahan</button>
             </div>
         </div>
     </div>
@@ -203,8 +227,8 @@
 
             <div class="countdown-card" id="yudisium-countdown-widget">
                 <div style="font-size: 13px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; opacity:0.9;" class="lang" data-id="⏰ BATAS YUDISIUM TERDEKAT" data-en="⏰ UPCOMING YUDISIUM DEADLINE">⏰ BATAS YUDISIUM TERDEKAT</div>
-                <div style="font-size:20px; font-weight:800; margin: 4px 0 10px 0;">Periode I (20 Juli 2026)</div>
-                <div id="countdown-timer-display" class="countdown-timer">00 Hari : 00 Jam : 00 Mnt : 00 Detik</div>
+                <div style="font-size:20px; font-weight:800; margin: 4px 0 10px 0;">Periode Yudisium</div>
+                <div id="countdown-timer-display" class="countdown-timer">Memuat waktu...</div>
             </div>
 
             <div id="alert-checklist-reminder" class="alert-box student-only" style="display:none; background: rgba(23, 162, 184, 0.12); border-left-color: #17a2b8;">
@@ -212,7 +236,8 @@
                 <div id="reminder-text-content" style="margin-top: 4px;">Menghitung progres checklist...</div>
             </div>
 
-            <div class="card">
+            <!-- PROGRES MAGANG (MHS ONLY) -->
+            <div class="card student-only" style="width: 100%; flex-direction: column;">
                 <h2 class="lang" data-id="Progres Magang" data-en="Internship Progress">Progres Magang</h2>
                 <div class="progress-container">
                     <div id="bar-magang" class="progress-bar"></div>
@@ -220,7 +245,8 @@
                 <p class="lang" style="font-size: 15px; color: var(--text-muted);" data-id="Selesaikan seluruh tahapan pra-magang, logbook harian, laporan akhir, hingga form pengesahan." data-en="Complete all pre-internship stages, daily logbooks, final reports, and validation forms.">Selesaikan seluruh tahapan pra-magang, logbook harian, laporan akhir, hingga form pengesahan untuk mencapai 100% kelulusan mata kuliah Magang.</p>
             </div>
 
-            <div class="card">
+            <!-- PROGRES SKRIPSI (MHS ONLY) -->
+            <div class="card student-only" style="width: 100%; flex-direction: column;">
                 <h2 class="lang" data-id="Progres Skripsi / Tugas Akhir" data-en="Thesis Progress">Progres Skripsi / Tugas Akhir</h2>
                 <div class="progress-container">
                     <div id="bar-skripsi" class="progress-bar"></div>
@@ -233,37 +259,13 @@
         <div id="magang" class="tab-content">
             <h1 class="lang" data-id="Kewajiban Magang (2 SKS)" data-en="Internship Requirements (2 Credits)">Kewajiban Magang (2 SKS)</h1>
             <div class="card">
-                <h2 class="lang" data-id="Checklist Pemberkasan & Pelaksanaan" data-en="Documentation & Implementation Checklist">Checklist Pemberkasan & Pelaksanaan</h2>
-                <div class="checklist-group">
-                    <div class="checklist-title lang" data-id="Tahap Persiapan (Pra-Magang)" data-en="Preparation Phase (Pre-Internship)">Tahap Persiapan (Pra-Magang)</div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-magang" id="m1" onchange="updateProgress()">
-                        <label for="m1">
-                            <span class="lang" data-id="Menyusun & Merealisasikan Proposal Magang" data-en="Draft & Realize Internship Proposal">Menyusun & Merealisasikan Proposal Magang</span>
-                            <span class="sub-text lang" data-id="Bagi jalur Internasional, berkas wajib dikirim H-6 bulan." data-en="For International track, files must be sent 6 months prior.">Bagi jalur Internasional (KBRI Kuala Lumpur), berkas wajib dikirim H-6 bulan.</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="checklist-group">
-                    <div class="checklist-title lang" data-id="Tahap Pelaksanaan (Selama Magang)" data-en="Implementation Phase (During Internship)">Tahap Pelaksanaan (Selama Magang)</div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-magang" id="m2" onchange="updateProgress()"><label for="m2"><span class="lang" data-id="Mengisi Daily Log Book Secara Rutin" data-en="Fill Daily Log Book Routinely">Mengisi Daily Log Book Secara Rutin</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-magang" id="m3" onchange="updateProgress()"><label for="m3"><span class="lang" data-id="Mematuhi Aturan Etika & Proteksi Kerahasiaan Lembaga" data-en="Comply with Ethics & Institution Confidentiality Rules">Mematuhi Aturan Etika & Proteksi Kerahasiaan Lembaga</span></label>
-                    </div>
-                </div>
-                <div class="checklist-group">
-                    <div class="checklist-title lang" data-id="Tahap Pasca-Pelaksanaan & Pelaporan" data-en="Post-Implementation & Reporting Phase">Tahap Pasca-Pelaksanaan & Pelaporan</div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-magang" id="m4" onchange="updateProgress()"><label for="m4"><span class="lang" data-id="Menyusun Laporan Akhir Magang" data-en="Draft Final Internship Report">Menyusun Laporan Akhir Magang</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-magang" id="m5" onchange="updateProgress()"><label for="m5"><span class="lang" data-id="Memvalidasi Lembar Pengesahan Resmi" data-en="Validate Official Approval Sheet">Memvalidasi Lembar Pengesahan Resmi</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-magang" id="m6" onchange="updateProgress()"><label for="m6"><span class="lang" data-id="Mengumpulkan Form Penilaian Resmi" data-en="Submit Official Assessment Form">Mengumpulkan Form Penilaian Resmi</span></label>
-                    </div>
+                <!-- TOMBOL EDIT UNTUK ADMIN -->
+                <button class="btn-primary admin-only" onclick="openContentEditor('magang')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Konten Magang</button>
+                
+                <!-- CHECKLIST KHUSUS MAHASISWA -->
+                <div class="student-only" style="width: 100%; flex-direction: column;">
+                    <h2 class="lang" data-id="Checklist Pemberkasan & Pelaksanaan" data-en="Documentation & Implementation Checklist">Checklist Pemberkasan & Pelaksanaan</h2>
+                    <div id="magang-checklist-container"></div>
                 </div>
             </div>
         </div>
@@ -272,45 +274,13 @@
         <div id="skripsi" class="tab-content">
             <h1 class="lang" data-id="Tugas Akhir / Skripsi (6 SKS)" data-en="Final Thesis (6 Credits)">Tugas Akhir / Skripsi (6 SKS)</h1>
             <div class="card">
-                <h2 class="lang" data-id="Checklist Tahapan Skripsi" data-en="Thesis Phase Checklist">Checklist Tahapan Skripsi</h2>
-                <div class="checklist-group">
-                    <div class="checklist-title lang" data-id="Fase I: Pengajuan Outline & DPS" data-en="Phase I: Outline Submission & Supervisor Assignment">Fase I: Pengajuan Outline & DPS</div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s1" onchange="updateProgress()"><label for="s1"><span class="lang" data-id="Mengajukan Outline Proposal (Tgl 1-7 Awal Bulan)" data-en="Submit Outline Proposal (Dates 1-7 Early Month)">Mengajukan Outline Proposal (Tgl 1-7 Awal Bulan)</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s2" onchange="updateProgress()"><label for="s2"><span class="lang" data-id="Mengambil Surat Kesanggupan DPS & Kartu Bimbingan" data-en="Collect Supervisor Approval Letter & Mentoring Card">Mengambil Surat Kesanggupan DPS & Kartu Bimbingan</span></label>
-                    </div>
-                </div>
-                <div class="checklist-group">
-                    <div class="checklist-title lang" data-id="Fase II: Seminar Proposal" data-en="Phase II: Proposal Seminar">Fase II: Seminar Proposal</div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s3" onchange="updateProgress()"><label for="s3"><span class="lang" data-id="Bimbingan Proposal Minimal 5 Kali" data-en="Proposal Mentoring Minimum 5 Times">Bimbingan Proposal Minimal 5 Kali</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s4" onchange="updateProgress()"><label for="s4"><span class="lang" data-id="Mendaftar Seminar Proposal (Tgl 1-10)" data-en="Register for Proposal Seminar (Dates 1-10)">Mendaftar Seminar Proposal (Tgl 1-10)</span></label>
-                    </div>
-                </div>
-                <div class="checklist-group">
-                    <div class="checklist-title lang" data-id="Fase III: Ujian Akhir (Pendadaran)" data-en="Phase III: Final Defense Examination">Fase III: Ujian Akhir (Pendadaran)</div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s5" onchange="updateProgress()"><label for="s5"><span class="lang" data-id="Sertifikasi & Syarat Administrasi Lengkap" data-en="Certification & Complete Administrative Requirements">Sertifikasi & Syarat Administrasi Lengkap</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s6" onchange="updateProgress()"><label for="s6"><span class="lang" data-id="Lolos Uji Turnitin (Similarity &lt; 20%)" data-en="Pass Turnitin Check (Similarity &lt; 20%)">Lolos Uji Turnitin (Similarity &lt; 20%)</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s7" onchange="updateProgress()"><label for="s7"><span class="lang" data-id="Proofread Ke-1 (Pre-Pendadaran)" data-en="1st Proofread (Pre-Defense)">Proofread Ke-1 (Pre-Pendadaran)</span></label>
-                    </div>
-                </div>
-                <div class="checklist-group">
-                    <div class="checklist-title lang" data-id="Fase IV: Yudisium & Wisuda" data-en="Phase IV: Yudisium & Graduation">Fase IV: Yudisium & Wisuda</div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s8" onchange="updateProgress()"><label for="s8"><span class="lang" data-id="Proofread Ke-2 & Surat Bebas Pustaka" data-en="2nd Proofread & Library Free Letter">Proofread Ke-2 & Surat Bebas Pustaka</span></label>
-                    </div>
-                    <div class="checklist-item">
-                        <input type="checkbox" class="chk-skripsi" id="s9" onchange="updateProgress()"><label for="s9"><span class="lang" data-id="Pemberkasan Map Merah Wisuda" data-en="Red Folder Documentation for Graduation">Pemberkasan Map Merah Wisuda</span></label>
-                    </div>
+                <!-- TOMBOL EDIT UNTUK ADMIN -->
+                <button class="btn-primary admin-only" onclick="openContentEditor('skripsi')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Konten Skripsi</button>
+                
+                <!-- CHECKLIST KHUSUS MAHASISWA -->
+                <div class="student-only" style="width: 100%; flex-direction: column;">
+                    <h2 class="lang" data-id="Checklist Tahapan Skripsi" data-en="Thesis Phase Checklist">Checklist Tahapan Skripsi</h2>
+                    <div id="skripsi-checklist-container"></div>
                 </div>
             </div>
         </div>
@@ -328,6 +298,8 @@
                         <option value="Outline" class="lang" data-id="Pengajuan Outline Skripsi" data-en="Thesis Outline Submission">Pengajuan Outline Skripsi</option>
                         <option value="Proposal" class="lang" data-id="Ujian Seminar Proposal" data-en="Proposal Seminar Exam">Ujian Seminar Proposal</option>
                         <option value="Pendadaran" class="lang" data-id="Ujian Pendadaran" data-en="Thesis Defense Exam">Ujian Pendadaran</option>
+                        <!-- OPSI SKRIPSI JURNAL DITAMBAHKAN -->
+                        <option value="Skripsi Jurnal" class="lang" data-id="Ujian Skripsi Jurnal" data-en="Journal Thesis Exam">Ujian Skripsi Jurnal</option>
                     </select>
                 </div>
                 
@@ -341,22 +313,46 @@
                     <div id="req-outline-only" style="display:none;">
                         <div class="form-group">
                             <label>Upload Transkrip Nilai (PDF, Max 3MB) *</label>
-                            <input type="file" id="file-transkrip" accept=".pdf" class="file-upload">
+                            <input type="file" id="file-transkrip" accept=".pdf" class="file-upload" onchange="validateFile(this)">
                         </div>
                         <div class="form-group">
                             <label>Upload Draft Proposal (PDF/DOCX, Max 3MB) *</label>
-                            <input type="file" id="file-proposal" accept=".pdf,.doc,.docx" class="file-upload">
+                            <input type="file" id="file-proposal" accept=".pdf,.doc,.docx" class="file-upload" onchange="validateFile(this)">
                         </div>
                     </div>
 
                     <div id="req-sempro-only" style="display:none;">
                         <div class="form-group">
                             <label>Upload Bukti ACC Proposal (PDF/Gambar, Max 3MB) *</label>
-                            <input type="file" id="file-acc-sempro" accept=".pdf,.png,.jpg,.jpeg" class="file-upload">
+                            <input type="file" id="file-acc-sempro" accept=".pdf,.png,.jpg,.jpeg" class="file-upload" onchange="validateFile(this)">
                         </div>
                     </div>
 
                     <div id="req-pendadaran" style="display:none;">
+                        <!-- INFO SYARAT PENDADARAN -->
+                        <div class="alert-box" style="margin-top: 5px; margin-bottom: 25px; border-left-color: var(--umy-green); background-color: rgba(0, 73, 44, 0.05);">
+                            <strong style="color: var(--heading-color);">Syarat Dokumen Pendaftaran Ujian Pendadaran:</strong>
+                            <ol style="margin-top: 10px; margin-bottom: 10px; padding-left: 20px; font-size: 14px; line-height: 1.6;">
+                                <li>Blangko pendadaran (hanya dapat diambil di IPCOS)</li>
+                                <li>Sertifikat KKN ASLI (Tertera nilai kkn)</li>
+                                <li>Sertifikat BTA (dapat diambil di IPCOS)</li>
+                                <li>Fotocopy bebas teori (dapat diambil di IPCOS)</li>
+                                <li>Fotocopy kartu bimbingan (Yang sudah ada tertanda ACC Pendadaran)</li>
+                                <li>Fotocopy KTM</li>
+                                <li>Fotocopy Slip pembayaran pendadaran/ screenshoot transfer pembayaran</li>
+                                <li>Print pembayaran bimbingan skripsi (awal hingga akhir)</li>
+                                <li>Fotocopy Sertifikat Toefl (minimal 500), jika tidak dapat memenuhi skor minimal (≤ 450) maka mahasiswa harus mengumpulkan sertifikat toefl sebanyak 3 kali ujian</li>
+                                <li>Foto 4x6 warna dengan background merah (1 lembar)</li>
+                                <li>Revisi ujian proposal & berita acara</li>
+                                <li>Fotocopy BNSP</li>
+                                <li>Sertifikat international exposure wajib bagi semua angkatan</li>
+                                <li>Sudah melakukan proofread ke-1 pre pendadaran (akan dilanjutkan proofread ke-2 pra ujian)</li>
+                            </ol>
+                            <span style="font-size: 13px; font-weight: bold; color: var(--umy-maroon); display: block; margin-top: 10px;">
+                                * Seluruh dokumen persyaratan dikumpulkan ke dalam map kertas berwarna hijau dan dikumpulkan ke Kantor IPCOS (dibuka setiap awal bulan tanggal 1-10)
+                            </span>
+                        </div>
+
                         <div class="form-group">
                             <label>Dosen Pembimbing *</label>
                             <select id="reg-supervisor">
@@ -383,11 +379,23 @@
                         </div>
                         <div class="form-group">
                             <label>Upload Berkas Lengkap Pendadaran (ZIP/PDF, Max 3MB) *</label>
-                            <input type="file" id="file-folder-pendadaran" accept=".zip,.pdf,.rar" class="file-upload">
+                            <input type="file" id="file-folder-pendadaran" accept=".zip,.pdf,.rar" class="file-upload" onchange="validateFile(this)">
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-primary lang" style="background-color: var(--umy-maroon); margin-top:30px;" data-id="Kirim Pendaftaran" data-en="Submit Registration">Kirim Pendaftaran</button>
+                    <!-- FORM KHUSUS SKRIPSI JURNAL -->
+                    <div id="req-jurnal-only" style="display:none;">
+                        <div class="form-group">
+                            <label>Upload LoA / Bukti Submit Jurnal (PDF/JPG, Max 3MB) *</label>
+                            <input type="file" id="file-loa-jurnal" accept=".pdf,.png,.jpg,.jpeg" class="file-upload" onchange="validateFile(this)">
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Draft Jurnal (PDF/DOCX, Max 3MB) *</label>
+                            <input type="file" id="file-draft-jurnal" accept=".pdf,.doc,.docx" class="file-upload" onchange="validateFile(this)">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-submit-registration" class="btn-primary lang" style="background-color: var(--umy-maroon); margin-top:30px;" data-id="Kirim Pendaftaran" data-en="Submit Registration">Kirim Pendaftaran</button>
                 </form>
             </div>
         </div>
@@ -438,7 +446,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>Tanggal</th>
+                                <th onclick="toggleSortDate()" style="cursor: pointer;" title="Klik untuk mengurutkan tanggal">Tanggal Waktu <span id="admin-sort-icon">⬇️</span></th>
                                 <th>Mahasiswa</th>
                                 <th>Jenis Formulir</th>
                                 <th>Link Berkas</th>
@@ -450,6 +458,13 @@
                         </tbody>
                     </table>
                 </div>
+                
+                <div class="pagination">
+                    <button id="admin-btn-prev" onclick="changeAdminPage(-1)">Mundur</button>
+                    <span id="admin-page-info">Halaman 1 / 1</span>
+                    <button id="admin-btn-next" onclick="changeAdminPage(1)">Maju</button>
+                </div>
+
             </div>
         </div>
         
@@ -511,27 +526,10 @@
             <h1 class="lang" data-id="Sebaran Mata Kuliah IPCOS" data-en="IPCOS Course Curriculum">Sebaran Mata Kuliah IPCOS</h1>
             <p class="lang" data-id="Daftar Kurikulum berdasarkan peminatan Public Relations." data-en="Curriculum list based on Public Relations specialization.">Daftar Kurikulum berdasarkan peminatan Public Relations.</p>
             
-            <details>
-                <summary class="lang" data-id="Semester 1 & 2 (Tahun Pertama)" data-en="Semester 1 & 2 (First Year)">Semester 1 & 2 (Tahun Pertama)</summary>
-                <div class="details-content">
-                    <p><b>Semester 1:</b> Kemanusiaan & Keimanan, Pancasila, Retorika, Pengantar Ilmu Komunikasi, Psikologi Komunikasi, Bahasa Inggris, Berfikir Kreatif, Komunikasi Massa.</p>
-                    <p><b>Semester 2:</b> Teori Komunikasi, Komunikasi Interpersonal, Multikultur, Organisasi, Dasar AI, Bahasa Indonesia, Pengantar Periklanan, Pengantar PR, Ibadah Akhlak.</p>
-                </div>
-            </details>
-            <details>
-                <summary class="lang" data-id="Semester 3 & 4 (Tahun Kedua)" data-en="Semester 3 & 4 (Second Year)">Semester 3 & 4 (Tahun Kedua)</summary>
-                <div class="details-content">
-                    <p><b>Semester 3:</b> Pengantar Jurnalistik, Sinematografi, TIK, Fotografi, Sosiologi Komunikasi, Perilaku Konsumen, Negosiasi, Metode Kuantitatif.</p>
-                    <p><b>Semester 4:</b> IMC, Manajemen Stratejik, Kajian Media, Metode Kualitatif, Komunikasi Politik, Manajemen Isu & Krisis, Manajemen PR, Eksternal Relations.</p>
-                </div>
-            </details>
-            <details>
-                <summary class="lang" data-id="Semester 5 & 6 (Tahun Ketiga)" data-en="Semester 5 & 6 (Third Year)">Semester 5 & 6 (Third Year)</summary>
-                <div class="details-content">
-                    <p><b>Semester 5:</b> Riset PR, Pemasaran Sosial, Cyber PR, Etika Profesi PR, CSR, Manajemen Konflik, Govt & Public Affair, Kewirausahaan, Kewarganegaraan.</p>
-                    <p><b>Semester 6:</b> Manajemen Event, Penulisan PR, Produksi Media PR, Professional Image, Strategi & Taktik PR, Islam Sains & Teknologi, Kemuhammadiyahan.</p>
-                </div>
-            </details>
+            <button class="btn-primary admin-only" onclick="openContentEditor('kurikulum')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Konten Kurikulum</button>
+            <div id="kurikulum-content-container" class="student-only" style="width: 100%; flex-direction: column;">
+                <!-- DYNAMIC CONTENT RENDERED BY JS -->
+            </div>
         </div>
 
         <!-- SOP REMIDIAL -->
@@ -541,26 +539,14 @@
                 <strong class="lang" data-id="Catatan Penting:" data-en="Important Note:">Catatan Penting:</strong><br>
                 <span class="lang" data-id="Nilai maksimal remidial berbayar adalah BC. Mahasiswa wajib memenuhi 100% kehadiran bimbingan sesuai SKS, dan wajib lulus uji kompetensi." data-en="Maximum grade for paid remedial is BC. Students must fulfill 100% mentoring attendance according to credits, and must pass the competency test.">Nilai maksimal remidial berbayar adalah <b>BC</b>. Mahasiswa wajib memenuhi <b>100% kehadiran</b> bimbingan sesuai SKS, dan wajib lulus uji kompetensi.</span>
             </div>
+            
             <div class="card">
-                <h2 class="lang" data-id="Alur Remidial" data-en="Remedial Flow">Alur Remidial</h2>
-                <table style="border:none;">
-                    <tr>
-                        <td style="border:none; width: 25%;"><b class="lang" data-id="1. Pra-KRS & Bayar" data-en="1. Pre-KRS & Payment">1. Pra-KRS & Bayar</b></td>
-                        <td style="border:none;" class="lang" data-id="Daftar di menu remidi dan bayar di Bank Gedung AR B. Wajib key-in kembali!" data-en="Register in the remedial menu and pay at the Bank in AR B Bldg. Must key-in again!">Daftar di menu "remidi" dan bayar di Bank Gedung AR B. <b>Wajib key-in kembali!</b></td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;"><b class="lang" data-id="2. Penentuan Dosen" data-en="2. Lecturer Assignment">2. Penentuan Dosen</b></td>
-                        <td style="border:none;" class="lang" data-id="Prodi menetapkan dosen pengampu sesuai linearitas semester reguler." data-en="Department assigns lecturer according to regular semester linearity.">Prodi menetapkan dosen pengampu sesuai linearitas semester reguler.</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;"><b class="lang" data-id="3. Bimbingan" data-en="3. Mentoring">3. Bimbingan</b></td>
-                        <td style="border:none;" class="lang" data-id="Tatap muka 100 menit. 2 SKS = 2x pertemuan, 3 SKS = 3x pertemuan, dst." data-en="100 minutes face-to-face. 2 credits = 2 meetings, 3 credits = 3 meetings, etc.">Tatap muka 100 menit. 2 SKS = 2x pertemuan, 3 SKS = 3x pertemuan, dst.</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;"><b class="lang" data-id="4. Uji Kompetensi" data-en="4. Competency Test">4. Uji Kompetensi</b></td>
-                        <td style="border:none;" class="lang" data-id="1 kali tes akhir untuk mengukur penguasaan materi dan nilai masuk KHS." data-en="1 final test to measure material mastery and grade entry into KHS.">1 kali tes akhir untuk mengukur penguasaan materi dan nilai masuk KHS.</td>
-                    </tr>
-                </table>
+                <button class="btn-primary admin-only" onclick="openContentEditor('remidial')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit SOP Remidial</button>
+                <h2 class="lang student-only" data-id="Alur Remidial" data-en="Remedial Flow" style="width: 100%;">Alur Remidial</h2>
+                
+                <div id="remidial-content-container" class="student-only" style="width: 100%; flex-direction: column;">
+                    <!-- DYNAMIC TABLE RENDERED BY JS -->
+                </div>
             </div>
         </div>
 
@@ -568,26 +554,12 @@
         <div id="kalender" class="tab-content">
             <h1 class="lang" data-id="Kalender Yudisium & Wisuda (TA 2026/2027)" data-en="Yudisium & Graduation Calendar (2026/2027)">Kalender Yudisium & Wisuda (TA 2026/2027)</h1>
             <p class="lang" data-id="Jadwal batas akhir (deadline) resmi berdasarkan Keputusan Rektor UMY." data-en="Official deadline schedule based on the UMY Rector's Decree.">Jadwal batas akhir (deadline) resmi berdasarkan Keputusan Rektor UMY.</p>
-            <div class="calendar-grid">
-                <div class="cal-card">
-                    <h4 class="lang" data-id="Periode I (Sep 2026)" data-en="Period I (Sep 2026)">Periode I (Sep 2026)</h4>
-                    <p><b class="lang" data-id="Batas Yudisium:" data-en="Yudisium Deadline:">Batas Yudisium:</b> <br><span class="deadline-tag">20 Jul 2026</span></p>
-                    <p><b class="lang" data-id="Daftar Wisuda:" data-en="Graduation Reg:">Daftar Wisuda:</b> 21 - 31 Jul 2026</p>
-                </div>
-                <div class="cal-card">
-                    <h4 class="lang" data-id="Periode II (Des 2026)" data-en="Period II (Dec 2026)">Periode II (Des 2026)</h4>
-                    <p><b class="lang" data-id="Batas Yudisium:" data-en="Yudisium Deadline:">Batas Yudisium:</b> <br><span class="deadline-tag">19 Okt 2026</span></p>
-                    <p><b class="lang" data-id="Daftar Wisuda:" data-en="Graduation Reg:">Daftar Wisuda:</b> 20 - 30 Okt 2026</p>
-                </div>
-                <div class="cal-card">
-                    <h4 class="lang" data-id="Periode III (Apr 2027)" data-en="Period III (Apr 2027)">Periode III (Apr 2027)</h4>
-                    <p><b class="lang" data-id="Batas Yudisium:" data-en="Yudisium Deadline:">Batas Yudisium:</b> <br><span class="deadline-tag">18 Jan 2027</span></p>
-                    <p><b class="lang" data-id="Daftar Wisuda:" data-en="Graduation Reg:">Daftar Wisuda:</b> 19 - 29 Jan 2027</p>
-                </div>
-                <div class="cal-card">
-                    <h4 class="lang" data-id="Periode IV (Jun 2027)" data-en="Period IV (Jun 2027)">Periode IV (Jun 2027)</h4>
-                    <p><b class="lang" data-id="Batas Yudisium:" data-en="Yudisium Deadline:">Batas Yudisium:</b> <br><span class="deadline-tag">19 Apr 2027</span></p>
-                    <p><b class="lang" data-id="Daftar Wisuda:" data-en="Graduation Reg:">Daftar Wisuda:</b> 20 - 30 Apr 2027</p>
+            
+            <button class="btn-primary admin-only" onclick="openContentEditor('kalender')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Kalender TA</button>
+            
+            <div class="student-only" style="width: 100%; flex-direction: column;">
+                <div id="kalender-content-container" class="calendar-grid">
+                    <!-- DYNAMIC CALENDAR CARDS RENDERED BY JS -->
                 </div>
             </div>
         </div>

@@ -18,6 +18,7 @@
     --item-hover: #F8F9FA;
     --progress-bg: #E5E5EA;
     --table-header: rgba(142, 33, 34, 0.05);
+    --sticky-header-bg: #F8EDED; /* Solid background for light mode sticky header */
     --input-bg: #FFFFFF;
 }
 
@@ -35,6 +36,7 @@ body.dark-mode {
     --item-hover: #2C2C2E;
     --progress-bg: #38383A;
     --table-header: rgba(244, 179, 36, 0.1);
+    --sticky-header-bg: #29241A; /* Solid background for dark mode sticky header */
     --input-bg: #1C1C1E;
 }
 
@@ -45,8 +47,18 @@ body {
     color: var(--text-color); display: flex; min-height: 100vh; transition: background 0.4s ease, color 0.4s ease; overflow-x: hidden;
 }
 
+/* =========================================
+   CUSTOM SCROLLBAR (KUSTOMISASI UI)
+========================================= */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(142, 33, 34, 0.3); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(142, 33, 34, 0.7); border: 2px solid transparent; background-clip: padding-box; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: rgba(244, 179, 36, 0.3); border: 2px solid transparent; background-clip: padding-box; }
+body.dark-mode ::-webkit-scrollbar-thumb:hover { background: rgba(244, 179, 36, 0.7); border: 2px solid transparent; background-clip: padding-box; }
+
 /* LOADER & TOAST NOTIFICATION */
-.loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 3000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
+.loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
 .spinner { width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3); border-top-color: var(--umy-gold); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -59,7 +71,7 @@ body {
 
 /* MODALS */
 .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: opacity 0.5s ease; }
-.modal-card { background: var(--item-bg); padding: 45px 35px; border-radius: 28px; text-align: center; width: 90%; max-width: 420px; box-shadow: 0 25px 50px rgba(0,0,0,0.3); border: 1px solid var(--item-border); }
+.modal-card { background: var(--item-bg); padding: 45px 35px; border-radius: 28px; text-align: center; width: 90%; max-width: 420px; box-shadow: 0 25px 50px rgba(0,0,0,0.3); border: 1px solid var(--item-border); max-height: 90vh; overflow-y: auto;}
 .modal-card h2 { margin-top: 0; font-size: 26px; font-weight: 800; color: var(--heading-color); margin-bottom: 20px; }
 
 /* FORMS & BUTTONS */
@@ -76,6 +88,28 @@ button.btn-primary:hover { background: #003624; transform: scale(1.02); }
 button.btn-secondary { background: #8E8E93; color: white; border: none; padding: 16px 25px; border-radius: 16px; font-size: 16px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; }
 .error-msg { color: #D9534F; font-size: 14px; margin-bottom: 15px; display: none; background: #FDECEA; padding: 12px; border-radius: 12px; border-left: 4px solid #D9534F; text-align: left; font-weight: 500;}
 
+/* =========================================
+   DROPZONE AREA FILE UPLOAD (INTERAKTIF)
+========================================= */
+.dropzone {
+    border: 2.5px dashed var(--item-border);
+    border-radius: 16px;
+    padding: 30px 20px;
+    text-align: center;
+    background: var(--input-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 8px;
+    margin-bottom: 15px;
+    position: relative;
+    overflow: hidden;
+}
+.dropzone:hover { border-color: var(--umy-gold); background: rgba(244, 179, 36, 0.05); color: var(--text-color); }
+.dropzone.dragover { border-color: var(--umy-green); background: rgba(0, 73, 44, 0.08); color: var(--umy-green); transform: scale(1.02); }
+.dz-message { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 500;}
+.dz-file-name { margin-top: 12px; font-weight: 800; color: var(--heading-color); font-size: 14px; word-break: break-all; }
+
 /* SIDEBAR & NAV */
 .mobile-nav-toggle { display: none; position: fixed; bottom: 20px; right: 20px; background: var(--umy-maroon); color: white; padding: 15px 25px; border-radius: 30px; font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 1000; cursor: pointer; }
 .sidebar { width: 290px; background-color: rgba(244, 179, 36, 0.98); backdrop-filter: blur(20px); padding-top: 35px; position: fixed; height: 100vh; display: flex; flex-direction: column; z-index: 100; border-top-right-radius: 30px; border-bottom-right-radius: 30px; box-shadow: 5px 0 25px rgba(0,0,0,0.08); transition: transform 0.4s ease; overflow-y: auto;}
@@ -88,7 +122,11 @@ button.btn-secondary { background: #8E8E93; color: white; border: none; padding:
 .nav-item { padding: 14px 20px; cursor: pointer; display: flex; align-items: center; font-size: 15px; font-weight: 700; border-radius: 14px; margin-bottom: 6px; transition: all 0.3s; color: var(--umy-maroon); gap: 12px;}
 .nav-item:hover { background-color: rgba(142, 33, 34, 0.08); transform: translateX(5px); }
 .nav-item.active { background-color: var(--umy-maroon); color: var(--umy-white); box-shadow: 0 6px 15px rgba(142, 33, 34, 0.25); transform: translateX(8px); }
+
+/* Class Dinamis untuk Akses Role */
 .nav-item.admin-only, .nav-item.student-only { display: none; } 
+.admin-only { display: none; }
+.student-only { display: none; }
 
 .btn-sidebar { display: block; width: calc(100% - 30px); margin: 0 15px 10px 15px; background-color: rgba(142, 33, 34, 0.05); border: 2px dashed var(--umy-maroon); color: var(--umy-maroon); font-weight: bold; padding: 12px; border-radius: 14px; cursor: pointer; transition: all 0.3s; font-size: 14px; }
 .btn-sidebar:hover { background-color: var(--umy-maroon); color: var(--umy-white); }
@@ -142,10 +180,20 @@ h1 { color: var(--heading-color); margin-top: 0; font-size: 34px; font-weight: 8
 .checklist-item label { cursor: pointer; font-size: 16px; flex-grow: 1; font-weight: 500; }
 .checklist-item .sub-text { font-size: 14px; color: var(--text-muted); display: block; margin-top: 6px; font-weight: 400; }
 
-/* TABLES & BADGES */
+/* TABLES, BADGES & STICKY HEADER */
 table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 15px 0; font-size: 15px; border-radius: 18px; overflow: hidden; border: 1.5px solid var(--item-border); }
 th, td { padding: 18px; text-align: left; border-bottom: 1.5px solid var(--item-border); background: var(--item-bg); }
 th { background-color: var(--table-header); color: var(--heading-color); font-weight: 800; }
+
+/* Fitur Sticky untuk header tabel admin */
+th.sticky-th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--sticky-header-bg); 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
 .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 800; }
 .badge-pending { background-color: #FFF3CD; color: #856404; }
 .badge-accepted { background-color: #D4EDDA; color: #155724; }
