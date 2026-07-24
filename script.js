@@ -159,19 +159,58 @@ function loginMhs() {
     }
 }
 
-function loginAdmin() {
+async function loginAdmin() {
     const userInput = document.getElementById('input-admin-user').value.trim();
     const passInput = document.getElementById('input-admin-pass').value.trim();
     const errorMsg = document.getElementById('error-msg-admin');
+    const btnSubmit = document.querySelector('#form-admin button');
 
-    if (userInput === "mincos" && passInput === "mbaksiti123") {
-        const adminData = { nim: 'ADMINISTRATOR', nama: 'Administrator IPCOS', role: 'admin' };
-        sessionStorage.setItem('ipcos_session', JSON.stringify(adminData));
-        finalizeLogin(adminData.nama, adminData.nim, adminData.role);
-        showToast(currentLang === 'id' ? "Berhasil login sebagai Admin." : "Logged in as Admin.");
-    } else {
-        errorMsg.innerText = currentLang === 'id' ? "Kredensial Admin salah!" : "Invalid Admin credentials!";
+    // Validasi kosong
+    if (!userInput || !passInput) {
+        errorMsg.innerText = currentLang === 'id' ? "Username dan Password wajib diisi!" : "Username and Password are required!";
         errorMsg.style.display = 'block';
+        return;
+    }
+
+    // Ubah teks tombol jadi loading
+    const originalText = btnSubmit.innerText;
+    btnSubmit.innerText = currentLang === 'id' ? "Mengecek..." : "Checking...";
+    btnSubmit.disabled = true;
+
+    try {
+        const payload = {
+            action: 'admin_login',
+            username: userInput,
+            password: passInput
+        };
+
+        // Kirim username & password ke Google Apps Script untuk dicek
+        const response = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        
+        const result = await response.json();
+
+        // Jika backend bilang sukses (password benar)
+        if (result.status === "success") {
+            const adminData = { nim: 'ADMINISTRATOR', nama: 'Administrator IPCOS', role: 'admin' };
+            sessionStorage.setItem('ipcos_session', JSON.stringify(adminData));
+            finalizeLogin(adminData.nama, adminData.nim, adminData.role);
+            showToast(currentLang === 'id' ? "Berhasil login sebagai Admin." : "Logged in as Admin.", "success");
+        } else {
+            // Jika salah
+            errorMsg.innerText = result.message;
+            errorMsg.style.display = 'block';
+        }
+    } catch (error) {
+        errorMsg.innerText = currentLang === 'id' ? "Terjadi kesalahan jaringan." : "Network error occurred.";
+        errorMsg.style.display = 'block';
+    } finally {
+        // Kembalikan tombol seperti semula
+        btnSubmit.innerText = originalText;
+        btnSubmit.disabled = false;
     }
 }
 
@@ -1067,7 +1106,7 @@ function scheduleCat() { catTimer = setTimeout(showCat, Math.floor(Math.random()
 function showCat() { catEl.classList.add('peek'); setTimeout(() => { if(catEl.classList.contains('peek')) hideCat(); }, 4000); }
 function hideCat() { catEl.classList.remove('peek'); clearTimeout(catTimer); scheduleCat(); }
 
-// SINKRONISASI REAL-TIME SENYAP
+// SINKRONISASI REAL-TIME SENYAP (Diperbarui menjadi 3 Menit agar tidak diblokir Google API)
 function silentSyncDatabase() {
     if (currentUser && currentUser.nim !== '') {
         const freshUrl = GAS_URL + "?t=" + new Date().getTime();
@@ -1080,7 +1119,7 @@ function silentSyncDatabase() {
         .catch(error => console.log("Sync terhambat..."));
     }
 }
-setInterval(silentSyncDatabase, 15000);
+setInterval(silentSyncDatabase, 180000);
 
 // ==========================================
 // 9. SIDEBAR INTERAKTIF & WHATSAPP FLOAT
