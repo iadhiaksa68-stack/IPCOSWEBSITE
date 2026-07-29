@@ -1078,14 +1078,13 @@ function renderAdminTable() {
             <td style="min-width:130px; vertical-align:top;">
                 ${(() => {
                     if (item.status === 'Accepted') return '-';
-                    let buttons = '';
-                    if (item.jenis === 'Proposal') {
+                                        let buttons = '';
+                    // UBAH: Khusus 'Outline', tombol terimanya ganti jadi Tunjuk Dospem
+                    if (item.jenis === 'Outline') {
                         buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem" data-en="Assign Dospem">Tunjuk Dospem</button>`;
                     } else {
                         buttons += `<button class="action-btn btn-acc lang" onclick="acceptSubmission('${item.id}')" data-id="Terima" data-en="Accept">${currentLang === 'id' ? 'Terima' : 'Accept'}</button>`;
                     }
-                    buttons += `<button class="action-btn btn-rev lang" onclick="openRevisionModal('${item.id}')" data-id="Revisi" data-en="Revise">${currentLang === 'id' ? 'Revisi' : 'Revise'}</button>`;
-                    return buttons;
                 })()}
             </td>
         </tr>`;
@@ -1143,10 +1142,44 @@ function openChatTimeline(id) {
     const target = records.find(r => r.id === id);
     const container = document.getElementById('chat-timeline-container');
     container.innerHTML = '';
-    if (!target || !target.note) {
+
+    if (!target) return;
+
+    let logs = []; 
+    // Ambil log yang ada jika note tidak kosong
+    if (target.note && target.note.trim() !== '') {
+        try { 
+            logs = JSON.parse(target.note); 
+        } catch(e) { 
+            logs = [{ sender: 'Sistem', role: 'system', time: target.date, message: target.note }]; 
+        }
+    }
+
+    // PAKSA MUNCULKAN PESAN DOSPEM KHUSUS OUTLINE
+    if (target.jenis === 'Outline' && target.status === 'Accepted' && target.detail && target.detail.includes('Dosen Pembimbing')) {
+        const hasDospemLog = logs.some(log => log.message.includes('Dosen Pembimbing'));
+        
+        if (!hasDospemLog) {
+            // Tarik nama dospem dari teks detail
+            const dospemMatch = target.detail.match(/Dosen Pembimbing:<\/b>\s*([^<]+)/);
+            let dospemName = dospemMatch ? dospemMatch[1].trim() : "Telah ditentukan (silakan cek detail pengajuan)";
+
+            // Tambahkan paksa ke dalam array chat (Log)
+            logs.push({
+                sender: 'Admin IPCOS',
+                role: 'admin',
+                time: target.date, 
+                message: currentLang === 'id' 
+                    ? `Selamat! Berkas Outline Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style='color:#E03F4F; font-size:15px;'>${dospemName}</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya.`
+                    : `Congratulations! Your Outline is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>${dospemName}</b><br><br>Please contact them for further guidance.`
+            });
+        }
+    }
+
+    // Render Chat Bubble-nya
+    if (logs.length === 0) {
         container.innerHTML = `<p style="text-align:center; color:var(--text-muted);" class="lang" data-id="Belum ada riwayat catatan." data-en="No note history yet.">${currentLang === 'id' ? 'Belum ada riwayat catatan.' : 'No note history yet.'}</p>`;
     } else {
-        let logs = []; try { logs = JSON.parse(target.note); } catch(e) { logs = [{ sender: 'Catatan', role: 'system', time: target.date, message: target.note }]; }
         logs.forEach(log => {
             const isMhs = log.role === 'mhs';
             container.innerHTML += `<div class="chat-bubble ${isMhs ? 'chat-mhs' : 'chat-admin'}">
@@ -1154,8 +1187,10 @@ function openChatTimeline(id) {
                     <div>${log.message}</div></div>`;
         });
     }
+    
     const modal = document.getElementById('modal-chat-timeline');
-    modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
+    modal.style.display = 'flex'; 
+    setTimeout(() => { modal.style.opacity = '1'; }, 10);
 }
 
 // ==========================================
@@ -1199,12 +1234,11 @@ function submitAdminDospem() {
     }
     closeModal('modal-dospem'); 
     
-    // UPDATE: Masukkan nama dospem ke dalam teks Note agar mahasiswa bisa membacanya di Riwayat Note
+    // UBAH: Teks Proposal diganti jadi Outline
     const note = currentLang === 'id' 
-        ? `Selamat! Berkas Proposal Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style="color: var(--umy-maroon); font-size: 15px;">${dospem}</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya.` 
-        : `Congratulations! Your Proposal is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style="color: var(--umy-maroon); font-size: 15px;">${dospem}</b><br><br>Please contact them for further guidance.`;
+        ? "Selamat! Berkas Outline Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style='color:#E03F4F; font-size:15px;'>" + dospem + "</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya." 
+        : "Congratulations! Your Outline is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>" + dospem + "</b><br><br>Please contact them for further guidance.";
     
-    // Kirim data ke Google Script
     sendUpdateRequest(id, 'Accepted', note, [], dospem);
 }
 
