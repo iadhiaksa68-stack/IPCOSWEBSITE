@@ -1132,16 +1132,25 @@ function openDocPreview(url) {
 }
 
 function startCountdownWidget() {
-    const targetDate = new Date("July 20, 2026 23:59:59").getTime();
+    // Tanggal target batas yudisium terdekat: Periode II (19 Oktober 2026)
+    const targetDate = new Date("October 19, 2026 23:59:59").getTime();
+    
     setInterval(() => {
-        const now = new Date().getTime(); const distance = targetDate - now;
-        const days = Math.floor(distance / (1000 * 60 * 60 * 24)); const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)); const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-        const timerDisplay = document.getElementById('countdown-timer-display');
-        if(timerDisplay) {
-            if (distance < 0) timerDisplay.innerText = "DITUTUP";
-            else timerDisplay.innerText = `${days}d : ${hours}h : ${minutes}m : ${seconds}s`;
-        }
+        const now = new Date().getTime(); 
+        const distance = targetDate - now;
+        
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24)); 
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)); 
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        const textDisplay = (distance < 0) 
+            ? "DITUTUP" 
+            : `${days}d : ${hours}h : ${minutes}m : ${seconds}s`;
+            
+        document.querySelectorAll('.countdown-timer-display, #countdown-timer-display').forEach(el => {
+            if (el) el.innerText = textDisplay;
+        });
     }, 1000);
 }
 

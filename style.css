@@ -281,21 +281,20 @@ h1 { color: var(--heading-color); margin-top: 0; font-size: 26px; font-weight: 8
 .bento-col-2 { grid-column: span 2; }
 .bento-col-3 { grid-column: span 3; }
 
-/* Kartu Batas Yudisium */
+/* Kartu Batas Yudisium (Fixed Clean Overflow & Rounded Border) */
 .bento-card-dark { 
-    background: linear-gradient(135deg, #2D2723 0%, #1A1512 100%); 
-    border: none; 
-    color: #FFFFFF; 
-    position: relative;
-    overflow: hidden;
+    background: linear-gradient(135deg, #2D2723 0%, #1A1512 100%) !important; 
+    border: none !important; 
+    border-top: 4px solid var(--umy-gold) !important; /* Garis emas langsung menyatu dengan kartu */
+    color: #FFFFFF !important; 
+    border-radius: 24px !important;
+    overflow: hidden !important; /* Memaksa memotong seluruh isi di dalam lekukan */
 }
-/* Aksen garis emas di atas kartu Yudisium */
+
+/* Mematikan elemen ::before agar tidak ada garis melayang yang bocor */
 .bento-card-dark::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 5px;
-    background: var(--umy-gold);
+    display: none !important;
+    content: none !important;
 }
 .bento-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
 .bento-header h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--heading-color); letter-spacing: -0.3px; }
