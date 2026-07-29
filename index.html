@@ -5,24 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPCOS UMY - Portal Kewajiban & Akademik Mahasiswa</title>
     
-    <!-- INI ADALAH KODE UNTUK FAVICON LOGO KUCING -->
+    <meta property="og:title" content="IPCOS UMY - Portal Kewajiban & Akademik Mahasiswa">
+    <meta property="og:description" content="Sistem portal akademik terpadu untuk pendaftaran ujian, skripsi, magang, dan pelacakan progres mahasiswa Ilmu Komunikasi UMY.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ipcos-umy/assets/main/thumbnail.jpg"> 
+    <meta property="og:url" content="https://ipcos.umy.ac.id">
+    <meta property="og:type" content="website">
+
+    <!-- Font Plus Jakarta Sans (Regular, Bold, Italic) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Zz48cGF0aCBkPSJNMTAgNTAgTDIwIDEwIEw0NSAzNSBMNTUgMzUgTDgwIDEwIEw5MCA1MCBMOTAgMTAwIEwxMCAxMDAgWiIgZmlsbD0iI0Y0QjMyNCIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iNTUiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjU1IiByPSI4IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iMzAiIGN5PSI1NSIgcj0iNCIgZmlsbD0iIzFBMUExQSIvPjxjaXJjbGUgY3g9IjcwIiBjeT0iNTUiIHI9IjQiIGZpbGw9IiMxQTFBMUEiLz48cG9seWdvbiBwb2ludHM9IjQ1LDY4IDU1LDY4IDUwLDc0IiBmaWxsPSIjRkY4REExIi8+PHBhdGggZD0iTTUwIDc0IFE0MCA4NCAzMCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTUwIDc0IFE2MCA4NCA3MCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PGxpbmUgeDE9IjI1IiB5MT0iNjUiIHgyPSI1IiB5Mj0iNjAiIHN0cm9rZT0iIzFBMUExQSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjUiIHkxPSI3MCIgeDI9IjUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjY1IiB4Mj0iOTUiIHkyPSI2MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjcwIiB4Mj0iOTUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=">
 
     <link rel="stylesheet" href="style.css">
-    <!-- Tambahan Library Chart.js untuk Grafik -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 <body>
 
-    <!-- LOADER OVERLAY -->
     <div id="loader" class="loader-overlay" style="display: none;">
-        <div class="spinner"></div>
+        <div style="text-align: center;">
+            <div class="spinner" style="margin: 0 auto 15px;"></div>
+            <div id="loader-text" style="color: white; font-weight: 700; font-size: 16px; letter-spacing: 0.5px;" class="lang" data-id="Memuat data..." data-en="Loading data...">Memuat data...</div>
+        </div>
     </div>
 
-    <!-- TOAST NOTIFICATION CONTAINER -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- EASTER EGG KUCING -->
     <svg id="easter-cat" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" onclick="hideCat()">
         <g id="cat-head">
             <path class="cat-fill" d="M10 50 L20 10 L45 35 L55 35 L80 10 L90 50 L90 100 L10 100 Z" fill="#F4B324"/>
@@ -40,22 +49,20 @@
         </g>
     </svg>
 
-    <!-- MODAL TIMELINE RIWAYAT REVISI -->
     <div id="modal-chat-timeline" class="overlay" style="display: none; z-index: 2000;">
         <div class="modal-card" style="max-width: 550px; text-align: left;">
-            <h2 class="lang" data-id="💬 Riwayat Percakapan Revisi" data-en="💬 Revision History Log">💬 Riwayat Percakapan Revisi</h2>
+            <h2 class="lang" data-id="Riwayat Percakapan Revisi" data-en="Revision History Log">Riwayat Percakapan Revisi</h2>
             <div id="chat-timeline-container" style="max-height: 350px; overflow-y: auto; padding: 10px; background: var(--bg-color); border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--item-border);">
             </div>
             <button class="btn-primary lang" style="background-color: var(--umy-maroon);" onclick="closeModal('modal-chat-timeline')" data-id="Tutup" data-en="Close">Tutup</button>
         </div>
     </div>
 
-    <!-- MODAL DOCUMENT PREVIEW -->
     <div id="modal-doc-preview" class="overlay" style="display: none; z-index: 2100;">
         <div class="modal-card" style="max-width: 800px; width: 95%; text-align: left; padding: 25px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin:0; color:var(--heading-color);" class="lang" data-id="👁 Preview Berkas Dokumen" data-en="👁 Document File Preview">👁 Preview Berkas Dokumen</h3>
-                <button onclick="closeModal('modal-doc-preview')" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-color);">✖</button>
+                <h3 style="margin:0; color:var(--heading-color);" class="lang" data-id="Preview Berkas Dokumen" data-en="Document File Preview">Preview Berkas Dokumen</h3>
+                <button aria-label="Tutup Modal" onclick="closeModal('modal-doc-preview')" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-color);">X</button>
             </div>
             <div style="height: 480px; width: 100%; background: #222; border-radius: 14px; overflow: hidden;">
                 <iframe id="iframe-doc-viewer" src="" style="width: 100%; height: 100%; border: none;"></iframe>
@@ -64,13 +71,12 @@
                 <p style="font-size: 13px; color: #ff5722;" class="lang" data-id="Jika dokumen tidak muncul, silakan klik tombol 'Buka di Tab Baru' di bawah." data-en="If the document does not appear, please click the 'Open in New Tab' button below.">Jika dokumen tidak muncul, silakan klik tombol 'Buka di Tab Baru' di bawah.</p>
             </div>
             <div style="display: flex; justify-content: flex-end; margin-top: 15px; gap: 10px;">
-                <a id="btn-download-direct" href="#" target="_blank" class="btn-primary lang" style="background-color: var(--umy-green); text-decoration: none; width: auto; padding: 10px 20px;" data-id="↗ Buka di Tab Baru" data-en="↗ Open in New Tab">↗ Buka di Tab Baru</a>
+                <a id="btn-download-direct" href="#" target="_blank" class="btn-primary lang" style="background-color: var(--umy-green); text-decoration: none; width: auto; padding: 10px 20px;" data-id="Buka di Tab Baru" data-en="Open in New Tab">Buka di Tab Baru</a>
                 <button class="btn-secondary lang" style="width: auto; padding: 10px 20px;" onclick="closeModal('modal-doc-preview')" data-id="Tutup" data-en="Close">Tutup</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL REVISI (ADMIN) -->
     <div id="modal-revision" class="overlay" style="display: none; z-index: 2000;">
         <div class="modal-card">
             <h2 class="lang" data-id="Pesan Revisi" data-en="Revision Note">Pesan Revisi</h2>
@@ -78,21 +84,64 @@
             <textarea id="input-rev-note" rows="4" placeholder="Misal: Transkrip belum terstempel resmi..."></textarea>
             <input type="hidden" id="hidden-rev-id">
             <div style="display: flex; gap: 15px; margin-top: 15px;">
-                <button class="btn-secondary lang" onclick="closeModal('modal-revision')" data-id="Batal" data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" onclick="submitAdminRevision()" data-id="Kirim Revisi" data-en="Send Revision">Kirim Revisi</button>
-            </div>
+                         <button class="btn-primary lang" onclick="submitAdminRevision()" data-id="Kirim Revisi" data-en="Send Revision">Kirim Revisi</button>
         </div>
     </div>
+</div>
 
-    <!-- MODAL BALASAN + UPLOAD REVISI (MAHASISWA) -->
-    <div id="modal-reply" class="overlay" style="display: none; z-index: 2000;">
-        <div class="modal-card">
-            <h2 class="lang" data-id="Kirim Perbaikan" data-en="Submit Correction">Kirim Perbaikan</h2>
+<!-- Modal Tunjuk Dosen Pembimbing (PASTE DI SINI) -->
+<div id="modal-dospem" class="overlay" style="display: none; z-index: 2000;">
+    <div class="modal-card">
+        <h2 class="lang" data-id="Tunjuk Dosen Pembimbing" data-en="Assign Supervisor">Tunjuk Dosen Pembimbing</h2>
+        <p class="lang" style="font-size: 14px; margin-bottom: 20px; color: var(--text-color);" data-id="Pilih dosen pembimbing untuk proposal mahasiswa ini:" data-en="Select supervisor for this proposal:">Pilih dosen pembimbing untuk proposal mahasiswa ini:</p>
+        
+        <div class="form-group" style="text-align: left;">
+            <select id="input-dospem-select" style="border-color: var(--item-border); border-width: 2px;">
+                <option value="">-- Pilih Dosen Pembimbing --</option>
+                <option value="Dr. Fajar Junaedi, S.Sos, M.Si">Dr. Fajar Junaedi, S.Sos, M.Si</option>
+                <option value="Dr. Muria Endah Sokowati, S.IP, M.Si">Dr. Muria Endah Sokowati, S.IP, M.Si</option>
+                <option value="Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si">Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si</option>
+                <option value="Taufiqur Rahman, S.IP, MA, Ph.D">Taufiqur Rahman, S.IP, MA, Ph.D</option>
+                <option value="Aswad Ishak, S.IP, M.Si">Aswad Ishak, S.IP, M.Si</option>
+                <option value="Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si">Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si</option>
+                <option value="Frizki Yulianti Nurnisya, S.IP, M.Si., Ph.D">Frizki Yulianti Nurnisya, S.IP, M.Si., Ph.D</option>
+                <option value="Dr. Nur Sofyan, S.I.Kom, M.I.Kom">Dr. Nur Sofyan, S.I.Kom, M.I.Kom</option>
+                <option value="Dr. Filosa Gita Sukmono, S. I.Kom, MA">Dr. Filosa Gita Sukmono, S. I.Kom, MA</option>
+                <option value="Firly Annisa, S.IP ., MA., Ph.D">Firly Annisa, S.IP ., MA., Ph.D</option>
+                <option value="Sovia Sitta Sari, S.IP, M.Si">Sovia Sitta Sari, S.IP, M.Si</option>
+                <option value="Prof. Dr. Suciati, S.Sos, M.Si">Prof. Dr. Suciati, S.Sos, M.Si</option>
+                <option value="Dr. Phil. Wulan Widyasari, S. Sos, M.A">Dr. Phil. Wulan Widyasari, S. Sos, M.A</option>
+                <option value="Haryadi Arief Nuur Rasyid, S.IP, M.Sc">Haryadi Arief Nuur Rasyid, S.IP, M.Sc</option>
+                <option value="Dr. Senja Yustitia, M.Si">Dr. Senja Yustitia, M.Si</option>
+                <option value="Dhimas Aryo Vipha Ananda, S.Sn., M.Sn">Dhimas Aryo Vipha Ananda, S.Sn., M.Sn</option>
+                <option value="Dr. Yeni Rosilawati, S.IP, S.E, M.M">Dr. Yeni Rosilawati, S.IP, S.E, M.M</option>
+                <option value="Denis Hida Lutfiana Stefani, S.Ikom., M.A">Denis Hida Lutfiana Stefani, S.Ikom., M.A</option>
+            </select>
+        </div>
+        <input type="hidden" id="hidden-dospem-id">
+        
+        <div style="display: flex; gap: 15px; margin-top: 15px;">
+            <button class="btn-secondary lang" onclick="closeModal('modal-dospem')" data-id="Batal" data-en="Cancel">Batal</button>
+            <button class="btn-primary lang" style="background-color: var(--umy-green);" onclick="submitAdminDospem()" data-id="Tunjuk & Terima" data-en="Assign & Accept">Tunjuk & Terima</button>
+        </div>
+    </div>
+</div>
+<!-- BATAS AKHIR PASTE -->
+
+<div id="modal-reply" class="overlay" style="display: none; z-index: 2000;">
+    <div class="modal-card">
+        <h2 class="lang" data-id="Kirim Perbaikan" data-en="Submit Correction">Kirim Perbaikan</h2>
             <p class="lang" style="font-size: 14px; margin-bottom: 20px; color: var(--text-color);" data-id="Upload file baru dan berikan catatan perbaikan." data-en="Upload a new file and provide notes.">Upload berkas baru Anda dan berikan catatan perbaikan untuk admin.</p>
             
             <div style="text-align: left; margin-bottom: 15px;">
                 <label style="font-size: 13px; font-weight: bold; color: var(--heading-color);">Upload Berkas Revisi (PDF / DOCX) *</label>
-                <input type="file" id="input-reply-file" accept=".pdf,.doc,.docx" required style="margin-top: 5px; background: var(--input-bg);" onchange="validateFile(this)">
+                <div class="dropzone" onclick="document.getElementById('input-reply-file').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'input-reply-file', 'name-reply-file')">
+                    <div class="dz-message">
+                        <span class="lang" data-id="Klik atau seret berkas revisi ke sini" data-en="Click or drag revision file here">Klik atau seret berkas revisi ke sini</span>
+                    </div>
+                    <div id="name-reply-file" class="dz-file-name"></div>
+                    <input type="file" id="input-reply-file" accept=".pdf,.doc,.docx" required style="display:none;" onchange="validateFile(this, 'name-reply-file')">
+                </div>
             </div>
 
             <div style="text-align: left;">
@@ -103,30 +152,38 @@
             <input type="hidden" id="hidden-reply-id">
             <div style="display: flex; gap: 15px; margin-top: 15px;">
                 <button class="btn-secondary lang" onclick="closeModal('modal-reply')" data-id="Batal" data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" style="background-color: var(--umy-gold);" onclick="submitStudentReply(event)" data-id="Kirim Ulang" data-en="Resubmit">Kirim Ulang</button>
+                <button class="btn-primary lang" style="background-color: var(--umy-gold); color: #1a1a1a;" onclick="submitStudentReply()" data-id="Kirim Ulang" data-en="Resubmit">Kirim Ulang</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL EDIT KONTEN MAGANG / SKRIPSI DLL (ADMIN) -->
     <div id="modal-edit-content" class="overlay" style="display: none; z-index: 2500;">
         <div class="modal-card" style="max-width: 700px; text-align: left;">
             <h2 id="editor-modal-title">Edit Konten</h2>
             <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Anda dapat mengubah urutan, teks, dan detail list data di bawah ini.</p>
             
             <div id="editor-ui-container" style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; padding-right: 10px;">
-                <!-- UI generated by JS -->
             </div>
             
-            <div style="display: flex; gap: 15px;">
-                <button class="btn-secondary" onclick="closeModal('modal-edit-content')">Batal</button>
-                <button class="btn-primary" onclick="saveContentChanges()" style="background-color: var(--umy-green);">Simpan Perubahan</button>
-            </div>
+                    <div style="display: flex; gap: 15px;">
+            <button class="btn-secondary" onclick="closeModal('modal-edit-content')">Batal</button>
+            <button class="btn-primary" onclick="saveContentChanges()" style="background-color: var(--umy-green);">Simpan Perubahan</button>
         </div>
     </div>
+</div>
 
-    <!-- WELCOME MODAL OVERLAY (LOGIN) -->
-    <div id="welcome-modal" class="overlay">
+<!-- Modal Pengumuman Penting (Pop-up) -->
+<div id="modal-important-announcement" class="overlay" style="display: none; z-index: 3000;">
+    <div class="modal-card" style="border-top: 6px solid var(--umy-maroon);">
+        <div style="font-size: 48px; margin-bottom: 12px;">📢</div>
+        <h2 class="lang" data-id="Pengumuman Penting!" data-en="Important Announcement!">Pengumuman Penting!</h2>
+        <p id="important-announcement-text" style="font-size: 15px; line-height: 1.6; margin-bottom: 24px; color: var(--text-color); font-weight: 500;"></p>
+        <button class="btn-primary lang" style="background-color: var(--umy-maroon);" onclick="closeModal('modal-important-announcement')" data-id="Saya Mengerti" data-en="I Understand">Saya Mengerti</button>
+    </div>
+</div>
+
+<div id="welcome-modal" class="overlay">
+    <canvas id="doodle-canvas"></canvas>
         <div class="modal-card">
             <h2 class="lang" data-id="Selamat Datang" data-en="Welcome">Selamat Datang</h2>
             
@@ -135,29 +192,24 @@
                 <div id="tab-admin" class="login-tab lang" onclick="switchLoginMode('admin')" data-id="Admin" data-en="Admin">Admin</div>
             </div>
 
-            <!-- FORM LOGIN MAHASISWA -->
-            <div id="form-mhs">
-                <p class="lang" style="font-size: 15px; color: var(--text-muted); margin-bottom: 20px;" data-id="Hanya mahasiswa Ilmu Komunikasi (Angkatan 2020 - 2026) terdaftar yang dapat masuk." data-en="Only registered Comm. Science students (Batch 2020-2026) can access.">Hanya mahasiswa Ilmu Komunikasi (Angkatan 2020 - 2026) terdaftar yang dapat masuk.</p>
+            <form id="form-mhs" onsubmit="event.preventDefault(); loginMhs();">
                 <p id="error-msg-mhs" class="error-msg"></p>
                 <input type="text" id="input-nim" placeholder="Masukkan NIM / Student ID" required>
-                <button class="btn-primary lang" onclick="loginMhs()" data-id="Masuk Portal" data-en="Enter Portal">Masuk Portal</button>
-            </div>
+                <button type="submit" class="btn-primary lang" data-id="Masuk Portal" data-en="Enter Portal">Masuk Portal</button>
+            </form>
 
-            <!-- FORM LOGIN ADMIN -->
-            <div id="form-admin" style="display:none;">
+            <form id="form-admin" style="display:none;" onsubmit="event.preventDefault(); loginAdmin();">
                 <p class="lang" style="font-size: 15px; color: var(--text-muted); margin-bottom: 20px;" data-id="Silakan masukkan kredensial Administrator." data-en="Please enter Administrator credentials.">Silakan masukkan kredensial Administrator.</p>
                 <p id="error-msg-admin" class="error-msg"></p>
                 <input type="text" id="input-admin-user" placeholder="Username" required>
                 <input type="password" id="input-admin-pass" placeholder="Password" required>
-                <button class="btn-primary lang" onclick="loginAdmin()" data-id="Masuk sebagai Admin" data-en="Login as Admin">Masuk sebagai Admin</button>
-            </div>
+                <button type="submit" class="btn-primary lang" data-id="Masuk sebagai Admin" data-en="Login as Admin">Masuk sebagai Admin</button>
+            </form>
         </div>
     </div>
 
-    <!-- HAMBURGER MENU MOBILE -->
-    <div class="mobile-nav-toggle" onclick="toggleSidebar()">☰ Menu</div>
+    <div class="mobile-nav-toggle" onclick="toggleSidebar()">Menu</div>
 
-    <!-- SIDEBAR NAVIGATION -->
     <div class="sidebar" id="main-sidebar">
         <div class="logo-area">
             <h2>IPCOS UMY</h2>
@@ -166,77 +218,132 @@
         
         <ul class="nav-tabs">
             <div class="nav-header lang" data-id="Akademik" data-en="Academics">Akademik</div>
-            <li class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-id="📊 Dashboard Utama" data-en="📊 Main Dashboard">📊 Dashboard Utama</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'magang')" data-id="💼 Kewajiban Magang" data-en="💼 Internship Requirements">💼 Kewajiban Magang</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-id="🎓 Kewajiban Skripsi" data-en="🎓 Thesis Requirements">🎓 Kewajiban Skripsi</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-id="📚 Sebaran Mata Kuliah" data-en="📚 Course Curriculum">📚 Sebaran Mata Kuliah</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'remidial')" data-id="📝 SOP Remidial" data-en="📝 Remedial SOP">📝 SOP Remidial</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'kalender')" data-id="📅 Kalender Batas TA" data-en="📅 Academic Calendar">📅 Kalender Batas TA</li>
+            <li class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-id="Dashboard Utama" data-en="Main Dashboard">Dashboard Utama</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'magang')" data-id="Kewajiban Magang" data-en="Internship Requirements">Kewajiban Magang</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-id="Kewajiban Skripsi" data-en="Thesis Requirements">Kewajiban Skripsi</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-id="Sebaran Mata Kuliah" data-en="Course Curriculum">Sebaran Mata Kuliah</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'remidial')" data-id="SOP Remidial" data-en="Remedial SOP">SOP Remidial</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'kalender')" data-id="Kalender Batas TA" data-en="Academic Calendar">Kalender Batas TA</li>
             
             <div class="nav-header lang" data-id="Layanan" data-en="Services">Layanan</div>
-            <li class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-id="📤 Pusat Pendaftaran" data-en="📤 Registration Center">📤 Pusat Pendaftaran</li>
-            <li class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-id="⏳ Status Pengajuanku" data-en="⏳ My Request Status">⏳ Status Pengajuanku</li>
+            <li class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-id="Pusat Pendaftaran" data-en="Registration Center">Pusat Pendaftaran</li>
+            <li class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-id="Status Pengajuanku" data-en="My Request Status">Status Pengajuanku</li>
             
-            <li class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-id="📋 Data Pendaftar" data-en="📋 Registered Data">📋 Data Pendaftar</li>
-            <li class="nav-item admin-only lang" id="nav-admin-online" onclick="switchTab(event, 'admin-online')" data-id="🟢 Mahasiswa Online" data-en="🟢 Online Students">🟢 Mahasiswa Online</li>
-            <li class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-id="⚙️ Master Data & Broadcast" data-en="⚙️ Master Data & Broadcast">⚙️ Master Data & Broadcast</li>
+            <li class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-id="Data Pendaftar" data-en="Registered Data">Data Pendaftar</li>
+            <li class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-id="Master Data & Broadcast" data-en="Master Data & Broadcast">Master Data & Broadcast</li>
 
             <div class="nav-header lang" data-id="Bantuan" data-en="Help">Bantuan</div>
-            <li class="nav-item lang" onclick="switchTab(event, 'feedback')" data-id="📞 Kontak Kami" data-en="📞 Contact Us">📞 Kontak Kami</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'feedback')" data-id="Kontak Kami" data-en="Contact Us">Kontak Kami</li>
         </ul>
         
-        <button class="btn-sidebar" id="lang-btn" onclick="toggleLanguage()">🇬🇧 Switch to English</button>
-        <button class="btn-sidebar lang" onclick="toggleDarkMode()" data-id="🌗 Mode Gelap / Terang" data-en="🌗 Dark / Light Mode">🌗 Mode Gelap / Terang</button>
+        <button class="btn-sidebar" id="lang-btn" onclick="toggleLanguage()">Switch to English</button>
+        <button class="btn-sidebar lang" onclick="toggleDarkMode()" data-id="Mode Gelap / Terang" data-en="Dark / Light Mode">Mode Gelap / Terang</button>
         <div class="copyright">&copy; 2026 Developed by IPCOS Team</div>
     </div>
 
-    <!-- MAIN CONTENT AREA -->
     <div class="main-content">
-        <!-- TOMBOL TOGGLE SIDEBAR DESKTOP -->
         <button class="btn-toggle-sidebar" id="btn-toggle-sidebar" onclick="toggleDesktopSidebar()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg> 
             <span class="lang" data-id="Toggle Menu" data-en="Toggle Menu">Toggle Menu</span>
         </button>
 
-        <!-- BANNER PENGUMUMAN -->
-        <div id="announcement-banner" style="display: none; background: var(--umy-gold); color: var(--text-color); padding: 15px 25px; border-radius: 16px; margin-bottom: 25px; font-weight: bold; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(244, 179, 36, 0.3);">
+        <div id="announcement-banner" style="display: none; background: var(--umy-gold); color: var(--text-color); padding: 15px 25px; border-radius: 16px; margin-bottom: 25px; font-weight: bold; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(248, 196, 99, 0.3);">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">📢</span>
                 <span id="announcement-text">Pengumuman penting di sini...</span>
             </div>
-            <button onclick="document.getElementById('announcement-banner').style.display='none'" style="background: rgba(0,0,0,0.1); border: none; color: inherit; cursor: pointer; border-radius: 50%; width: 30px; height: 30px; font-weight: bold;">✖</button>
+            <button aria-label="Tutup Pengumuman" onclick="document.getElementById('announcement-banner').style.display='none'" style="background: rgba(0,0,0,0.1); border: none; color: inherit; cursor: pointer; border-radius: 50%; width: 30px; height: 30px; font-weight: bold;">X</button>
         </div>
 
-        <!-- STUDENT INFO HEADER -->
         <div class="student-info" id="student-header" style="display: none;">
             <div class="user-greeting-wrapper">
                 <span class="lang user-label" id="label-status-user" data-id="Mahasiswa Aktif" data-en="Active Student">Mahasiswa Aktif</span>
-                <strong id="display-greeting" class="user-greeting-text">Whatsup, Nama! 👋</strong>
+                <strong id="display-greeting" class="user-greeting-text">Whatsup, Nama!</strong>
                 <span id="header-subtext" class="user-subtext">NIM: 0000000000</span>
             </div>
             <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                <button class="btn-print lang" style="background-color: var(--umy-gold); color: var(--text-color);" onclick="syncDatabase()" data-id="🔄 Refresh Data" data-en="🔄 Refresh Data">🔄 Refresh Data</button>
-                <button class="btn-logout lang" onclick="logoutUser()" data-id="🚪 Keluar" data-en="🚪 Logout">🚪 Keluar</button>
+                <button class="btn-print lang" style="background-color: var(--umy-gold); color: var(--text-color);" onclick="syncDatabase()" data-id="Refresh Data" data-en="Refresh Data">Refresh Data</button>
+                <button class="btn-logout lang" onclick="logoutUser()" data-id="Keluar" data-en="Logout">Keluar</button>
             </div>
         </div>
 
-        <!-- DASHBOARD UTAMA -->
         <div id="dashboard" class="tab-content active">
             <h1 class="lang" data-id="Dashboard Akademik" data-en="Academic Dashboard">Dashboard Akademik</h1>
-            <p class="lang" data-id="Sistem ini dirancang khusus untuk membantu mahasiswa IPCOS UMY memantau seluruh kewajiban akademik, pelacakan proses magang, pendaftaran tugas akhir, hingga jadwal batas yudisium secara presisi." data-en="This system is specially designed to help IPCOS UMY students monitor all academic obligations, track internship processes, register for final thesis, and check yudisium deadlines precisely.">Sistem ini dirancang khusus untuk membantu mahasiswa IPCOS UMY memantau seluruh kewajiban akademik, pelacakan proses magang, pendaftaran tugas akhir, hingga jadwal batas yudisium secara presisi.</p>
+            <p class="lang" style="margin-bottom: 25px;" data-id="Sistem ini dirancang khusus untuk membantu mahasiswa IPCOS UMY memantau seluruh kewajiban akademik, pelacakan proses magang, pendaftaran tugas akhir, hingga jadwal batas yudisium secara presisi." data-en="This system is specially designed to help IPCOS UMY students monitor all academic obligations, track internship processes, register for final thesis, and check yudisium deadlines precisely.">Sistem ini dirancang khusus untuk membantu mahasiswa IPCOS UMY memantau seluruh kewajiban akademik, pelacakan proses magang, pendaftaran tugas akhir, hingga jadwal batas yudisium secara presisi.</p>
 
-            <div class="countdown-card" id="yudisium-countdown-widget">
-                <div style="font-size: 13px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; opacity:0.9;" class="lang" data-id="⏰ BATAS YUDISIUM TERDEKAT" data-en="⏰ UPCOMING YUDISIUM DEADLINE">⏰ BATAS YUDISIUM TERDEKAT</div>
-                <div style="font-size:20px; font-weight:800; margin: 4px 0 10px 0;">Periode Yudisium</div>
-                <div id="countdown-timer-display" class="countdown-timer">Memuat waktu...</div>
+            <div class="bento-grid admin-only">
+                <div class="bento-card bento-col-2">
+                    <div class="bento-header">
+                        <h3 class="lang" data-id="Status Berkas Hari Ini" data-en="Today's Document Status">Status Berkas Hari Ini</h3>
+                    </div>
+                    <div class="stat-cards-grid">
+                        <div class="stat-card stat-pending">
+                            <span class="stat-num" id="stat-count-pending">0</span>
+                            <span class="stat-label">Pending</span>
+                        </div>
+                        <div class="stat-card stat-resubmitted">
+                            <span class="stat-num" id="stat-count-resubmitted">0</span>
+                            <span class="stat-label">Resubmitted</span>
+                        </div>
+                        <div class="stat-card stat-revision">
+                            <span class="stat-num" id="stat-count-revision">0</span>
+                            <span class="stat-label">Revisi</span>
+                        </div>
+                        <div class="stat-card stat-accepted">
+                            <span class="stat-num" id="stat-count-accepted">0</span>
+                            <span class="stat-label">Accepted</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bento-card bento-col-1 bento-card-dark">
+                    <div class="bento-header">
+                        <h3 style="color: var(--umy-gold);" class="lang" data-id="Batas Yudisium" data-en="Yudisium Deadline">Batas Yudisium</h3>
+                    </div>
+                    <div class="bento-body-center">
+                        <div style="font-size: 13px; font-weight: 700; color: #fff; opacity: 0.8; margin-bottom: 5px;">Periode I (TA 2026)</div>
+                        <div id="countdown-timer-display" class="bento-timer-text">Memuat...</div>
+                    </div>
+                </div>
+
+                <div class="bento-card bento-col-1">
+                    <div class="bento-header">
+                        <h3 class="lang" data-id="Rasio Verifikasi Berkas" data-en="Verification Ratio">Rasio Verifikasi Berkas</h3>
+                    </div>
+                    <div class="chart-container-bento">
+                        <canvas id="ratioChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bento-card bento-col-2">
+                    <div class="bento-header">
+                        <h3 class="lang" data-id="Pengajuan Per Jenis Ujian" data-en="Submissions by Exam Type">Pengajuan Per Jenis Ujian</h3>
+                    </div>
+                    <div class="chart-container-bento">
+                        <canvas id="typeChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bento-card bento-col-3">
+                    <div class="bento-header">
+                        <h3 class="lang" data-id="Kirim Pengumuman Cepat" data-en="Quick Broadcast Announcement">Kirim Pengumuman Cepat</h3>
+                    </div>
+                    <div class="bento-broadcast-box">
+                        <input type="text" id="input-broadcast-dashboard" placeholder="Ketik pengumuman penting di sini..." style="margin-bottom: 0;">
+                        <button class="btn-primary" onclick="postAnnouncementFromDashboard()" style="width: auto; padding: 14px 28px; white-space: nowrap;">Disebarkan</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="alert-revision-student" class="alert-box student-only" style="display:none; background: #FDECEA; border-left-color: #D9534F; color: #721C24;">
+                <strong class="lang" data-id="Perhatian:" data-en="Attention:">Perhatian:</strong>
+                <div class="lang" data-id="Anda memiliki berkas pendaftaran yang berstatus <b>Revisi</b>. Silakan cek tab <b>Status Pengajuanku</b> untuk mengunggah perbaikan." data-en="You have a registration file with <b>Revision</b> status. Please check the <b>My Request Status</b> tab to upload corrections." style="margin-top: 4px;">Anda memiliki berkas pendaftaran yang berstatus <b>Revisi</b>. Silakan cek tab <b>Status Pengajuanku</b> untuk mengunggah perbaikan.</div>
             </div>
 
             <div id="alert-checklist-reminder" class="alert-box student-only" style="display:none; background: rgba(23, 162, 184, 0.12); border-left-color: #17a2b8;">
-                <strong class="lang" data-id="📌 Status Checklist Akademik:" data-en="📌 Academic Checklist Status:">📌 Status Checklist Akademik:</strong>
+                <strong class="lang" data-id="Status Checklist Akademik:" data-en="Academic Checklist Status:">Status Checklist Akademik:</strong>
                 <div id="reminder-text-content" style="margin-top: 4px;">Menghitung progres checklist...</div>
             </div>
 
-            <!-- PROGRES MAGANG (MHS ONLY) -->
             <div class="card student-only" style="width: 100%; flex-direction: column;">
                 <h2 class="lang" data-id="Progres Magang" data-en="Internship Progress">Progres Magang</h2>
                 <div class="progress-container">
@@ -245,7 +352,6 @@
                 <p class="lang" style="font-size: 15px; color: var(--text-muted);" data-id="Selesaikan seluruh tahapan pra-magang, logbook harian, laporan akhir, hingga form pengesahan." data-en="Complete all pre-internship stages, daily logbooks, final reports, and validation forms.">Selesaikan seluruh tahapan pra-magang, logbook harian, laporan akhir, hingga form pengesahan untuk mencapai 100% kelulusan mata kuliah Magang.</p>
             </div>
 
-            <!-- PROGRES SKRIPSI (MHS ONLY) -->
             <div class="card student-only" style="width: 100%; flex-direction: column;">
                 <h2 class="lang" data-id="Progres Skripsi / Tugas Akhir" data-en="Thesis Progress">Progres Skripsi / Tugas Akhir</h2>
                 <div class="progress-container">
@@ -255,37 +361,32 @@
             </div>
         </div>
 
-        <!-- KEWAJIBAN MAGANG -->
         <div id="magang" class="tab-content">
             <h1 class="lang" data-id="Kewajiban Magang (2 SKS)" data-en="Internship Requirements (2 Credits)">Kewajiban Magang (2 SKS)</h1>
             <div class="card">
-                <!-- TOMBOL EDIT UNTUK ADMIN -->
-                <button class="btn-primary admin-only" onclick="openContentEditor('magang')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Konten Magang</button>
+                <button class="btn-primary admin-only" onclick="openContentEditor('magang')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten Magang</button>
                 
-                <!-- CHECKLIST KHUSUS MAHASISWA -->
                 <div class="student-only" style="width: 100%; flex-direction: column;">
                     <h2 class="lang" data-id="Checklist Pemberkasan & Pelaksanaan" data-en="Documentation & Implementation Checklist">Checklist Pemberkasan & Pelaksanaan</h2>
+                    <p class="lang" data-id="*Catatan: Progres ini hanya tersimpan di perangkat/browser yang sedang Anda gunakan saat ini." data-en="*Note: This progress is only saved on the device/browser you are currently using." style="font-size: 13px; color: var(--umy-maroon); font-style: italic; margin-bottom: 15px;">*Catatan: Progres ini hanya tersimpan di perangkat/browser yang sedang Anda gunakan saat ini.</p>
                     <div id="magang-checklist-container"></div>
                 </div>
             </div>
         </div>
 
-        <!-- KEWAJIBAN SKRIPSI -->
         <div id="skripsi" class="tab-content">
             <h1 class="lang" data-id="Tugas Akhir / Skripsi (6 SKS)" data-en="Final Thesis (6 Credits)">Tugas Akhir / Skripsi (6 SKS)</h1>
             <div class="card">
-                <!-- TOMBOL EDIT UNTUK ADMIN -->
-                <button class="btn-primary admin-only" onclick="openContentEditor('skripsi')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Konten Skripsi</button>
+                <button class="btn-primary admin-only" onclick="openContentEditor('skripsi')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten Skripsi</button>
                 
-                <!-- CHECKLIST KHUSUS MAHASISWA -->
                 <div class="student-only" style="width: 100%; flex-direction: column;">
                     <h2 class="lang" data-id="Checklist Tahapan Skripsi" data-en="Thesis Phase Checklist">Checklist Tahapan Skripsi</h2>
+                    <p class="lang" data-id="*Catatan: Progres ini hanya tersimpan di perangkat/browser yang sedang Anda gunakan saat ini." data-en="*Note: This progress is only saved on the device/browser you are currently using." style="font-size: 13px; color: var(--umy-maroon); font-style: italic; margin-bottom: 15px;">*Catatan: Progres ini hanya tersimpan di perangkat/browser yang sedang Anda gunakan saat ini.</p>
                     <div id="skripsi-checklist-container"></div>
                 </div>
             </div>
         </div>
 
-        <!-- PUSAT PENDAFTARAN -->
         <div id="pendaftaran" class="tab-content">
             <h1 class="lang" data-id="Pusat Pendaftaran Ujian & Skripsi" data-en="Exam & Thesis Registration Center">Pusat Pendaftaran Ujian & Skripsi</h1>
             <p class="lang" data-id="Silakan pilih formulir pendaftaran yang ingin Anda ajukan." data-en="Please select the registration form you want to submit.">Silakan pilih formulir pendaftaran yang ingin Anda ajukan. Berkas akan terunggah langsung ke Google Drive Kampus.</p>
@@ -298,13 +399,12 @@
                         <option value="Outline" class="lang" data-id="Pengajuan Outline Skripsi" data-en="Thesis Outline Submission">Pengajuan Outline Skripsi</option>
                         <option value="Proposal" class="lang" data-id="Ujian Seminar Proposal" data-en="Proposal Seminar Exam">Ujian Seminar Proposal</option>
                         <option value="Pendadaran" class="lang" data-id="Ujian Pendadaran" data-en="Thesis Defense Exam">Ujian Pendadaran</option>
-                        <!-- OPSI SKRIPSI JURNAL DITAMBAHKAN -->
                         <option value="Skripsi Jurnal" class="lang" data-id="Ujian Skripsi Jurnal" data-en="Journal Thesis Exam">Ujian Skripsi Jurnal</option>
+                        <option value="Pergantian Pembimbing" class="lang" data-id="Pengajuan Pergantian Dosen Pembimbing" data-en="Change of Thesis Supervisor">Pengajuan Pergantian Dosen Pembimbing</option>
                     </select>
                 </div>
                 
                 <form id="dynamic-exam-form" onsubmit="submitForm(event)" style="display: none; margin-top: 25px; border-top: 1px solid var(--item-border); padding-top: 25px;">
-                    
                     <div class="form-group" id="group-judul">
                         <label>Judul Skripsi / Tugas Akhir *</label>
                         <input type="text" id="reg-judul" placeholder="Masukkan judul..." required>
@@ -312,24 +412,35 @@
 
                     <div id="req-outline-only" style="display:none;">
                         <div class="form-group">
-                            <label>Upload Transkrip Nilai (PDF, Max 3MB) *</label>
-                            <input type="file" id="file-transkrip" accept=".pdf" class="file-upload" onchange="validateFile(this)">
+                            <label>Upload Transkrip Nilai (PDF, Max 10MB) *</label>
+                            <div class="dropzone" onclick="document.getElementById('file-transkrip').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'file-transkrip', 'name-transkrip')">
+                                <div class="dz-message"><span class="lang" data-id="Klik atau seret file PDF ke sini" data-en="Click or drag PDF file here">Klik atau seret file PDF ke sini</span></div>
+                                <div id="name-transkrip" class="dz-file-name"></div>
+                                <input type="file" id="file-transkrip" accept=".pdf" style="display:none;" onchange="validateFile(this, 'name-transkrip')">
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label>Upload Draft Proposal (PDF/DOCX, Max 3MB) *</label>
-                            <input type="file" id="file-proposal" accept=".pdf,.doc,.docx" class="file-upload" onchange="validateFile(this)">
+                            <label>Upload Draft Proposal (PDF/DOCX, Max 10MB) *</label>
+                            <div class="dropzone" onclick="document.getElementById('file-proposal').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'file-proposal', 'name-proposal')">
+                                <div class="dz-message"><span class="lang" data-id="Klik atau seret file Dokumen ke sini" data-en="Click or drag Document file here">Klik atau seret file Dokumen ke sini</span></div>
+                                <div id="name-proposal" class="dz-file-name"></div>
+                                <input type="file" id="file-proposal" accept=".pdf,.doc,.docx" style="display:none;" onchange="validateFile(this, 'name-proposal')">
+                            </div>
                         </div>
                     </div>
 
                     <div id="req-sempro-only" style="display:none;">
                         <div class="form-group">
-                            <label>Upload Bukti ACC Proposal (PDF/Gambar, Max 3MB) *</label>
-                            <input type="file" id="file-acc-sempro" accept=".pdf,.png,.jpg,.jpeg" class="file-upload" onchange="validateFile(this)">
+                            <label>Upload Bukti ACC Proposal (PDF/Gambar, Max 10MB) *</label>
+                            <div class="dropzone" onclick="document.getElementById('file-acc-sempro').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'file-acc-sempro', 'name-acc-sempro')">
+                                <div class="dz-message"><span class="lang" data-id="Klik atau seret file Gambar/PDF ke sini" data-en="Click or drag Image/PDF file here">Klik atau seret file Gambar/PDF ke sini</span></div>
+                                <div id="name-acc-sempro" class="dz-file-name"></div>
+                                <input type="file" id="file-acc-sempro" accept=".pdf,.png,.jpg,.jpeg" style="display:none;" onchange="validateFile(this, 'name-acc-sempro')">
+                            </div>
                         </div>
                     </div>
 
                     <div id="req-pendadaran" style="display:none;">
-                        <!-- INFO SYARAT PENDADARAN -->
                         <div class="alert-box" style="margin-top: 5px; margin-bottom: 25px; border-left-color: var(--umy-green); background-color: rgba(0, 73, 44, 0.05);">
                             <strong style="color: var(--heading-color);">Syarat Dokumen Pendaftaran Ujian Pendadaran:</strong>
                             <ol style="margin-top: 10px; margin-bottom: 10px; padding-left: 20px; font-size: 14px; line-height: 1.6;">
@@ -341,22 +452,19 @@
                                 <li>Fotocopy KTM</li>
                                 <li>Fotocopy Slip pembayaran pendadaran/ screenshoot transfer pembayaran</li>
                                 <li>Print pembayaran bimbingan skripsi (awal hingga akhir)</li>
-                                <li>Fotocopy Sertifikat Toefl (minimal 500), jika tidak dapat memenuhi skor minimal (≤ 450) maka mahasiswa harus mengumpulkan sertifikat toefl sebanyak 3 kali ujian</li>
+                                <li>Fotocopy Sertifikat Toefl (minimal 500)</li>
                                 <li>Foto 4x6 warna dengan background merah (1 lembar)</li>
                                 <li>Revisi ujian proposal & berita acara</li>
                                 <li>Fotocopy BNSP</li>
                                 <li>Sertifikat international exposure wajib bagi semua angkatan</li>
-                                <li>Sudah melakukan proofread ke-1 pre pendadaran (akan dilanjutkan proofread ke-2 pra ujian)</li>
+                                <li>Sudah melakukan proofread ke-1 pre pendadaran</li>
                             </ol>
-                            <span style="font-size: 13px; font-weight: bold; color: var(--umy-maroon); display: block; margin-top: 10px;">
-                                * Seluruh dokumen persyaratan dikumpulkan ke dalam map kertas berwarna hijau dan dikumpulkan ke Kantor IPCOS (dibuka setiap awal bulan tanggal 1-10)
-                            </span>
                         </div>
 
                         <div class="form-group">
                             <label>Dosen Pembimbing *</label>
                             <select id="reg-supervisor">
-                                <option value="" class="lang" data-id="-- Pilih Dosen Pembimbing --" data-en="-- Select Supervisor --">-- Pilih Dosen Pembimbing --</option>
+                                <option value="">-- Pilih Dosen Pembimbing --</option>
                                 <option value="Dr. Fajar Junaedi, S.Sos, M.Si">Dr. Fajar Junaedi, S.Sos, M.Si</option>
                                 <option value="Dr. Muria Endah Sokowati, S.IP, M.Si">Dr. Muria Endah Sokowati, S.IP, M.Si</option>
                                 <option value="Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si">Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si</option>
@@ -378,20 +486,97 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Upload Berkas Lengkap Pendadaran (ZIP/PDF, Max 3MB) *</label>
-                            <input type="file" id="file-folder-pendadaran" accept=".zip,.pdf,.rar" class="file-upload" onchange="validateFile(this)">
+                            <label>Upload Berkas Lengkap Pendadaran (ZIP/PDF, Max 10MB) *</label>
+                            <div class="dropzone" onclick="document.getElementById('file-folder-pendadaran').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'file-folder-pendadaran', 'name-folder-pendadaran')">
+                                <div class="dz-message"><span class="lang" data-id="Klik atau seret file Arsip ke sini" data-en="Click or drag Archive file here">Klik atau seret file Arsip ke sini</span></div>
+                                <div id="name-folder-pendadaran" class="dz-file-name"></div>
+                                <input type="file" id="file-folder-pendadaran" accept=".zip,.pdf,.rar" style="display:none;" onchange="validateFile(this, 'name-folder-pendadaran')">
+                            </div>
                         </div>
                     </div>
 
-                    <!-- FORM KHUSUS SKRIPSI JURNAL -->
                     <div id="req-jurnal-only" style="display:none;">
                         <div class="form-group">
-                            <label>Upload LoA / Bukti Submit Jurnal (PDF/JPG, Max 3MB) *</label>
-                            <input type="file" id="file-loa-jurnal" accept=".pdf,.png,.jpg,.jpeg" class="file-upload" onchange="validateFile(this)">
+                            <label>Upload LoA / Bukti Submit Jurnal (PDF/JPG, Max 10MB) *</label>
+                            <div class="dropzone" onclick="document.getElementById('file-loa-jurnal').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'file-loa-jurnal', 'name-loa-jurnal')">
+                                <div class="dz-message"><span class="lang" data-id="Klik atau seret file LoA ke sini" data-en="Click or drag LoA file here">Klik atau seret file LoA ke sini</span></div>
+                                <div id="name-loa-jurnal" class="dz-file-name"></div>
+                                <input type="file" id="file-loa-jurnal" accept=".pdf,.png,.jpg,.jpeg" style="display:none;" onchange="validateFile(this, 'name-loa-jurnal')">
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label>Upload Draft Jurnal (PDF/DOCX, Max 3MB) *</label>
-                            <input type="file" id="file-draft-jurnal" accept=".pdf,.doc,.docx" class="file-upload" onchange="validateFile(this)">
+                            <label>Upload Draft Jurnal (PDF/DOCX, Max 10MB) *</label>
+                            <div class="dropzone" onclick="document.getElementById('file-draft-jurnal').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'file-draft-jurnal', 'name-draft-jurnal')">
+                                <div class="dz-message"><span class="lang" data-id="Klik atau seret file Draft ke sini" data-en="Click or drag Draft file here">Klik atau seret file Draft ke sini</span></div>
+                                <div id="name-draft-jurnal" class="dz-file-name"></div>
+                                <input type="file" id="file-draft-jurnal" accept=".pdf,.doc,.docx" style="display:none;" onchange="validateFile(this, 'name-draft-jurnal')">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="req-ganti-dosen" style="display:none;">
+                        <div class="form-group">
+                            <label>Dosen Pembimbing Saat Ini *</label>
+                            <select id="reg-dosen-lama" style="margin-bottom: 15px;">
+                                <option value="">-- Pilih Dosen Pembimbing Saat Ini --</option>
+                                <option value="Dr. Fajar Junaedi, S.Sos, M.Si">Dr. Fajar Junaedi, S.Sos, M.Si</option>
+                                <option value="Dr. Muria Endah Sokowati, S.IP, M.Si">Dr. Muria Endah Sokowati, S.IP, M.Si</option>
+                                <option value="Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si">Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si</option>
+                                <option value="Taufiqur Rahman, S.IP, MA, Ph.D">Taufiqur Rahman, S.IP, MA, Ph.D</option>
+                                <option value="Aswad Ishak, S.IP, M.Si">Aswad Ishak, S.IP, M.Si</option>
+                                <option value="Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si">Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si</option>
+                                <option value="Frizki Yulianti Nurnisya, S.IP, M.Si., Ph.D">Frizki Yulianti Nurnisya, S.IP, M.Si., Ph.D</option>
+                                <option value="Dr. Nur Sofyan, S.I.Kom, M.I.Kom">Dr. Nur Sofyan, S.I.Kom, M.I.Kom</option>
+                                <option value="Dr. Filosa Gita Sukmono, S. I.Kom, MA">Dr. Filosa Gita Sukmono, S. I.Kom, MA</option>
+                                <option value="Firly Annisa, S.IP ., MA., Ph.D">Firly Annisa, S.IP ., MA., Ph.D</option>
+                                <option value="Sovia Sitta Sari, S.IP, M.Si">Sovia Sitta Sari, S.IP, M.Si</option>
+                                <option value="Prof. Dr. Suciati, S.Sos, M.Si">Prof. Dr. Suciati, S.Sos, M.Si</option>
+                                <option value="Dr. Phil. Wulan Widyasari, S. Sos, M.A">Dr. Phil. Wulan Widyasari, S. Sos, M.A</option>
+                                <option value="Haryadi Arief Nuur Rasyid, S.IP, M.Sc">Haryadi Arief Nuur Rasyid, S.IP, M.Sc</option>
+                                <option value="Dr. Senja Yustitia, M.Si">Dr. Senja Yustitia, M.Si</option>
+                                <option value="Dhimas Aryo Vipha Ananda, S.Sn., M.Sn">Dhimas Aryo Vipha Ananda, S.Sn., M.Sn</option>
+                                <option value="Dr. Yeni Rosilawati, S.IP, S.E, M.M">Dr. Yeni Rosilawati, S.IP, S.E, M.M</option>
+                                <option value="Denis Hida Lutfiana Stefani, S.Ikom., M.A">Denis Hida Lutfiana Stefani, S.Ikom., M.A</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Calon Dosen Pembimbing Baru *</label>
+                            <select id="reg-dosen-baru" style="margin-bottom: 15px;">
+                                <option value="">-- Pilih Dosen Pembimbing Baru --</option>
+                                <option value="Dr. Fajar Junaedi, S.Sos, M.Si">Dr. Fajar Junaedi, S.Sos, M.Si</option>
+                                <option value="Dr. Muria Endah Sokowati, S.IP, M.Si">Dr. Muria Endah Sokowati, S.IP, M.Si</option>
+                                <option value="Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si">Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si</option>
+                                <option value="Taufiqur Rahman, S.IP, MA, Ph.D">Taufiqur Rahman, S.IP, MA, Ph.D</option>
+                                <option value="Aswad Ishak, S.IP, M.Si">Aswad Ishak, S.IP, M.Si</option>
+                                <option value="Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si">Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si</option>
+                                <option value="Frizki Yulianti Nurnisya, S.IP, M.Si., Ph.D">Frizki Yulianti Nurnisya, S.IP, M.Si., Ph.D</option>
+                                <option value="Dr. Nur Sofyan, S.I.Kom, M.I.Kom">Dr. Nur Sofyan, S.I.Kom, M.I.Kom</option>
+                                <option value="Dr. Filosa Gita Sukmono, S. I.Kom, MA">Dr. Filosa Gita Sukmono, S. I.Kom, MA</option>
+                                <option value="Firly Annisa, S.IP ., MA., Ph.D">Firly Annisa, S.IP ., MA., Ph.D</option>
+                                <option value="Sovia Sitta Sari, S.IP, M.Si">Sovia Sitta Sari, S.IP, M.Si</option>
+                                <option value="Prof. Dr. Suciati, S.Sos, M.Si">Prof. Dr. Suciati, S.Sos, M.Si</option>
+                                <option value="Dr. Phil. Wulan Widyasari, S. Sos, M.A">Dr. Phil. Wulan Widyasari, S. Sos, M.A</option>
+                                <option value="Haryadi Arief Nuur Rasyid, S.IP, M.Sc">Haryadi Arief Nuur Rasyid, S.IP, M.Sc</option>
+                                <option value="Dr. Senja Yustitia, M.Si">Dr. Senja Yustitia, M.Si</option>
+                                <option value="Dhimas Aryo Vipha Ananda, S.Sn., M.Sn">Dhimas Aryo Vipha Ananda, S.Sn., M.Sn</option>
+                                <option value="Dr. Yeni Rosilawati, S.IP, S.E, M.M">Dr. Yeni Rosilawati, S.IP, S.E, M.M</option>
+                                <option value="Denis Hida Lutfiana Stefani, S.Ikom., M.A">Denis Hida Lutfiana Stefani, S.Ikom., M.A</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Keterangan / Alasan Pergantian *</label>
+                            <textarea id="reg-alasan-ganti" rows="3" placeholder="Misal: Perubahan fokus objek penelitian..." style="margin-top: 5px;"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Upload Surat Pengajuan Ganti Dosen (PDF, Max 10MB) *</label>
+                            <div class="dropzone" onclick="document.getElementById('file-surat-ganti').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'file-surat-ganti', 'name-surat-ganti')">
+                                <div class="dz-message"><span class="lang" data-id="Klik atau seret Surat PDF ke sini" data-en="Click or drag Letter PDF here">Klik atau seret Surat PDF ke sini</span></div>
+                                <div id="name-surat-ganti" class="dz-file-name"></div>
+                                <input type="file" id="file-surat-ganti" accept=".pdf" style="display:none;" onchange="validateFile(this, 'name-surat-ganti')">
+                            </div>
                         </div>
                     </div>
 
@@ -400,7 +585,6 @@
             </div>
         </div>
 
-        <!-- TAB MAHASISWA: STATUS PENGAJUANKU -->
         <div id="student-status" class="tab-content">
             <h1 class="lang" data-id="Status Pengajuan Saya" data-en="My Submission Status">Status Pengajuan Saya</h1>
             <p class="lang" data-id="Pantau hasil verifikasi dokumen pendaftaran ujian Anda di sini." data-en="Monitor your exam registration document verification results here.">Pantau hasil verifikasi dokumen pendaftaran ujian Anda di sini.</p>
@@ -416,99 +600,78 @@
                                 <th>Tindakan & Riwayat</th>
                             </tr>
                         </thead>
-                        <tbody id="table-my-status">
-                        </tbody>
+                        <tbody id="table-my-status"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- TAB ADMIN: DATA PENDAFTARAN -->
         <div id="admin-data" class="tab-content">
             <h1 class="lang" data-id="Data Pendaftaran Mahasiswa" data-en="Student Registration Data">Data Pendaftaran Mahasiswa</h1>
             
             <div class="card">
                 <div class="admin-table-controls">
-                    <input type="text" id="admin-search-input" placeholder="🔍 Cari Nama / NIM..." onkeyup="filterAdminData()" style="max-width: 280px; margin-bottom: 0;">
+                    <input type="text" id="admin-search-input" placeholder="Cari Nama / NIM..." onkeyup="debounceAdminSearch()" style="max-width: 280px; margin-bottom: 0;">
                     
                     <select id="admin-status-filter" onchange="filterAdminData()" style="max-width: 220px; margin-bottom: 0;">
                         <option value="ALL">-- Semua Status --</option>
-                        <option value="Pending">🟡 Sedang Diverifikasi</option>
-                        <option value="Revision">🔴 Perlu Revisi</option>
-                        <option value="Resubmitted">🔵 Direvisi Mhs</option>
-                        <option value="Accepted">🟢 Diterima</option>
+                        <option value="Pending">Sedang Diverifikasi</option>
+                        <option value="Revision">Perlu Revisi</option>
+                        <option value="Resubmitted">Direvisi Mhs</option>
+                        <option value="Accepted">Diterima</option>
                     </select>
 
-                    <button class="btn-primary lang" onclick="exportAdminDataCSV()" style="background-color: var(--umy-green); width: auto; padding: 12px 20px; margin-left: auto;" data-id="📥 Ekspor CSV" data-en="📥 Export CSV">📥 Ekspor CSV</button>
+                    <button class="btn-primary lang" onclick="exportAdminDataCSV()" style="background-color: var(--umy-green); width: auto; padding: 12px 20px; margin-left: auto;" data-id="Ekspor CSV" data-en="Export CSV">Ekspor CSV</button>
                 </div>
 
-                <div style="overflow-x: auto;">
-                    <table>
+                <div style="overflow-x: auto; max-height: 60vh;">
+                    <table id="admin-table-main">
                         <thead>
                             <tr>
-                                <th onclick="toggleSortDate()" style="cursor: pointer;" title="Klik untuk mengurutkan tanggal">Tanggal Waktu <span id="admin-sort-icon">⬇️</span></th>
-                                <th>Mahasiswa</th>
-                                <th>Jenis Formulir</th>
-                                <th>Link Berkas</th>
-                                <th>Status & Riwayat</th>
-                                <th>Aksi</th>
+                                <th class="sticky-th" onclick="toggleSortDate()" style="cursor: pointer;" title="Klik untuk mengurutkan tanggal">Tanggal Waktu <span id="admin-sort-icon"></span></th>
+                                <th class="sticky-th">Mahasiswa</th>
+                                <th class="sticky-th">Jenis Formulir</th>
+                                <th class="sticky-th">Link Berkas</th>
+                                <th class="sticky-th">Status & Riwayat</th>
+                                <th class="sticky-th">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody id="table-admin-reg">
-                        </tbody>
+                        <tbody id="table-admin-reg"></tbody>
                     </table>
                 </div>
                 
-                <div class="pagination">
-                    <button id="admin-btn-prev" onclick="changeAdminPage(-1)">Mundur</button>
-                    <span id="admin-page-info">Halaman 1 / 1</span>
-                    <button id="admin-btn-next" onclick="changeAdminPage(1)">Maju</button>
+                <div class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px;">
+                    <button id="admin-btn-prev" class="btn-secondary" style="width: auto; padding: 8px 16px; font-size: 14px;" onclick="changeAdminPage(-1)">Mundur</button>
+                    <span id="admin-page-info" style="font-weight: bold;">Halaman 1 / 1</span>
+                    <button id="admin-btn-next" class="btn-secondary" style="width: auto; padding: 8px 16px; font-size: 14px;" onclick="changeAdminPage(1)">Maju</button>
                 </div>
-
-            </div>
-        </div>
-        
-        <!-- TAB ADMIN: MAHASISWA ONLINE -->
-        <div id="admin-online" class="tab-content">
-            <h1 class="lang" data-id="Pemantauan Mahasiswa Online" data-en="Online Students Monitoring">Pemantauan Mahasiswa Online</h1>
-            <p class="lang" data-id="Pantau aktivitas mahasiswa secara real-time di dalam portal." data-en="Monitor student activities in real-time within the portal.">Pantau aktivitas mahasiswa secara real-time di dalam portal.</p>
-            <div id="online-students-list" style="margin-top: 25px;">
             </div>
         </div>
 
-        <!-- TAB ADMIN: MASTER DATA & BROADCAST -->
         <div id="admin-master" class="tab-content">
             <h1 class="lang" data-id="Pengaturan Master Data" data-en="Master Data Settings">Pengaturan Master Data & Broadcast</h1>
-            
-            <!-- DASHBOARD ANALYTICS CHARTS -->
-            <div class="card">
-                <h2 style="margin-top: 0;" class="lang" data-id="Statistik Pendaftaran" data-en="Registration Statistics">Statistik Pendaftaran</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; align-items: center;">
-                    <div style="height: 250px; position: relative;">
-                        <canvas id="ratioChart"></canvas>
-                    </div>
-                    <div style="height: 250px; position: relative;">
-                        <canvas id="typeChart"></canvas>
-                    </div>
-                </div>
-            </div>
 
-            <!-- BROADCAST PENGUMUMAN -->
-            <div class="card">
+                      <div class="card">
                 <h2 class="lang" data-id="Broadcast Pengumuman Baru" data-en="Broadcast New Announcement">Broadcast Pengumuman Baru</h2>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                     <input type="text" id="input-broadcast" placeholder="Ketik pengumuman (misal: Batas yudisium diperpanjang)..." style="flex-grow: 1; margin-bottom: 0;">
-                    <button class="btn-primary" onclick="postAnnouncement()" style="width: auto;">Kirim Pesan 📢</button>
+                    
+                    <!-- Checkbox Opsi Pesan Penting -->
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13.5px; font-weight: 700; color: var(--heading-color); background: var(--item-bg); border: 1px solid var(--item-border); padding: 12px 18px; border-radius: 12px; transition: var(--trans-fast);">
+                        <input type="checkbox" id="check-important-broadcast" style="width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: var(--umy-maroon);">
+                        <span class="lang" data-id="Jadikan Pesan Penting (Pop-up)" data-en="Mark as Important (Pop-up)">Jadikan Pesan Penting (Pop-up)</span>
+                    </label>
+
+                    <button class="btn-primary" onclick="postAnnouncement()" style="width: auto;">Kirim Pesan</button>
                 </div>
             </div>
 
-            <!-- CRUD AKSES MAHASISWA -->
             <div class="card">
                 <h2 class="lang" data-id="Manajemen Akses Mahasiswa" data-en="Student Access Management">Manajemen Akses Mahasiswa</h2>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
                     <input type="text" id="add-nim" placeholder="NIM Baru" style="width: 25%; margin-bottom: 0;">
                     <input type="text" id="add-nama" placeholder="Nama Mahasiswa Lengkap" style="width: 45%; margin-bottom: 0;">
-                    <button class="btn-primary" style="background: var(--umy-green); width: auto; flex-grow: 1;" onclick="addStudent()">+ Tambah Akses</button>
+                    <button class="btn-primary" style="background: var(--umy-green); width: auto; flex-grow: 1;" onclick="addStudent()">Tambah Akses</button>
                 </div>
                 <div style="overflow-x: auto;">
                     <table>
@@ -521,69 +684,61 @@
             </div>
         </div>
 
-        <!-- SEBARAN MATA KULIAH -->
         <div id="kurikulum" class="tab-content">
             <h1 class="lang" data-id="Sebaran Mata Kuliah IPCOS" data-en="IPCOS Course Curriculum">Sebaran Mata Kuliah IPCOS</h1>
             <p class="lang" data-id="Daftar Kurikulum berdasarkan peminatan Public Relations." data-en="Curriculum list based on Public Relations specialization.">Daftar Kurikulum berdasarkan peminatan Public Relations.</p>
             
-            <button class="btn-primary admin-only" onclick="openContentEditor('kurikulum')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Konten Kurikulum</button>
-            <div id="kurikulum-content-container" class="student-only" style="width: 100%; flex-direction: column;">
-                <!-- DYNAMIC CONTENT RENDERED BY JS -->
-            </div>
+            <button class="btn-primary admin-only" onclick="openContentEditor('kurikulum')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten Kurikulum</button>
+            <div id="kurikulum-content-container" class="student-only" style="width: 100%; flex-direction: column;"></div>
         </div>
 
-        <!-- SOP REMIDIAL -->
         <div id="remidial" class="tab-content">
             <h1 class="lang" data-id="SOP & Prosedur Pelaksanaan Remidial" data-en="Remedial SOP & Implementation Procedures">SOP & Prosedur Pelaksanaan Remidial</h1>
-            <div class="alert-box">
-                <strong class="lang" data-id="Catatan Penting:" data-en="Important Note:">Catatan Penting:</strong><br>
+            
+            <div class="alert-box remedial-alert" style="border-left-color: var(--umy-gold); background-color: rgba(244, 179, 36, 0.15);">
+                <strong class="lang" style="color: var(--heading-color);" data-id="Catatan Penting:" data-en="Important Note:">Catatan Penting:</strong><br>
                 <span class="lang" data-id="Nilai maksimal remidial berbayar adalah BC. Mahasiswa wajib memenuhi 100% kehadiran bimbingan sesuai SKS, dan wajib lulus uji kompetensi." data-en="Maximum grade for paid remedial is BC. Students must fulfill 100% mentoring attendance according to credits, and must pass the competency test.">Nilai maksimal remidial berbayar adalah <b>BC</b>. Mahasiswa wajib memenuhi <b>100% kehadiran</b> bimbingan sesuai SKS, dan wajib lulus uji kompetensi.</span>
             </div>
             
             <div class="card">
-                <button class="btn-primary admin-only" onclick="openContentEditor('remidial')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit SOP Remidial</button>
+                <button class="btn-primary admin-only" onclick="openContentEditor('remidial')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit SOP Remidial</button>
                 <h2 class="lang student-only" data-id="Alur Remidial" data-en="Remedial Flow" style="width: 100%;">Alur Remidial</h2>
                 
-                <div id="remidial-content-container" class="student-only" style="width: 100%; flex-direction: column;">
-                    <!-- DYNAMIC TABLE RENDERED BY JS -->
-                </div>
+                <div id="remidial-content-container" class="student-only" style="width: 100%; flex-direction: column;"></div>
             </div>
         </div>
 
-        <!-- KALENDER BATAS TUGAS AKHIR -->
         <div id="kalender" class="tab-content">
             <h1 class="lang" data-id="Kalender Yudisium & Wisuda (TA 2026/2027)" data-en="Yudisium & Graduation Calendar (2026/2027)">Kalender Yudisium & Wisuda (TA 2026/2027)</h1>
             <p class="lang" data-id="Jadwal batas akhir (deadline) resmi berdasarkan Keputusan Rektor UMY." data-en="Official deadline schedule based on the UMY Rector's Decree.">Jadwal batas akhir (deadline) resmi berdasarkan Keputusan Rektor UMY.</p>
             
-            <button class="btn-primary admin-only" onclick="openContentEditor('kalender')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">⚙️ Edit Kalender TA</button>
+            <button class="btn-primary admin-only" onclick="openContentEditor('kalender')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Kalender TA</button>
             
             <div class="student-only" style="width: 100%; flex-direction: column;">
-                <div id="kalender-content-container" class="calendar-grid">
-                    <!-- DYNAMIC CALENDAR CARDS RENDERED BY JS -->
-                </div>
+                <div id="kalender-content-container" class="calendar-grid"></div>
             </div>
         </div>
         
-        <!-- KONTAK KAMI -->
         <div id="feedback" class="tab-content">
             <h1 class="lang" data-id="Kontak Kami" data-en="Contact Us">Kontak Kami</h1>
             <p class="lang" data-id="Punya kendala, pertanyaan, atau saran untuk pengembangan layanan akademik IPCOS UMY? Jangan ragu untuk menghubungi tim layanan kami melalui kanal di bawah ini!" data-en="Have issues, questions, or suggestions to improve IPCOS UMY academic services? Don't hesitate to contact our service team through the channels below!">Punya kendala, pertanyaan, atau saran untuk pengembangan layanan akademik IPCOS UMY? Jangan ragu untuk menghubungi tim layanan kami melalui kanal di bawah ini!</p>
             <div class="card" style="text-align: center; padding: 40px;">
                 <h2 style="margin-top: 0;" class="lang" data-id="Hubungi Kami" data-en="Contact Us">Hubungi Kami</h2>
                 <p style="margin-bottom: 30px;" class="lang" data-id="Kami siap membantu mempermudah perjalanan akademikmu." data-en="We are ready to help facilitate your academic journey.">Kami siap membantu mempermudah perjalanan akademikmu.</p>
-                <a href="https://wa.me/6285172228960" target="_blank" class="btn-contact btn-whatsapp">💬 WhatsApp</a>
-                <a href="https://instagram.com/ipcosumy" target="_blank" class="btn-contact btn-instagram">📸 Instagram</a>
+                <a href="https://wa.me/6285172228960" target="_blank" class="btn-contact btn-whatsapp">WhatsApp</a>
+                <a href="https://instagram.com/ipcosumy" target="_blank" class="btn-contact btn-instagram">Instagram</a>
             </div>
         </div>
-    </div> <!-- Penutup untuk main-content -->
+    </div> 
 
-    <!-- WHATSAPP FLOATING BUTTON (HUBUNGI MINCOS) -->
     <div id="wa-float-btn" class="wa-float-container" onclick="window.open('https://wa.me/6285172228960', '_blank')">
         <div class="wa-bumper lang" data-id="Hubungi Mincos" data-en="Contact Mincos">Hubungi Mincos</div>
         <div class="wa-icon-circle">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="white"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766 0 1.011.263 1.996.763 2.862l-.815 2.977 3.047-.8c.84.463 1.79.707 2.77.707h.001c3.18 0 5.767-2.586 5.767-5.766 0-3.18-2.587-5.767-5.765-5.767zm0 10.428c-.854 0-1.69-.229-2.42-.662l-.174-.103-1.8.472.483-1.753-.113-.18c-.475-.758-.727-1.638-.727-2.548 0-2.651 2.156-4.807 4.808-4.807 2.651 0 4.808 2.156 4.808 4.807 0 2.652-2.157 4.808-4.809 4.808z"/></svg>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="white"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766 0 1.011.263 1.996.763 2.862l-.815 2.977 3.047-.8c.84.463 1.79.707 2.77.707h.001c3.18 0 5.767-2.586 5.767-5.766 0-3.18-2.587-5.767-5.765-5.767zm0 10.428c-.854 0-1.69-.229-2.42-.662l-.174-.103-1.8.472.483-1.753-.113-.18c-.475-.758-.727-1.638-.727-2.548 0-2.651 2.156-4.807 4.808-4.807 2.651 0 4.808 2.156 4.808 4.808 0 2.652-2.157 4.808-4.809 4.808z"/></svg>
         </div>
     </div>
+
+    <canvas id="confetti-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; display: none;"></canvas>
 
     <script src="script.js"></script>
 </body>
