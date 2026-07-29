@@ -80,7 +80,7 @@ function initDoodleCanvas() {
             mouse.x = e.touches[0].clientX;
             mouse.y = e.touches[0].clientY;
         }
-    });
+    }, { passive: true });
 
     window.addEventListener('mouseleave', () => {
         mouse.x = -1000;
@@ -189,8 +189,8 @@ class DoodleItem {
 
 function createDoodles() {
     doodles = [];
-    let count = Math.floor((window.innerWidth * window.innerHeight) / 10000);
-    count = Math.max(40, Math.min(count, 90));
+    let count = Math.floor((window.innerWidth * window.innerHeight) / 12000);
+    count = Math.max(25, Math.min(count, 70));
     for (let i = 0; i < count; i++) {
         let x = Math.random() * (window.innerWidth - 60) + 30;
         let y = Math.random() * (window.innerHeight - 60) + 30;
@@ -261,7 +261,6 @@ function syncDatabase() {
                 document.getElementById('announcement-text').innerText = latest.Pesan || latest.message;
                 document.getElementById('announcement-banner').style.display = 'flex';
 
-                // LOGIKA POP-UP PESAN PENTING
                 const annType = latest.Tipe || latest.type;
                 const annId = latest.Id || latest.date || latest.message; 
                 
@@ -436,7 +435,7 @@ function finalizeLogin(displayName, displayNim, role) {
         scheduleCat(); 
         syncDatabase(); 
         applyDynamicLanguage();
-    }, 500);
+    }, 400);
 }
 
 function logoutUser() {
@@ -709,7 +708,7 @@ function renderDynamicContent() {
             data.forEach(group => {
                 group.items.forEach(item => {
                     html += `<tr>
-                        <td style="border:none; width: 25%;"><b style="color:var(--heading-color);">${item.text}</b></td>
+                        <td style="border:none; width: 30%;"><b style="color:var(--heading-color);">${item.text}</b></td>
                         <td style="border:none;">${item.sub}</td>
                     </tr>`;
                 });
@@ -768,27 +767,27 @@ function renderEditorUI() {
     
     editorTempData.forEach((group, gIdx) => {
         html += `<div class="card" style="padding: 15px; margin-bottom: 15px; box-shadow:none; border:1px solid var(--item-border);">
-            <div style="display:flex; justify-content:space-between; margin-bottom: 10px;">
-                <input type="text" value="${group.title}" onchange="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; width: 75%; margin-bottom:0;" placeholder="Judul Kategori Utama">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <input type="text" value="${group.title}" onchange="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="Judul Kategori Utama">
                 <button class="action-btn btn-rev" onclick="removeContentGroup(${gIdx})">Hapus Kategori</button>
             </div>
-            <div style="margin-left: 15px; border-left: 2px solid var(--item-border); padding-left: 15px;">`;
+            <div style="margin-left: 10px; border-left: 2px solid var(--item-border); padding-left: 10px;">`;
             
         group.items.forEach((item, iIdx) => {
-            html += `<div style="display:flex; gap:10px; margin-bottom: 10px; align-items:center;">
+            html += `<div style="display:flex; gap:8px; margin-bottom: 10px; align-items:center;">
                 <div style="flex-grow:1;">
                     <input type="text" value="${item.text}" placeholder="Data Utama" onchange="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
                     <input type="text" value="${item.sub}" placeholder="Deskripsi/Detail" onchange="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
                 </div>
-                <button class="action-btn btn-rev" onclick="removeContentItem(${gIdx}, ${iIdx})">X</button>
+                <button class="action-btn btn-rev" onclick="removeContentItem(${gIdx}, ${iIdx})" style="height: 40px; padding: 0 12px;">X</button>
             </div>`;
         });
         
-        html += `<button class="action-btn btn-acc" onclick="addContentItem(${gIdx})" style="width:auto;">+ Tambah Item</button>
+        html += `<button class="action-btn btn-acc" onclick="addContentItem(${gIdx})" style="width:auto; margin-top:5px;">+ Tambah Item</button>
             </div></div>`;
     });
     
-    html += `<button class="btn-secondary" style="background:var(--umy-gold); color:black; width:auto;" onclick="addContentGroup()">+ Tambah Kategori Baru</button>`;
+    html += `<button class="btn-secondary" style="background:var(--umy-gold); color:black; width:100%; margin-top: 10px;" onclick="addContentGroup()">+ Tambah Kategori Baru</button>`;
     
     container.innerHTML = html;
 }
@@ -973,7 +972,7 @@ function loadStudentStatus() {
             
             let actionButtons = `<button class="btn-chat-log lang" onclick="openChatTimeline('${item.id}')" data-id="Lihat Riwayat Note" data-en="View Note History">${currentLang === 'id' ? 'Lihat Riwayat Note' : 'View Note History'}</button>`;
             if(item.status === 'Revision') {
-                actionButtons += `<br><button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:6px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
+                actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
             }
 
             tbody.innerHTML += `<tr>
@@ -981,7 +980,7 @@ function loadStudentStatus() {
                 <td style="vertical-align:top;"><b>${item.jenis}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${item.detail}</td>
                 <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}</td>
-                <td style="min-width:180px; vertical-align:top;">${actionButtons}</td>
+                <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
             </tr>`;
         });
     }
@@ -1077,19 +1076,16 @@ function renderAdminTable() {
             </td>
             <td style="min-width:130px; vertical-align:top;">
                 ${(() => {
-                    // Jika status sudah diterima, tampilkan tanda minus (-)
                     if (item.status === 'Accepted') return '-';
                     
                     let buttons = '';
                     
-                    // Khusus Outline, tombol terimanya diganti menjadi Tunjuk Dospem
                     if (item.jenis === 'Outline') {
                         buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem" data-en="Assign Dospem">Tunjuk Dospem</button>`;
                     } else {
                         buttons += `<button class="action-btn btn-acc lang" onclick="acceptSubmission('${item.id}')" data-id="Terima" data-en="Accept">${currentLang === 'id' ? 'Terima' : 'Accept'}</button>`;
                     }
                     
-                    // Tombol Revisi selalu ada untuk status selain Accepted
                     buttons += `<button class="action-btn btn-rev lang" onclick="openRevisionModal('${item.id}')" data-id="Revisi" data-en="Revise">${currentLang === 'id' ? 'Revisi' : 'Revise'}</button>`;
                     
                     return buttons;
@@ -1132,7 +1128,6 @@ function openDocPreview(url) {
 }
 
 function startCountdownWidget() {
-    // Tanggal target batas yudisium terdekat: Periode II (19 Oktober 2026)
     const targetDate = new Date("October 19, 2026 23:59:59").getTime();
     
     setInterval(() => {
@@ -1163,7 +1158,6 @@ function openChatTimeline(id) {
     if (!target) return;
 
     let logs = []; 
-    // Ambil log yang ada jika note tidak kosong
     if (target.note && target.note.trim() !== '') {
         try { 
             logs = JSON.parse(target.note); 
@@ -1172,16 +1166,13 @@ function openChatTimeline(id) {
         }
     }
 
-    // PAKSA MUNCULKAN PESAN DOSPEM KHUSUS OUTLINE
     if (target.jenis === 'Outline' && target.status === 'Accepted' && target.detail && target.detail.includes('Dosen Pembimbing')) {
         const hasDospemLog = logs.some(log => log.message.includes('Dosen Pembimbing'));
         
         if (!hasDospemLog) {
-            // Tarik nama dospem dari teks detail
             const dospemMatch = target.detail.match(/Dosen Pembimbing:<\/b>\s*([^<]+)/);
             let dospemName = dospemMatch ? dospemMatch[1].trim() : "Telah ditentukan (silakan cek detail pengajuan)";
 
-            // Tambahkan paksa ke dalam array chat (Log)
             logs.push({
                 sender: 'Admin IPCOS',
                 role: 'admin',
@@ -1193,7 +1184,6 @@ function openChatTimeline(id) {
         }
     }
 
-    // Render Chat Bubble-nya
     if (logs.length === 0) {
         container.innerHTML = `<p style="text-align:center; color:var(--text-muted);" class="lang" data-id="Belum ada riwayat catatan." data-en="No note history yet.">${currentLang === 'id' ? 'Belum ada riwayat catatan.' : 'No note history yet.'}</p>`;
     } else {
@@ -1251,7 +1241,6 @@ function submitAdminDospem() {
     }
     closeModal('modal-dospem'); 
     
-    // UBAH: Teks Proposal diganti jadi Outline
     const note = currentLang === 'id' 
         ? "Selamat! Berkas Outline Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style='color:#E03F4F; font-size:15px;'>" + dospem + "</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya." 
         : "Congratulations! Your Outline is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>" + dospem + "</b><br><br>Please contact them for further guidance.";
@@ -1390,9 +1379,9 @@ function renderDashboardCharts(records) {
                     position: 'bottom',
                     labels: { 
                         usePointStyle: true,
-                        padding: 20,
+                        padding: 15,
                         boxWidth: 8,
-                        font: { weight: '600' }
+                        font: { weight: '600', size: 11 }
                     }
                 } 
             }
@@ -1409,7 +1398,7 @@ function renderDashboardCharts(records) {
                 backgroundColor: '#E03F4F',
                 borderRadius: 8,
                 borderSkipped: false,
-                barThickness: 32
+                barThickness: window.innerWidth < 600 ? 18 : 32
             }]
         },
         options: {
@@ -1418,7 +1407,7 @@ function renderDashboardCharts(records) {
             scales: { 
                 x: { 
                     grid: { display: false },
-                    ticks: { font: { weight: '600' } }
+                    ticks: { font: { weight: '600', size: 10 } }
                 },
                 y: { 
                     beginAtZero: true, 
