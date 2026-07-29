@@ -1077,14 +1077,22 @@ function renderAdminTable() {
             </td>
             <td style="min-width:130px; vertical-align:top;">
                 ${(() => {
+                    // Jika status sudah diterima, tampilkan tanda minus (-)
                     if (item.status === 'Accepted') return '-';
-                                        let buttons = '';
-                    // UBAH: Khusus 'Outline', tombol terimanya ganti jadi Tunjuk Dospem
+                    
+                    let buttons = '';
+                    
+                    // Khusus Outline, tombol terimanya diganti menjadi Tunjuk Dospem
                     if (item.jenis === 'Outline') {
                         buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem" data-en="Assign Dospem">Tunjuk Dospem</button>`;
                     } else {
                         buttons += `<button class="action-btn btn-acc lang" onclick="acceptSubmission('${item.id}')" data-id="Terima" data-en="Accept">${currentLang === 'id' ? 'Terima' : 'Accept'}</button>`;
                     }
+                    
+                    // Tombol Revisi selalu ada untuk status selain Accepted
+                    buttons += `<button class="action-btn btn-rev lang" onclick="openRevisionModal('${item.id}')" data-id="Revisi" data-en="Revise">${currentLang === 'id' ? 'Revisi' : 'Revise'}</button>`;
+                    
+                    return buttons;
                 })()}
             </td>
         </tr>`;
