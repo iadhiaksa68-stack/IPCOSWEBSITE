@@ -1,4 +1,4 @@
-// Link Web App Google Apps Script Terbaru
+// Link Web App Google Apps Script Terbaru (Pastikan URL sesuai dengan deploy Anda)
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxzpIl1qKKLKVB-O6Jsv08OiK_zEztbGOkEIXUze1zsxL8gdC3-oZfQ2bJ6QaW-hoEE8Q/exec";
 
 // ==========================================
@@ -55,8 +55,130 @@ function formatDateTime(dateString) {
     return `${dPart}<br><span style="font-size: 11px; opacity: 0.8;">${tPart}</span>`;
 }
 
+function timeAgo(dateString) {
+    const safeDate = typeof dateString === 'string' ? dateString.replace(' ', 'T') : dateString;
+    const date = new Date(safeDate);
+    const now = new Date();
+    const seconds = Math.round((now - date) / 1000);
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.round(minutes / 60);
+    const days = Math.round(hours / 24);
+
+    if (seconds < 60) return currentLang === 'id' ? 'Baru saja' : 'Just now';
+    if (minutes < 60) return currentLang === 'id' ? `${minutes} menit lalu` : `${minutes} mins ago`;
+    if (hours < 24) return currentLang === 'id' ? `${hours} jam lalu` : `${hours} hours ago`;
+    if (days < 7) return currentLang === 'id' ? `${days} hari lalu` : `${days} days ago`;
+    return formatDate(dateString);
+}
+
 // ==========================================
-// 1.5. INTERACTIVE DOODLE BACKGROUND UNTUK LOGIN
+// 1.5. NETWORK MONITORING (OFFLINE CACHE & RETRY)
+// ==========================================
+let isOffline = !navigator.onLine;
+
+window.addEventListener('online', () => {
+    isOffline = false;
+    document.getElementById('offline-indicator').style.display = 'none';
+    showToast(currentLang === 'id' ? "Koneksi internet pulih. Menyinkronkan data..." : "Connection restored. Syncing data...", "success");
+    syncDatabase(); // Otomatis retry ketika online
+});
+
+window.addEventListener('offline', () => {
+    isOffline = true;
+    document.getElementById('offline-indicator').style.display = 'block';
+    showToast(currentLang === 'id' ? "Anda sedang offline. Beberapa fitur mungkin dibatasi." : "You are offline. Some features may be limited.", "error");
+});
+
+// ==========================================
+// 2. GLOBAL SEARCH (CTRL + K)
+// ==========================================
+const searchDatabase = [
+    { title: "Dashboard Akademik", keywords: "beranda utama awal dashboard", tab: "dashboard" },
+    { title: "Kewajiban Magang", keywords: "magang kerja praktik logbook", tab: "magang" },
+    { title: "Kewajiban Skripsi", keywords: "skripsi tugas akhir ta outline pendadaran", tab: "skripsi" },
+    { title: "Pusat Pendaftaran Ujian", keywords: "daftar ujian sempro proposal pendadaran jurnal", tab: "pendaftaran" },
+    { title: "Status Pengajuan", keywords: "status riwayat revisi dokumen", tab: "student-status" },
+    { title: "Template Dokumen & FAQ", keywords: "template download format faq tanya jawab", tab: "templates-faq" },
+    { title: "Sebaran Mata Kuliah", keywords: "kurikulum mata kuliah sks", tab: "kurikulum" },
+    { title: "SOP Remidial", keywords: "remidial sop perbaikan nilai", tab: "remidial" },
+    { title: "Kalender Yudisium", keywords: "kalender jadwal batas yudisium wisuda deadline", tab: "kalender" },
+    { title: "Kontak Kami / Bantuan", keywords: "bantuan kontak whatsapp admin hubungi", tab: "feedback" }
+];
+
+document.addEventListener('keydown', function(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        openGlobalSearch();
+    }
+    if (event.key === "Escape") {
+        closeModal('modal-global-search');
+        document.querySelectorAll('.overlay').forEach(modal => {
+            if (window.getComputedStyle(modal).display !== 'none' && modal.id !== 'welcome-modal') {
+                closeModal(modal.id);
+            }
+        });
+    }
+});
+
+function openGlobalSearch() {
+    const modal = document.getElementById('modal-global-search');
+    modal.style.display = 'flex';
+    const input = document.getElementById('global-search-input');
+    input.value = '';
+    renderSearchResults('');
+    setTimeout(() => { modal.style.opacity = '1'; input.focus(); }, 10);
+}
+
+document.getElementById('global-search-input')?.addEventListener('input', function(e) {
+    renderSearchResults(e.target.value);
+});
+
+function renderSearchResults(query) {
+    const container = document.getElementById('global-search-results');
+    if (!container) return;
+    
+    if (query.trim() === '') {
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">${currentLang === 'id' ? 'Ketikkan kata kunci (misal: "Magang", "Ujian", "Jadwal")...' : 'Type keywords (e.g., "Internship", "Exam", "Schedule")...'}</p>`;
+        return;
+    }
+
+    const q = query.toLowerCase();
+    const results = searchDatabase.filter(item => 
+        item.title.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q)
+    );
+
+    if (results.length === 0) {
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">Tidak ditemukan hasil untuk "<b>${query}</b>"</p>`;
+        return;
+    }
+
+    let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+    results.forEach(item => {
+        html += `
+            <div onclick="executeSearchNavigation('${item.tab}')" style="padding: 12px 16px; background: var(--item-bg); border: 1px solid var(--item-border); border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+                <span style="font-weight: 600; font-size: 14px; color: var(--heading-color);">${item.title}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function executeSearchNavigation(tabId) {
+    closeModal('modal-global-search');
+    // Cari elemen menu navigasi yang sesuai untuk di-trigger (agar sidebar state ikut update)
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${tabId}'`)) {
+            switchTab({currentTarget: item}, tabId);
+        }
+    });
+}
+
+
+// ==========================================
+// 3. INTERACTIVE DOODLE BACKGROUND
 // ==========================================
 let doodleCanvas, doodleCtx, doodleAnimationId;
 let doodles = [];
@@ -206,10 +328,9 @@ function animateDoodles() {
 }
 
 // ==========================================
-// 2. SIMULASI LOGIN, DARK MODE SINKRONISASI DATABASE
+// 4. INIT, LOGIN & DATABASE SYNC
 // ==========================================
 let DB_MAHASISWA = {}; 
-let globalAnnouncements = [];
 let currentUser = { nim: '', nama: '', role: '' };
 
 window.onload = function() {
@@ -231,17 +352,16 @@ window.onload = function() {
     }
 };
 
-document.addEventListener('keydown', function(event) {
-    if (event.key === "Escape") {
-        document.querySelectorAll('.overlay').forEach(modal => {
-            if (window.getComputedStyle(modal).display !== 'none' && modal.id !== 'welcome-modal') {
-                closeModal(modal.id);
-            }
-        });
-    }
-});
-
 function syncDatabase() {
+    if (isOffline) {
+        // Fallback to local cache if offline
+        const cachedRegs = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+        if (currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(cachedRegs); }
+        else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(cachedRegs); }
+        renderNotifications();
+        return;
+    }
+
     showLoader();
     const freshUrl = GAS_URL + "?t=" + new Date().getTime();
     fetch(freshUrl)
@@ -256,10 +376,16 @@ function syncDatabase() {
         }
 
         if (data.announcements && data.announcements.length > 0) {
+            localStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
+            renderNotifications();
+
             const latest = data.announcements[data.announcements.length - 1];
             if (currentUser.role === 'mhs') {
-                document.getElementById('announcement-text').innerText = latest.Pesan || latest.message;
-                document.getElementById('announcement-banner').style.display = 'flex';
+                const bannerText = document.getElementById('announcement-text');
+                if (bannerText) {
+                    bannerText.innerText = latest.Pesan || latest.message;
+                    document.getElementById('announcement-banner').style.display = 'flex';
+                }
 
                 const annType = latest.Tipe || latest.type;
                 const annId = latest.Id || latest.date || latest.message; 
@@ -288,11 +414,11 @@ function syncDatabase() {
             renderDashboardCharts(data.registrations || []);
         } else if (currentUser.role === 'mhs') {
             loadStudentStatus();
+            renderActivityTimeline(data.registrations || []);
         }
     })
     .catch(error => {
-        showToast(currentLang === 'id' ? "Gagal mengambil data dari server." : "Failed to fetch data from server.", "error");
-        console.error(error);
+        console.error("Gagal sync data:", error);
     })
     .finally(() => { hideLoader(); });
 }
@@ -321,6 +447,8 @@ function loginMhs() {
         errorMsg.innerText = currentLang === 'id' ? "Mohon masukkan NIM Anda." : "Please enter your NIM.";
         errorMsg.style.display = 'block'; return;
     }
+    
+    // Allow login based on local DB cache if offline
     if (DB_MAHASISWA.hasOwnProperty(nimInput)) {
         const nama = DB_MAHASISWA[nimInput];
         sessionStorage.setItem('ipcos_session', JSON.stringify({ nim: nimInput, nama: nama, role: 'mhs' }));
@@ -340,6 +468,12 @@ async function loginAdmin() {
 
     if (!userInput || !passInput) {
         errorMsg.innerText = currentLang === 'id' ? "Username dan Password wajib diisi!" : "Username and Password are required!";
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    if (isOffline) {
+        errorMsg.innerText = currentLang === 'id' ? "Anda sedang offline. Login Admin butuh koneksi." : "You are offline. Admin login requires connection.";
         errorMsg.style.display = 'block';
         return;
     }
@@ -379,7 +513,8 @@ function finalizeLogin(displayName, displayNim, role) {
 
     const greetings = ["Hello", "Hey", "Hai", "Halo", "Greetings", "Welcome"];
     const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-    document.getElementById('display-greeting').innerText = `${randomGreeting}, ${firstName}!`;
+    const elGreeting = document.getElementById('display-greeting');
+    if (elGreeting) elGreeting.innerText = `${randomGreeting}, ${firstName}!`;
     
     document.querySelectorAll('.admin-only').forEach(el => {
         if(el.classList.contains('bento-grid')) {
@@ -392,7 +527,7 @@ function finalizeLogin(displayName, displayNim, role) {
     document.querySelectorAll('.student-only').forEach(el => {
         if (role === 'mhs') {
             if (!el.classList.contains('alert-box')) {
-                el.style.display = 'flex';
+                el.style.display = el.tagName === 'DIV' && el.classList.contains('bento-grid') ? 'grid' : 'flex';
             }
         } else {
             el.style.display = 'none';
@@ -405,7 +540,7 @@ function finalizeLogin(displayName, displayNim, role) {
             statusLabel.setAttribute('data-id', 'Akses Superuser');
             statusLabel.setAttribute('data-en', 'Superuser Access');
         }
-        document.getElementById('header-subtext').innerText = "Role: Administrator";
+        if(document.getElementById('header-subtext')) document.getElementById('header-subtext').innerText = "Role: Administrator";
         
         loadAdminData();
         const cachedRecords = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
@@ -417,13 +552,13 @@ function finalizeLogin(displayName, displayNim, role) {
             statusLabel.setAttribute('data-id', 'Mahasiswa Aktif');
             statusLabel.setAttribute('data-en', 'Active Student');
         }
-        document.getElementById('header-subtext').innerText = `NIM: ${displayNim}`;
+        if(document.getElementById('header-subtext')) document.getElementById('header-subtext').innerText = `NIM: ${displayNim}`;
         
         loadProgressData(); 
         loadStudentStatus();
     }
 
-    document.getElementById('student-header').style.display = 'flex';
+    if(document.getElementById('student-header')) document.getElementById('student-header').style.display = 'flex';
     document.getElementById('welcome-modal').style.opacity = '0';
     
     if (doodleAnimationId) {
@@ -443,7 +578,7 @@ function logoutUser() {
     if(confirm(msg)) {
         sessionStorage.removeItem('ipcos_session');
         currentUser = { nim: '', nama: '', role: '' };
-        document.getElementById('student-header').style.display = 'none';
+        if(document.getElementById('student-header')) document.getElementById('student-header').style.display = 'none';
         switchTab({currentTarget: document.querySelector('.nav-tabs li')}, 'dashboard');
         const modal = document.getElementById('welcome-modal');
         modal.style.display = 'flex';
@@ -453,7 +588,82 @@ function logoutUser() {
 }
 
 // ==========================================
-// 3. FUNGSI DRAG & DROP SERTA VALIDASI FILE
+// 5. NOTIFICATION & ACTIVITY TIMELINE
+// ==========================================
+function renderNotifications() {
+    const dropdown = document.getElementById('notif-dropdown');
+    if (!dropdown) return;
+    
+    const announcements = JSON.parse(localStorage.getItem('ipcos_announcements') || '[]');
+    let html = `<div style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); font-weight: bold; font-size: 13px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Pusat Notifikasi</span>
+                </div>`;
+                
+    if (announcements.length === 0) {
+        html += `<div style="padding: 15px; font-size: 13px; color: var(--text-muted); text-align: center;">Belum ada notifikasi baru.</div>`;
+    } else {
+        html += `<div style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column;">`;
+        announcements.reverse().slice(0, 8).forEach(ann => {
+            const dateStr = timeAgo(ann.date || new Date().toISOString());
+            const isImportant = (ann.Tipe || ann.type) === 'important';
+            html += `
+                <div style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); display: flex; gap: 10px; align-items: flex-start; background: ${isImportant ? 'rgba(224, 63, 79, 0.05)' : 'transparent'};">
+                    <div style="font-size: 16px;">${isImportant ? '📢' : '🔔'}</div>
+                    <div>
+                        <div style="font-size: 13px; color: var(--text-color); margin-bottom: 4px; line-height: 1.4;">${ann.Pesan || ann.message}</div>
+                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">${dateStr}</div>
+                    </div>
+                </div>`;
+        });
+        html += `</div>`;
+    }
+    dropdown.innerHTML = html;
+}
+
+function renderActivityTimeline(records) {
+    if (currentUser.role !== 'mhs') return;
+    const container = document.getElementById('activity-timeline-container');
+    if (!container) return;
+
+    const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
+    if (myRecords.length === 0) {
+        container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 20px;">Belum ada aktivitas terekam.</div>`;
+        return;
+    }
+
+    let html = '';
+    myRecords.reverse().slice(0, 5).forEach(r => {
+        let text = '';
+        if (r.status === 'Accepted') text = `Pendaftaran <b>${r.jenis}</b> Anda telah diverifikasi dan <b>Diterima</b>.`;
+        else if (r.status === 'Revision') text = `Pendaftaran <b>${r.jenis}</b> Anda perlu <b>Revisi</b>. Silakan cek catatan admin.`;
+        else if (r.status === 'Resubmitted') text = `Anda telah mengunggah perbaikan untuk <b>${r.jenis}</b>.`;
+        else text = `Anda berhasil mendaftar <b>${r.jenis}</b>. Berkas sedang direview.`;
+
+        let bulletColor = 'var(--umy-gold)';
+        if (r.status === 'Accepted') bulletColor = 'var(--umy-green)';
+        if (r.status === 'Revision') bulletColor = 'var(--umy-maroon)';
+
+        html += `
+            <div style="position: relative;">
+                <span style="position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; background: ${bulletColor}; border-radius: 50%;"></span>
+                <div style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 2px;">${timeAgo(r.date)}</div>
+                <div style="font-size: 13.5px; line-height: 1.4; color: var(--text-color);">${text}</div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+// Menutup dropdown notifikasi jika klik di luar
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('notif-dropdown');
+    if (dropdown && dropdown.classList.contains('active') && !dropdown.parentElement.contains(e.target)) {
+        dropdown.classList.remove('active');
+    }
+});
+
+// ==========================================
+// 6. FUNGSI DRAG & DROP SERTA VALIDASI FILE
 // ==========================================
 const MAX_FILE_SIZE_MB = 10; 
 
@@ -514,6 +724,11 @@ function toggleExamForm() {
 
 async function submitForm(e) {
     e.preventDefault();
+
+    if (isOffline) {
+        showToast(currentLang === 'id' ? "Tidak dapat mengirim form saat offline. Periksa koneksi Anda." : "Cannot submit form while offline. Check your connection.", "error");
+        return;
+    }
 
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
     const reqId = Date.now().toString(36);
@@ -590,7 +805,7 @@ async function submitForm(e) {
 }
 
 // ==========================================
-// 4. GENERATOR GOOGLE CALENDAR (.ics)
+// 7. GENERATOR GOOGLE CALENDAR (.ics)
 // ==========================================
 function downloadICS(title, dateStr) {
     const dateObj = new Date(dateStr);
@@ -623,7 +838,7 @@ function downloadICS(title, dateStr) {
 }
 
 // ==========================================
-// 5. EDITOR KONTEN DINAMIS (ADMIN)
+// 8. EDITOR KONTEN DINAMIS
 // ==========================================
 const defaultMagang = [
     { title: "Tahap Persiapan (Pra-Magang)", items: [ { id: "m1", text: "Menyusun & Merealisasikan Proposal Magang", sub: "Bagi jalur Internasional (KBRI Kuala Lumpur), berkas wajib dikirim H-6 bulan." } ] },
@@ -683,9 +898,9 @@ function renderDynamicContent() {
             data.forEach(group => {
                 html += `<div class="checklist-group"><div class="checklist-title">${group.title}</div>`;
                 group.items.forEach(item => {
-                    html += `<div class="checklist-item">
-                        <input type="checkbox" class="chk-${type}" id="${item.id}" onchange="updateProgress()">
-                        <label for="${item.id}">
+                    html += `<div class="checklist-item" onclick="toggleCheckFromRow(event, '${item.id}')">
+                        <input type="checkbox" class="chk-${type} custom-checkbox" id="${item.id}" onchange="updateProgress()">
+                        <label for="${item.id}" onclick="event.stopPropagation();">
                             <span>${item.text}</span>
                             ${item.sub ? `<span class="sub-text">${item.sub}</span>` : ''}
                         </label>
@@ -693,7 +908,7 @@ function renderDynamicContent() {
                 });
                 html += `</div>`;
             });
-        } 
+        }
         else if (type === 'kurikulum') {
             data.forEach(group => {
                 html += `<details><summary>${group.title}</summary><div class="details-content">`;
@@ -800,6 +1015,11 @@ function removeContentItem(gIdx, iIdx) { editorTempData[gIdx].items.splice(iIdx,
 async function saveContentChanges() {
     if(document.activeElement && document.activeElement.tagName === 'INPUT') { document.activeElement.blur(); }
     
+    if (isOffline) {
+        showToast(currentLang === 'id' ? "Anda sedang offline. Tidak dapat menyimpan." : "You are offline. Cannot save changes.", "error");
+        return;
+    }
+
     const jsonString = JSON.stringify(editorTempData);
     localStorage.setItem(`ipcos_content_${editorCurrentType}`, jsonString);
     closeModal('modal-edit-content');
@@ -825,7 +1045,7 @@ async function saveContentChanges() {
 }
 
 // ==========================================
-// 6. PROGRESS BAR & CONFETTI
+// 9. PROGRESS BAR & CONFETTI
 // ==========================================
 let confettiAnimationId = null;
 
@@ -871,14 +1091,20 @@ function updateProgress() {
     const chkMagang = document.querySelectorAll('.chk-magang');
     const checkedMagang = document.querySelectorAll('.chk-magang:checked');
     const pctMagang = chkMagang.length ? Math.round((checkedMagang.length / chkMagang.length) * 100) : 0;
+    
     const barMagang = document.getElementById('bar-magang');
-    if(barMagang) { barMagang.style.width = pctMagang + '%'; barMagang.innerText = pctMagang > 0 ? pctMagang + '%' : ''; }
+    const txtMagang = document.getElementById('text-pct-magang');
+    if(barMagang) { barMagang.style.width = pctMagang + '%'; }
+    if(txtMagang) { txtMagang.innerText = pctMagang + '%'; }
 
     const chkSkripsi = document.querySelectorAll('.chk-skripsi');
     const checkedSkripsi = document.querySelectorAll('.chk-skripsi:checked');
     const pctSkripsi = chkSkripsi.length ? Math.round((checkedSkripsi.length / chkSkripsi.length) * 100) : 0;
+    
     const barSkripsi = document.getElementById('bar-skripsi');
-    if(barSkripsi) { barSkripsi.style.width = pctSkripsi + '%'; barSkripsi.innerText = pctSkripsi > 0 ? pctSkripsi + '%' : ''; }
+    const txtSkripsi = document.getElementById('text-pct-skripsi');
+    if(barSkripsi) { barSkripsi.style.width = pctSkripsi + '%'; }
+    if(txtSkripsi) { txtSkripsi.innerText = pctSkripsi + '%'; }
 
     if(currentUser.role === 'mhs') {
         const state = {};
@@ -921,7 +1147,7 @@ function getStatusBadge(status) {
 }
 
 // ==========================================
-// 7. SISTEM PENERJEMAH BAHASA DYNAMIS
+// 10. SISTEM PENERJEMAH BAHASA DYNAMIS
 // ==========================================
 let currentLang = 'id';
 
@@ -951,7 +1177,7 @@ function applyDynamicLanguage() {
 }
 
 // ==========================================
-// 8. LOAD TABEL MAHASISWA & CHAT TIMELINE
+// 11. LOAD TABEL MAHASISWA & CHAT TIMELINE
 // ==========================================
 function loadStudentStatus() {
     const tbody = document.getElementById('table-my-status');
@@ -992,7 +1218,7 @@ function loadStudentStatus() {
 }
 
 // ==========================================
-// 8.5. LOAD TABEL ADMIN DENGAN PAGINATION & DEBOUNCE
+// 12. LOAD TABEL ADMIN DENGAN PAGINATION & DEBOUNCE
 // ==========================================
 let currentAdminPage = 1;
 const rowsPerPage = 10;
@@ -1079,13 +1305,11 @@ function renderAdminTable() {
                     if (item.status === 'Accepted') return '-';
                     
                     let buttons = '';
-                    
                     if (item.jenis === 'Outline') {
                         buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem" data-en="Assign Dospem">Tunjuk Dospem</button>`;
                     } else {
                         buttons += `<button class="action-btn btn-acc lang" onclick="acceptSubmission('${item.id}')" data-id="Terima" data-en="Accept">${currentLang === 'id' ? 'Terima' : 'Accept'}</button>`;
                     }
-                    
                     buttons += `<button class="action-btn btn-rev lang" onclick="openRevisionModal('${item.id}')" data-id="Revisi" data-en="Revise">${currentLang === 'id' ? 'Revisi' : 'Revise'}</button>`;
                     
                     return buttons;
@@ -1168,11 +1392,9 @@ function openChatTimeline(id) {
 
     if (target.jenis === 'Outline' && target.status === 'Accepted' && target.detail && target.detail.includes('Dosen Pembimbing')) {
         const hasDospemLog = logs.some(log => log.message.includes('Dosen Pembimbing'));
-        
         if (!hasDospemLog) {
             const dospemMatch = target.detail.match(/Dosen Pembimbing:<\/b>\s*([^<]+)/);
             let dospemName = dospemMatch ? dospemMatch[1].trim() : "Telah ditentukan (silakan cek detail pengajuan)";
-
             logs.push({
                 sender: 'Admin IPCOS',
                 role: 'admin',
@@ -1201,9 +1423,13 @@ function openChatTimeline(id) {
 }
 
 // ==========================================
-// 9. UPDATE DATA & REVISI PERBAIKAN
+// 13. UPDATE DATA & REVISI PERBAIKAN
 // ==========================================
 async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = null) {
+    if (isOffline) {
+        showToast(currentLang === 'id' ? "Tidak dapat menyimpan saat offline." : "Cannot save while offline.", "error");
+        return;
+    }
     showLoader(currentLang === 'id' ? 'Sedang Memproses...' : 'Processing...');
     try {
         const payload = { action: 'update', id: id, status: newStatus, note: noteText, senderName: currentUser.nama, senderRole: currentUser.role, files: files, dospem: dospem };
@@ -1282,8 +1508,11 @@ function toggleSidebar() { document.getElementById('main-sidebar').classList.tog
 function switchTab(event, tabId) {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    event.currentTarget.classList.add('active'); const target = document.getElementById(tabId);
-    target.classList.remove('active'); void target.offsetWidth; target.classList.add('active');
+    if (event && event.currentTarget) event.currentTarget.classList.add('active');
+    const target = document.getElementById(tabId);
+    if(target) {
+        target.classList.remove('active'); void target.offsetWidth; target.classList.add('active');
+    }
     document.getElementById('main-sidebar').classList.remove('active');
 }
 
@@ -1293,25 +1522,30 @@ function showCat() { catEl.classList.add('peek'); setTimeout(() => { if(catEl.cl
 function hideCat() { catEl.classList.remove('peek'); clearTimeout(catTimer); scheduleCat(); }
 
 function silentSyncDatabase() {
-    if (document.hidden) return;
-
+    if (document.hidden || isOffline) return;
     if (currentUser && currentUser.nim !== '') {
         const freshUrl = GAS_URL + "?t=" + new Date().getTime();
         fetch(freshUrl).then(response => response.json()).then(data => {
             const oldDataStr = localStorage.getItem('ipcos_registrations');
             const newDataStr = JSON.stringify(data.registrations || []);
             
+            if (data.announcements && data.announcements.length > 0) {
+                localStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
+                renderNotifications();
+            }
+
             if (oldDataStr !== newDataStr) {
                 localStorage.setItem('ipcos_registrations', newDataStr);
-                if(currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(data.registrations || []); } else { loadStudentStatus(); }
+                if(currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(data.registrations || []); } 
+                else { loadStudentStatus(); renderActivityTimeline(data.registrations || []); }
             }
-        }).catch(error => console.log("Sync terhambat..."));
+        }).catch(error => console.log("Silent Sync terhambat..."));
     }
 }
 setInterval(silentSyncDatabase, 180000);
 
 // ==========================================
-// 10. SIDEBAR INTERAKTIF & WHATSAPP FLOAT
+// 14. SIDEBAR INTERAKTIF & WHATSAPP FLOAT
 // ==========================================
 function toggleDesktopSidebar() { document.getElementById('main-sidebar').classList.toggle('collapsed'); document.querySelector('.main-content').classList.toggle('expanded'); }
 let waScrollTimer;
@@ -1321,7 +1555,7 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 // ==========================================
-// 11. DASHBOARD CHART ANALYTICS & STATS (BENTO ADMIN)
+// 15. DASHBOARD CHART ANALYTICS & STATS (BENTO ADMIN)
 // ==========================================
 let ratioChartInstance = null; let typeChartInstance = null;
 
@@ -1434,7 +1668,7 @@ function postAnnouncementFromDashboard() {
 }
 
 // ==========================================
-// 12. CRUD MASTER MAHASISWA & BROADCAST
+// 16. CRUD MASTER MAHASISWA & BROADCAST
 // ==========================================
 function renderMasterMahasiswa(students) {
     const tbody = document.getElementById('table-master-mhs');
@@ -1447,6 +1681,7 @@ function renderMasterMahasiswa(students) {
 }
 
 async function addStudent() {
+    if (isOffline) { showToast("Tidak dapat menambah mahasiswa saat offline.", "error"); return; }
     const nim = document.getElementById('add-nim').value.trim(); const nama = document.getElementById('add-nama').value.trim();
     if(!nim || !nama) { showToast("NIM dan Nama wajib diisi!", "error"); return; }
     showLoader();
@@ -1454,12 +1689,14 @@ async function addStudent() {
 }
 
 async function deleteStudent(nim) {
+    if (isOffline) { showToast("Tidak dapat menghapus saat offline.", "error"); return; }
     if(!confirm(`Apakah Anda yakin ingin menghapus akses untuk NIM: ${nim}?`)) return;
     showLoader();
     try { await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'delete', nim: nim }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Akses Mahasiswa berhasil dihapus!", "success"); syncDatabase(); } catch (e) { showToast("Gagal menghapus data", "error"); } finally { hideLoader(); }
 }
 
 async function postAnnouncement() {
+    if (isOffline) { showToast("Tidak dapat mengirim broadcast saat offline.", "error"); return; }
     const masterInput = document.getElementById('input-broadcast');
     const checkImportant = document.getElementById('check-important-broadcast');
     const msg = masterInput ? masterInput.value.trim() : '';
@@ -1486,5 +1723,18 @@ async function postAnnouncement() {
         showToast("Gagal mengirim pengumuman", "error"); 
     } finally { 
         hideLoader(); 
+    }
+}
+
+// ==========================================
+// 17. HELPER INTERAKSI CHECKLIST MOBILE
+// ==========================================
+function toggleCheckFromRow(event, id) {
+    if (event.target.tagName !== 'INPUT') {
+        const chk = document.getElementById(id);
+        if (chk) {
+            chk.checked = !chk.checked;
+            updateProgress();
+        }
     }
 }
