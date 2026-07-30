@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>IPCOS UMY - Portal Kewajiban & Akademik Mahasiswa</title>
-    
+
     <!-- Mobile & PWA Theme Meta -->
     <meta name="theme-color" content="#1A1614">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,39 +13,56 @@
     <meta name="mobile-web-app-capable" content="yes">
 
     <meta property="og:title" content="IPCOS UMY - Portal Kewajiban & Akademik Mahasiswa">
-    <meta property="og:description" content="Sistem portal akademik terpadu untuk pendaftaran ujian, skripsi, magang, dan pelacakan progres mahasiswa Ilmu Komunikasi UMY.">
-    <meta property="og:image" content="https://raw.githubusercontent.com/ipcos-umy/assets/main/thumbnail.jpg"> 
+    <meta property="og:description"
+        content="Sistem portal akademik terpadu untuk pendaftaran ujian, skripsi, magang, dan pelacakan progres mahasiswa Ilmu Komunikasi UMY.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ipcos-umy/assets/main/thumbnail.jpg">
     <meta property="og:url" content="https://ipcos.umy.ac.id">
     <meta property="og:type" content="website">
 
     <!-- Font Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+        rel="stylesheet">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Zz48cGF0aCBkPSJNMTAgNTAgTDIwIDEwIEw0NSAzNSBMNTUgMzUgTDgwIDEwIEw5MCA1MCBMOTAgMTAwIEwxMCAxMDAgWiIgZmlsbD0iI0Y0QjMyNCIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iNTUiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjU1IiByPSI4IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iMzAiIGN5PSI1NSIgcj0iNCIgZmlsbD0iIzFBMUExQSIvPjxjaXJjbGUgY3g9IjcwIiBjeT0iNTUiIHI9IjQiIGZpbGw9IiMxQTFBMUEiLz48cG9seWdvbiBwb2ludHM9IjQ1LDY4IDU1LDY4IDUwLDc0IiBmaWxsPSIjRkY4REExIi8+PHBhdGggZD0iTTUwIDc0IFE0MCA4NCAzMCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lidGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTUwIDc0IFE2MCA4NCA3MCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PGxpbmUgeDE9IjI1IiB5MT0iNjUiIHgyPSI1IiB5Mj0iNjAiIHN0cm9rZT0iIzFBMUExQSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjUiIHkxPSI3MCIgeDI9IjUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjY1IiB4Mj0iOTUiIHkyPSI2MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjcwIiB4Mj0iOTUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Zz48cGF0aCBkPSJNMTAgNTAgTDIwIDEwIEw0NSAzNSBMNTUgMzUgTDgwIDEwIEw5MCA1MCBMOTAgMTAwIEwxMCAxMDAgWiIgZmlsbD0iI0Y0QjMyNCIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iNTUiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjU1IiByPSI4IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iMzAiIGN5PSI1NSIgcj0iNCIgZmlsbD0iIzFBMUExQSIvPjxjaXJjbGUgY3g9IjcwIiBjeT0iNTUiIHI9IjQiIGZpbGw9IiMxQTFBMUEiLz48cG9seWdvbiBwb2ludHM9IjQ1LDY4IDU1LDY4IDUwLDc0IiBmaWxsPSIjRkY4REExIi8+PHBhdGggZD0iTTUwIDc0IFE0MCA4NCAzMCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lidGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTUwIDc0IFE2MCA4NCA3MCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PGxpbmUgeDE9IjI1IiB5MT0iNjUiIHgyPSI1IiB5Mj0iNjAiIHN0cm9rZT0iIzFBMUExQSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjUiIHkxPSI3MCIgeDI9IjUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjY1IiB4Mj0iOTUiIHkyPSI2MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjcwIiB4Mj0iOTUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=">
 
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
+
 <body>
 
     <!-- 9. Offline Indicator -->
-    <div id="offline-indicator" style="display:none; position:fixed; top:0; left:0; width:100%; background:var(--umy-maroon); color:white; text-align:center; padding:8px; font-size:12px; font-weight:700; z-index:9999;">
-        <span class="lang" data-id="Anda sedang offline. Sistem akan mencoba sinkronisasi kembali saat koneksi pulih." data-en="You are offline. The system will retry syncing when the connection is restored.">Anda sedang offline. Sistem akan mencoba sinkronisasi kembali saat koneksi pulih.</span>
+    <div id="offline-indicator"
+        style="display:none; position:fixed; top:0; left:0; width:100%; background:var(--umy-maroon); color:white; text-align:center; padding:8px; font-size:12px; font-weight:700; z-index:9999;">
+        <span class="lang" data-id="Anda sedang offline. Sistem akan mencoba sinkronisasi kembali saat koneksi pulih."
+            data-en="You are offline. The system will retry syncing when the connection is restored.">Anda sedang
+            offline. Sistem akan mencoba sinkronisasi kembali saat koneksi pulih.</span>
     </div>
 
     <!-- 3. Global Search Modal (Ctrl + K) -->
-    <div id="modal-global-search" class="overlay" style="display: none; z-index: 3500; align-items: flex-start; padding-top: 10vh;">
+    <div id="modal-global-search" class="overlay"
+        style="display: none; z-index: 3500; align-items: flex-start; padding-top: 10vh;">
         <div class="modal-card" style="max-width: 600px; padding: 20px; border-radius: 16px;">
-            <div style="display: flex; align-items: center; border-bottom: 2px solid var(--item-border); padding-bottom: 10px; margin-bottom: 15px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" id="global-search-input" placeholder="Cari menu, form, atau panduan (Ketik di sini)..." style="border: none; box-shadow: none; margin-bottom: 0; font-size: 16px; background: transparent;" autocomplete="off">
-                <span style="font-size: 12px; background: var(--item-hover); padding: 4px 8px; border-radius: 6px; color: var(--text-muted);">ESC</span>
+            <div
+                style="display: flex; align-items: center; border-bottom: 2px solid var(--item-border); padding-bottom: 10px; margin-bottom: 15px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="global-search-input"
+                    placeholder="Cari menu, form, atau panduan (Ketik di sini)..."
+                    style="border: none; box-shadow: none; margin-bottom: 0; font-size: 16px; background: transparent;"
+                    autocomplete="off">
+                <span
+                    style="font-size: 12px; background: var(--item-hover); padding: 4px 8px; border-radius: 6px; color: var(--text-muted);">ESC</span>
             </div>
             <div id="global-search-results" style="text-align: left; max-height: 300px; overflow-y: auto;">
-                <p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">Ketik sesuatu untuk mulai mencari...</p>
+                <p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">Ketik sesuatu
+                    untuk mulai mencari...</p>
             </div>
         </div>
     </div>
@@ -53,7 +71,8 @@
     <div id="loader" class="loader-overlay" style="display: none;">
         <div style="text-align: center;">
             <div class="spinner" style="margin: 0 auto 15px;"></div>
-            <div id="loader-text" style="color: white; font-weight: 700; font-size: 16px; letter-spacing: 0.5px;" class="lang" data-id="Memuat data..." data-en="Loading data...">Memuat data...</div>
+            <div id="loader-text" style="color: white; font-weight: 700; font-size: 16px; letter-spacing: 0.5px;"
+                class="lang" data-id="Memuat data..." data-en="Loading data...">Memuat data...</div>
         </div>
     </div>
     <div id="toast-container" class="toast-container"></div>
@@ -61,59 +80,78 @@
     <!-- Easter Egg -->
     <svg id="easter-cat" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" onclick="hideCat()">
         <g id="cat-head">
-            <path class="cat-fill" d="M10 50 L20 10 L45 35 L55 35 L80 10 L90 50 L90 100 L10 100 Z" fill="#F4B324"/>
-            <circle cx="30" cy="55" r="8" fill="#FFF"/>
-            <circle cx="70" cy="55" r="8" fill="#FFF"/>
-            <circle cx="30" cy="55" r="4" fill="#1A1A1A"/>
-            <circle cx="70" cy="55" r="4" fill="#1A1A1A"/>
-            <polygon points="45,68 55,68 50,74" fill="#FF8DA1"/>
-            <path d="M50 74 Q40 84 30 72" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-            <path d="M50 74 Q60 84 70 72" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-            <line x1="25" y1="65" x2="5" y2="60" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="25" y1="70" x2="5" y2="70" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="75" y1="65" x2="95" y2="60" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="75" y1="70" x2="95" y2="70" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+            <path class="cat-fill" d="M10 50 L20 10 L45 35 L55 35 L80 10 L90 50 L90 100 L10 100 Z" fill="#F4B324" />
+            <circle cx="30" cy="55" r="8" fill="#FFF" />
+            <circle cx="70" cy="55" r="8" fill="#FFF" />
+            <circle cx="30" cy="55" r="4" fill="#1A1A1A" />
+            <circle cx="70" cy="55" r="4" fill="#1A1A1A" />
+            <polygon points="45,68 55,68 50,74" fill="#FF8DA1" />
+            <path d="M50 74 Q40 84 30 72" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            <path d="M50 74 Q60 84 70 72" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            <line x1="25" y1="65" x2="5" y2="60" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
+            <line x1="25" y1="70" x2="5" y2="70" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
+            <line x1="75" y1="65" x2="95" y2="60" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
+            <line x1="75" y1="70" x2="95" y2="70" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
         </g>
     </svg>
 
     <!-- Modals -->
     <div id="modal-chat-timeline" class="overlay" style="display: none; z-index: 2000;">
         <div class="modal-card" style="max-width: 550px; text-align: left;">
-            <h2 class="lang" data-id="Riwayat Percakapan Revisi" data-en="Revision History Log">Riwayat Percakapan Revisi</h2>
-            <div id="chat-timeline-container" style="max-height: 350px; overflow-y: auto; padding: 10px; background: var(--bg-color); border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--item-border);"></div>
-            <button class="btn-primary lang" style="background-color: var(--umy-maroon);" onclick="closeModal('modal-chat-timeline')" data-id="Tutup" data-en="Close">Tutup</button>
+            <h2 class="lang" data-id="Riwayat Percakapan Revisi" data-en="Revision History Log">Riwayat Percakapan
+                Revisi</h2>
+            <div id="chat-timeline-container"
+                style="max-height: 350px; overflow-y: auto; padding: 10px; background: var(--bg-color); border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--item-border);">
+            </div>
+            <button class="btn-primary lang" style="background-color: var(--umy-maroon);"
+                onclick="closeModal('modal-chat-timeline')" data-id="Tutup" data-en="Close">Tutup</button>
         </div>
     </div>
 
-    <div id="modal-doc-preview" class="overlay" style="display: none; z-index: 2100;">
+    <!-- HTML5 Native Dialog for Document Preview -->
+    <dialog id="modal-doc-preview" class="overlay-dialog" style="z-index: 2100;">
         <div class="modal-card" style="max-width: 800px; width: 95%; text-align: left; padding: 25px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin:0; color:var(--heading-color);" class="lang" data-id="Preview Berkas Dokumen" data-en="Document File Preview">Preview Berkas Dokumen</h3>
-                <button aria-label="Tutup Modal" onclick="closeModal('modal-doc-preview')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-color); padding: 5px 10px;">X</button>
+                <h3 style="margin:0; color:var(--heading-color);" class="lang" data-id="Preview Berkas Dokumen"
+                    data-en="Document File Preview">Preview Berkas Dokumen</h3>
+                <button aria-label="Tutup Modal" onclick="closeModal('modal-doc-preview')"
+                    style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-color); padding: 5px 10px;">X</button>
             </div>
-            <div style="height: 400px; width: 100%; background: #222; border-radius: 14px; overflow: hidden; -webkit-overflow-scrolling: touch;">
+            <div
+                style="height: 400px; width: 100%; background: #222; border-radius: 14px; overflow: hidden; -webkit-overflow-scrolling: touch;">
                 <iframe id="iframe-doc-viewer" src="" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
             <div style="text-align: center; margin-top: 10px;">
-                <p style="font-size: 13px; color: #ff5722;" class="lang" data-id="Jika dokumen tidak muncul, klik tombol 'Buka di Tab Baru'." data-en="If document not showing, click 'Open in New Tab'.">Jika dokumen tidak muncul, klik tombol 'Buka di Tab Baru'.</p>
+                <p style="font-size: 13px; color: #ff5722;" class="lang"
+                    data-id="Jika dokumen tidak muncul, klik tombol 'Buka di Tab Baru'."
+                    data-en="If document not showing, click 'Open in New Tab'.">Jika dokumen tidak muncul, klik tombol
+                    'Buka di Tab Baru'.</p>
             </div>
             <div style="display: flex; justify-content: flex-end; margin-top: 15px; gap: 10px; flex-wrap: wrap;">
-                <a id="btn-download-direct" href="#" target="_blank" class="btn-primary lang" style="background-color: var(--umy-green); text-decoration: none; width: auto; padding: 12px 20px;" data-id="Buka di Tab Baru" data-en="Open in New Tab">Buka di Tab Baru</a>
-                <button class="btn-secondary lang" style="width: auto; padding: 12px 20px;" onclick="closeModal('modal-doc-preview')" data-id="Tutup" data-en="Close">Tutup</button>
+                <a id="btn-download-direct" href="#" target="_blank" class="btn-primary lang"
+                    style="background-color: var(--umy-green); text-decoration: none; width: auto; padding: 12px 20px;"
+                    data-id="Buka di Tab Baru" data-en="Open in New Tab">Buka di Tab Baru</a>
+                <button class="btn-secondary lang" style="width: auto; padding: 12px 20px;"
+                    onclick="closeModal('modal-doc-preview')" data-id="Tutup" data-en="Close">Tutup</button>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Admin Modals -->
     <div id="modal-revision" class="overlay" style="display: none; z-index: 2000;">
         <div class="modal-card">
             <h2 class="lang" data-id="Pesan Revisi" data-en="Revision Note">Pesan Revisi</h2>
-            <p class="lang" style="font-size: 15px; margin-bottom: 15px; color: var(--text-color);" data-id="Ketikkan detail revisi:" data-en="Enter revision details:">Ketikkan detail revisi untuk mahasiswa:</p>
+            <label for="input-rev-note" class="lang"
+                style="font-size: 15px; margin-bottom: 15px; color: var(--text-color); display:block;"
+                data-id="Ketikkan detail revisi:" data-en="Enter revision details:">Ketikkan detail revisi untuk
+                mahasiswa:</label>
             <textarea id="input-rev-note" rows="4" placeholder="Misal: Transkrip belum terstempel resmi..."></textarea>
             <input type="hidden" id="hidden-rev-id">
             <div style="display: flex; gap: 12px; margin-top: 15px;">
-                <button class="btn-secondary lang" onclick="closeModal('modal-revision')" data-id="Batal" data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" onclick="submitAdminRevision()" data-id="Kirim Revisi" data-en="Send Revision">Kirim Revisi</button>
+                <button class="btn-secondary lang" onclick="closeModal('modal-revision')" data-id="Batal"
+                    data-en="Cancel">Batal</button>
+                <button class="btn-primary lang" onclick="submitAdminRevision()" data-id="Kirim Revisi"
+                    data-en="Send Revision">Kirim Revisi</button>
             </div>
         </div>
     </div>
@@ -121,22 +159,46 @@
     <div id="modal-dospem" class="overlay" style="display: none; z-index: 2000;">
         <div class="modal-card">
             <h2 class="lang" data-id="Tunjuk Dosen Pembimbing" data-en="Assign Supervisor">Tunjuk Dosen Pembimbing</h2>
-            <p class="lang" style="font-size: 14px; margin-bottom: 20px; color: var(--text-color);" data-id="Pilih dosen pembimbing:" data-en="Select supervisor:">Pilih dosen pembimbing untuk outline mahasiswa ini:</p>
+            <label for="input-dospem-select" class="lang"
+                style="font-size: 14px; margin-bottom: 12px; color: var(--text-color); display:block;"
+                data-id="Pilih dosen pembimbing:" data-en="Select supervisor:">Pilih dosen pembimbing untuk outline
+                mahasiswa ini:</label>
             <div class="form-group" style="text-align: left;">
                 <select id="input-dospem-select" style="border-color: var(--item-border); border-width: 2px;">
                     <option value="">-- Pilih Dosen Pembimbing --</option>
                     <option value="Dr. Fajar Junaedi, S.Sos, M.Si">Dr. Fajar Junaedi, S.Sos, M.Si</option>
                     <option value="Dr. Muria Endah Sokowati, S.IP, M.Si">Dr. Muria Endah Sokowati, S.IP, M.Si</option>
-                    <option value="Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si">Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si</option>
+                    <option value="Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si">Dr. Tri Hastuti Nur Rochimah, S.Sos, M.Si
+                    </option>
                     <option value="Taufiqur Rahman, S.IP, MA, Ph.D">Taufiqur Rahman, S.IP, MA, Ph.D</option>
                     <option value="Aswad Ishak, S.IP, M.Si">Aswad Ishak, S.IP, M.Si</option>
-                    <!-- List Dosen lainnya bisa ditambahkan sesuai data lama -->
+                    <option value="Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si">Prof. Dr. Adhianty Nurjanah, S.Sos, M.Si
+                    </option>
+                    <option value="Frizki Yulianti Nurnisya, S.IP, M.Si., Ph.D">Frizki Yulianti Nurnisya, S.IP, M.Si.,
+                        Ph.D</option>
+                    <option value="Dr. Nur Sofyan, S.I.Kom, M.I.Kom">Dr. Nur Sofyan, S.I.Kom, M.I.Kom</option>
+                    <option value="Dr. Filosa Gita Sukmono, S. I.Kom, MA">Dr. Filosa Gita Sukmono, S. I.Kom, MA</option>
+                    <option value="Firly Annisa, S.IP ., MA., Ph.D">Firly Annisa, S.IP ., MA., Ph.D</option>
+                    <option value="Sovia Sitta Sari, S.IP, M.Si">Sovia Sitta Sari, S.IP, M.Si</option>
+                    <option value="Prof. Dr. Suciati, S.Sos, M.Si">Prof. Dr. Suciati, S.Sos, M.Si</option>
+                    <option value="Dr. Phil. Wulan Widyasari, S. Sos, M.A">Dr. Phil. Wulan Widyasari, S. Sos, M.A
+                    </option>
+                    <option value="Haryadi Arief Nuur Rasyid, S.IP, M.Sc">Haryadi Arief Nuur Rasyid, S.IP, M.Sc</option>
+                    <option value="Dr. Senja Yustitia, M.Si">Dr. Senja Yustitia, M.Si</option>
+                    <option value="Dhimas Aryo Vipha Ananda, S.Sn., M.Sn (Dibawahi mas Jun)">Dhimas Aryo Vipha Ananda,
+                        S.Sn., M.Sn (Dibawahi mas Jun)</option>
+                    <option value="Dr. Yeni Rosilawati, S.IP, S.E, M.M">Dr. Yeni Rosilawati, S.IP, S.E, M.M</option>
+                    <option value="Denis Hida Lutfiana Stefani, S.Ikom., M.A (Dibawahi Bu Tri Hastuti)">Denis Hida
+                        Lutfiana Stefani, S.Ikom., M.A (Dibawahi Bu Tri Hastuti)</option>
                 </select>
             </div>
             <input type="hidden" id="hidden-dospem-id">
             <div style="display: flex; gap: 12px; margin-top: 15px;">
-                <button class="btn-secondary lang" onclick="closeModal('modal-dospem')" data-id="Batal" data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" style="background-color: var(--umy-green);" onclick="submitAdminDospem()" data-id="Tunjuk & Terima" data-en="Assign & Accept">Tunjuk & Terima</button>
+                <button class="btn-secondary lang" onclick="closeModal('modal-dospem')" data-id="Batal"
+                    data-en="Cancel">Batal</button>
+                <button class="btn-primary lang" style="background-color: var(--umy-green);"
+                    onclick="submitAdminDospem()" data-id="Tunjuk & Terima" data-en="Assign & Accept">Tunjuk &
+                    Terima</button>
             </div>
         </div>
     </div>
@@ -145,23 +207,36 @@
     <div id="modal-reply" class="overlay" style="display: none; z-index: 2000;">
         <div class="modal-card">
             <h2 class="lang" data-id="Kirim Perbaikan" data-en="Submit Correction">Kirim Perbaikan</h2>
-            <p class="lang" style="font-size: 14px; margin-bottom: 20px; color: var(--text-color);" data-id="Upload file baru dan catatan." data-en="Upload new file and notes.">Upload berkas baru Anda dan berikan catatan perbaikan.</p>
+            <p class="lang" style="font-size: 14px; margin-bottom: 20px; color: var(--text-color);"
+                data-id="Upload file baru dan catatan." data-en="Upload new file and notes.">Upload berkas baru Anda dan
+                berikan catatan perbaikan.</p>
             <div style="text-align: left; margin-bottom: 15px;">
-                <label style="font-size: 13px; font-weight: bold; color: var(--heading-color);">Upload Berkas Revisi (PDF / DOCX) *</label>
-                <div class="dropzone" onclick="document.getElementById('input-reply-file').click()" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDropZone(event, this, 'input-reply-file', 'name-reply-file')">
-                    <div class="dz-message"><span class="lang" data-id="Klik atau seret berkas ke sini" data-en="Click or drag file here">Klik atau seret berkas ke sini</span></div>
+                <label for="input-reply-file"
+                    style="font-size: 13px; font-weight: bold; color: var(--heading-color); display:block; margin-bottom: 6px;">Upload
+                    Berkas Revisi (PDF / DOCX) *</label>
+                <div class="dropzone" onclick="document.getElementById('input-reply-file').click()"
+                    ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)"
+                    ondrop="handleDropZone(event, this, 'input-reply-file', 'name-reply-file')" tabindex="0">
+                    <div class="dz-message"><span class="lang" data-id="Klik atau seret berkas ke sini"
+                            data-en="Click or drag file here">Klik atau seret berkas ke sini</span></div>
                     <div id="name-reply-file" class="dz-file-name"></div>
-                    <input type="file" id="input-reply-file" accept=".pdf,.doc,.docx" required style="display:none;" onchange="validateFile(this, 'name-reply-file')">
+                    <input type="file" id="input-reply-file" accept=".pdf,.doc,.docx" required style="display:none;"
+                        onchange="validateFile(this, 'name-reply-file')">
                 </div>
             </div>
             <div style="text-align: left;">
-                <label style="font-size: 13px; font-weight: bold; color: var(--heading-color);">Catatan / Pesan Balasan *</label>
-                <textarea id="input-reply-note" rows="3" placeholder="Misal: Saya sudah mengupload transkrip baru..." required style="margin-top: 5px;"></textarea>
+                <label for="input-reply-note"
+                    style="font-size: 13px; font-weight: bold; color: var(--heading-color); display:block; margin-bottom: 6px;">Catatan
+                    / Pesan Balasan *</label>
+                <textarea id="input-reply-note" rows="3" placeholder="Misal: Saya sudah mengupload transkrip baru..."
+                    required style="margin-top: 5px;"></textarea>
             </div>
             <input type="hidden" id="hidden-reply-id">
             <div style="display: flex; gap: 12px; margin-top: 15px;">
-                <button class="btn-secondary lang" onclick="closeModal('modal-reply')" data-id="Batal" data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" style="background-color: var(--umy-gold); color: #1a1a1a;" onclick="submitStudentReply()" data-id="Kirim Ulang" data-en="Resubmit">Kirim Ulang</button>
+                <button class="btn-secondary lang" onclick="closeModal('modal-reply')" data-id="Batal"
+                    data-en="Cancel">Batal</button>
+                <button class="btn-primary lang" style="background-color: var(--umy-gold); color: #1a1a1a;"
+                    onclick="submitStudentReply()" data-id="Kirim Ulang" data-en="Resubmit">Kirim Ulang</button>
             </div>
         </div>
     </div>
@@ -170,21 +245,38 @@
     <div id="modal-edit-content" class="overlay" style="display: none; z-index: 2500;">
         <div class="modal-card" style="max-width: 700px; text-align: left;">
             <h2 id="editor-modal-title">Edit Konten</h2>
-            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Ubah urutan, teks, dan detail list data di bawah ini.</p>
-            <div id="editor-ui-container" style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;"></div>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Ubah urutan, teks, dan detail
+                list data di bawah ini.</p>
+            <div id="editor-ui-container"
+                style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;"></div>
             <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                 <button class="btn-secondary" style="flex:1;" onclick="closeModal('modal-edit-content')">Batal</button>
-                <button class="btn-primary" style="flex:1; background-color: var(--umy-green);" onclick="saveContentChanges()">Simpan Perubahan</button>
+                <button class="btn-primary" style="flex:1; background-color: var(--umy-green);"
+                    onclick="saveContentChanges()">Simpan Perubahan</button>
             </div>
         </div>
     </div>
 
+    <!-- MODAL PENGUMUMAN PENTING (DENGAN CHECKBOX JANGAN TAMPILKAN LAGI) -->
     <div id="modal-important-announcement" class="overlay" style="display: none; z-index: 3000;">
         <div class="modal-card" style="border-top: 6px solid var(--umy-maroon);">
             <div style="font-size: 48px; margin-bottom: 12px;">📢</div>
-            <h2 class="lang" data-id="Pengumuman Penting!" data-en="Important Announcement!">Pengumuman Penting!</h2>
-            <p id="important-announcement-text" style="font-size: 15px; line-height: 1.6; margin-bottom: 24px; color: var(--text-color); font-weight: 500;"></p>
-            <button class="btn-primary lang" style="background-color: var(--umy-maroon);" onclick="closeModal('modal-important-announcement')" data-id="Saya Mengerti" data-en="I Understand">Saya Mengerti</button>
+            <h2 class="lang" data-id="Pengumuman Baru!" data-en="New Announcement!">Pengumuman Baru!</h2>
+            <p id="important-announcement-text"
+                style="font-size: 15px; line-height: 1.6; margin-bottom: 16px; color: var(--text-color); font-weight: 500;">
+            </p>
+
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px;">
+                <input type="checkbox" id="chk-dont-show-announcement"
+                    style="width: 18px; height: 18px; min-height: auto; margin: 0; cursor: pointer;">
+                <label for="chk-dont-show-announcement" class="lang"
+                    style="font-size: 13px; color: var(--text-muted); font-weight: 600; margin: 0; cursor: pointer;"
+                    data-id="Jangan tampilkan lagi" data-en="Do not show again">Jangan tampilkan lagi</label>
+            </div>
+
+            <button class="btn-primary lang" style="background-color: var(--umy-maroon);"
+                onclick="closeAnnouncementModal()" data-id="Saya Mengerti" data-en="I Understand">Saya
+                Mengerti</button>
         </div>
     </div>
 
@@ -194,27 +286,47 @@
         <div class="modal-card">
             <h2 class="lang" data-id="Selamat Datang" data-en="Welcome">Selamat Datang</h2>
             <div class="login-tabs">
-                <div id="tab-mhs" class="login-tab active lang" onclick="switchLoginMode('mhs')" data-id="Mahasiswa" data-en="Student">Mahasiswa</div>
-                <div id="tab-admin" class="login-tab lang" onclick="switchLoginMode('admin')" data-id="Admin" data-en="Admin">Admin</div>
+                <div id="tab-mhs" class="login-tab active lang" onclick="switchLoginMode('mhs')" data-id="Mahasiswa"
+                    data-en="Student">Mahasiswa</div>
+                <div id="tab-admin" class="login-tab lang" onclick="switchLoginMode('admin')" data-id="Admin"
+                    data-en="Admin">Admin</div>
             </div>
             <form id="form-mhs" onsubmit="event.preventDefault(); loginMhs();">
                 <p id="error-msg-mhs" class="error-msg"></p>
-                <input type="text" id="input-nim" placeholder="Masukkan NIM / Student ID" autocomplete="username" required>
-                <button type="submit" class="btn-primary lang" data-id="Masuk Portal" data-en="Enter Portal">Masuk Portal</button>
+                <label for="input-nim"
+                    style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
+                    class="lang" data-id="NIM / Student ID" data-en="NIM / Student ID">NIM / Student ID</label>
+                <input type="text" id="input-nim" placeholder="Masukkan NIM / Student ID" autocomplete="username"
+                    required>
+                <button type="submit" class="btn-primary lang" data-id="Masuk Portal" data-en="Enter Portal">Masuk
+                    Portal</button>
             </form>
             <form id="form-admin" style="display:none;" onsubmit="event.preventDefault(); loginAdmin();">
-                <p class="lang" style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;" data-id="Masukkan kredensial Admin." data-en="Enter Admin credentials.">Silakan masukkan kredensial Administrator.</p>
+                <p class="lang" style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;"
+                    data-id="Masukkan kredensial Admin." data-en="Enter Admin credentials.">Silakan masukkan kredensial
+                    Administrator.</p>
                 <p id="error-msg-admin" class="error-msg"></p>
+                <label for="input-admin-user"
+                    style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
+                    class="lang" data-id="Username Administrator" data-en="Administrator Username">Username
+                    Administrator</label>
                 <input type="text" id="input-admin-user" placeholder="Username" autocomplete="username" required>
-                <input type="password" id="input-admin-pass" placeholder="Password" autocomplete="current-password" required>
-                <button type="submit" class="btn-primary lang" data-id="Masuk sebagai Admin" data-en="Login as Admin">Masuk sebagai Admin</button>
+                <label for="input-admin-pass"
+                    style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
+                    class="lang" data-id="Password" data-en="Password">Password</label>
+                <input type="password" id="input-admin-pass" placeholder="Password" autocomplete="current-password"
+                    required>
+                <button type="submit" class="btn-primary lang" data-id="Masuk sebagai Admin"
+                    data-en="Login as Admin">Masuk sebagai Admin</button>
             </form>
         </div>
     </div>
 
     <!-- Sidebar & Nav -->
     <div class="mobile-nav-toggle" onclick="toggleSidebar()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M3 12h18M3 6h18M3 18h18" />
+        </svg>
         <span>Menu</span>
     </div>
 
@@ -222,40 +334,56 @@
         <!-- 10. Penyegaran Identitas Visual dengan Logo Baru (Abstract Concept) -->
         <div class="logo-area" style="display: flex; align-items: center; gap: 12px; margin-bottom: 30px;">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="var(--umy-maroon)"/>
-                <path d="M2 17L12 22L22 17" stroke="var(--umy-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="var(--umy-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="var(--umy-maroon)" />
+                <path d="M2 17L12 22L22 17" stroke="var(--umy-gold)" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                <path d="M2 12L12 17L22 12" stroke="var(--umy-green)" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
             </svg>
             <div>
                 <h2>IPCOS</h2>
-                <p class="lang" data-id="Portal Akademik" data-en="Academic Portal" style="font-size: 10px;">Portal Akademik Terpadu</p>
+                <p class="lang" data-id="Portal Akademik" data-en="Academic Portal" style="font-size: 10px;">Portal
+                    Akademik Terpadu</p>
             </div>
         </div>
-        
+
         <ul class="nav-tabs">
             <div class="nav-header lang" data-id="Akademik" data-en="Academics">Akademik</div>
-            <li class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-id="Dashboard Utama" data-en="Main Dashboard">Dashboard Utama</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'magang')" data-id="Kewajiban Magang" data-en="Internship Requirements">Kewajiban Magang</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-id="Kewajiban Skripsi" data-en="Thesis Requirements">Kewajiban Skripsi</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-id="Sebaran Mata Kuliah" data-en="Course Curriculum">Sebaran Mata Kuliah</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'remidial')" data-id="SOP Remidial" data-en="Remedial SOP">SOP Remidial</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'kalender')" data-id="Kalender Akademik" data-en="Academic Calendar">Kalender Akademik</li>
-            
+            <li class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-id="Dashboard Utama"
+                data-en="Main Dashboard">Dashboard Utama</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'magang')" data-id="Kewajiban Magang"
+                data-en="Internship Requirements">Kewajiban Magang</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-id="Kewajiban Skripsi"
+                data-en="Thesis Requirements">Kewajiban Skripsi</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-id="Sebaran Mata Kuliah"
+                data-en="Course Curriculum">Sebaran Mata Kuliah</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'remidial')" data-id="SOP Remidial"
+                data-en="Remedial SOP">SOP Remidial</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'kalender')" data-id="Kalender Akademik"
+                data-en="Academic Calendar">Kalender Akademik</li>
+
             <div class="nav-header lang" data-id="Layanan" data-en="Services">Layanan</div>
-            <li class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-id="Pusat Pendaftaran" data-en="Registration Center">Pusat Pendaftaran</li>
-            <li class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-id="Status Pengajuanku" data-en="My Request Status">Status Pengajuanku</li>
-            
-            <li class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-id="Data Pendaftar" data-en="Registered Data">Data Pendaftar</li>
-            <li class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li>
+            <li class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-id="Pusat Pendaftaran"
+                data-en="Registration Center">Pusat Pendaftaran</li>
+            <li class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')"
+                data-id="Status Pengajuanku" data-en="My Request Status">Status Pengajuanku</li>
+
+            <li class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')"
+                data-id="Data Pendaftar" data-en="Registered Data">Data Pendaftar</li>
+            <li class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')"
+                data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li>
 
             <div class="nav-header lang" data-id="Pusat Bantuan" data-en="Help Center">Pusat Bantuan</div>
             <!-- 8. Menu Template Download & FAQ -->
-            <li class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-id="Template & FAQ" data-en="Templates & FAQ">Template & FAQ</li>
-            <li class="nav-item lang" onclick="switchTab(event, 'feedback')" data-id="Kontak Kami" data-en="Contact Us">Kontak Kami</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-id="Template & FAQ"
+                data-en="Templates & FAQ">Template & FAQ</li>
+            <li class="nav-item lang" onclick="switchTab(event, 'feedback')" data-id="Kontak Kami" data-en="Contact Us">
+                Kontak Kami</li>
         </ul>
-        
+
         <button class="btn-sidebar" id="lang-btn" onclick="toggleLanguage()">Switch to English</button>
-        <button class="btn-sidebar lang" onclick="toggleDarkMode()" data-id="Mode Gelap / Terang" data-en="Dark / Light Mode">Mode Gelap / Terang</button>
+        <button class="btn-sidebar lang" onclick="toggleDarkMode()" data-id="Mode Gelap / Terang"
+            data-en="Dark / Light Mode">Mode Gelap / Terang</button>
         <div class="copyright">&copy; 2026 Developed by IPCOS Team</div>
     </div>
 
@@ -263,46 +391,79 @@
     <div class="main-content">
         <!-- Header Actions -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-            <button class="btn-toggle-sidebar" id="btn-toggle-sidebar" onclick="toggleDesktopSidebar()" style="margin-bottom: 0;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg> 
+            <button class="btn-toggle-sidebar" id="btn-toggle-sidebar" onclick="toggleDesktopSidebar()"
+                style="margin-bottom: 0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
                 <span class="lang" data-id="Menu" data-en="Menu">Menu</span>
             </button>
-            
+
             <!-- Global Search & Notifications -->
             <div style="display: flex; gap: 15px; align-items: center;">
-                <button class="btn-secondary" onclick="document.getElementById('modal-global-search').style.display='flex'" style="min-height: 40px; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; gap: 8px; align-items: center; background: var(--item-bg);">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <button class="btn-secondary"
+                    onclick="document.getElementById('modal-global-search').style.display='flex'"
+                    style="min-height: 40px; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; gap: 8px; align-items: center; background: var(--item-bg);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
                     <span class="lang" data-id="Cari (Ctrl+K)" data-en="Search (Ctrl+K)">Cari (Ctrl+K)</span>
                 </button>
-                
-                <!-- 4. Notification Center -->
-                <div style="position: relative; cursor: pointer;" onclick="document.getElementById('notif-dropdown').classList.toggle('active')">
-                    <div style="background: var(--item-bg); border: 1px solid var(--item-border); padding: 10px; border-radius: 50%; position: relative;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                        <span style="position: absolute; top: 0; right: 0; width: 10px; height: 10px; background: var(--umy-maroon); border-radius: 50%; border: 2px solid var(--bg-color);"></span>
+
+                <!-- 4. Dynamic Notification Center -->
+                <div style="position: relative; cursor: pointer;" id="notif-wrapper">
+                    <div style="background: var(--item-bg); border: 1px solid var(--item-border); padding: 10px; border-radius: 50%; position: relative;"
+                        onclick="toggleNotifDropdown(event)" aria-label="Buka Pusat Notifikasi">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span id="notif-badge"
+                            style="display: none; position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; background: var(--umy-maroon); color: white; border-radius: 50%; font-size: 10px; font-weight: 800; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-color);">0</span>
                     </div>
-                    <div id="notif-dropdown" style="display: none; position: absolute; top: 110%; right: 0; background: var(--card-bg); width: 300px; border: 1px solid var(--card-border); border-radius: 12px; box-shadow: var(--shadow-md); z-index: 1000; overflow: hidden;">
-                        <div style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); font-weight: bold; font-size: 13px;">Pusat Notifikasi</div>
-                        <div style="padding: 15px; font-size: 13px; color: var(--text-muted); text-align: center;">Belum ada notifikasi baru.</div>
+                    <div id="notif-dropdown"
+                        style="display: none; position: absolute; top: 110%; right: 0; background: var(--card-bg); width: 320px; border: 1px solid var(--card-border); border-radius: 14px; box-shadow: var(--shadow-floating); z-index: 1000; overflow: hidden;">
+                        <div
+                            style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+                            <span class="lang" data-id="Pusat Notifikasi" data-en="Notification Center">Pusat
+                                Notifikasi</span>
+                            <button onclick="markAllNotificationsRead()"
+                                style="background:none; border:none; color:var(--umy-maroon); font-size:11px; cursor:pointer; font-weight:700;"
+                                class="lang" data-id="Tandai Dibaca" data-en="Mark Read">Tandai Dibaca</button>
+                        </div>
+                        <div id="notif-list-container" style="max-height: 300px; overflow-y: auto;">
+                            <div style="padding: 15px; font-size: 13px; color: var(--text-muted); text-align: center;"
+                                class="lang" data-id="Belum ada notifikasi baru." data-en="No new notifications.">Belum
+                                ada notifikasi baru.</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="announcement-banner" style="display: none; background: var(--umy-gold); color: var(--text-color); padding: 15px 20px; border-radius: 16px; margin-bottom: 25px; font-weight: bold; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(248, 196, 99, 0.3);">
-            <div style="display: flex; align-items: center; gap: 10px;"><span id="announcement-text">Pengumuman penting di sini...</span></div>
-            <button aria-label="Tutup Pengumuman" onclick="document.getElementById('announcement-banner').style.display='none'" style="background: rgba(0,0,0,0.1); border: none; cursor: pointer; border-radius: 50%; width: 32px; height: 32px; font-weight: bold;">X</button>
+        <div id="announcement-banner"
+            style="display: none; background: var(--umy-gold); color: var(--text-color); padding: 15px 20px; border-radius: 16px; margin-bottom: 25px; font-weight: bold; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(248, 196, 99, 0.3);">
+            <div style="display: flex; align-items: center; gap: 10px;"><span id="announcement-text">Pengumuman penting
+                    di sini...</span></div>
+            <button aria-label="Tutup Pengumuman"
+                onclick="document.getElementById('announcement-banner').style.display='none'"
+                style="background: rgba(0,0,0,0.1); border: none; cursor: pointer; border-radius: 50%; width: 32px; height: 32px; font-weight: bold;">X</button>
         </div>
 
         <!-- Student Header Card -->
         <div class="student-info" id="student-header" style="display: none;">
             <div class="user-greeting-wrapper">
-                <span class="lang user-label" id="label-status-user" data-id="Mahasiswa Aktif" data-en="Active Student">Mahasiswa Aktif</span>
+                <span class="lang user-label" id="label-status-user" data-id="Mahasiswa Aktif"
+                    data-en="Active Student">Mahasiswa Aktif</span>
                 <strong id="display-greeting" class="user-greeting-text">Whatsup, Nama!</strong>
                 <span id="header-subtext" class="user-subtext">NIM: 0000000000</span>
             </div>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;" class="student-info-actions">
-                <button class="btn-print lang" style="background-color: var(--umy-gold); color: var(--text-color);" onclick="syncDatabase()" data-id="Refresh Data" data-en="Refresh Data">Refresh Data</button>
+                <button class="btn-print lang" style="background-color: var(--umy-gold); color: var(--text-color);"
+                    onclick="syncDatabase()" data-id="Refresh Data" data-en="Refresh Data">Refresh Data</button>
                 <button class="btn-logout lang" onclick="logoutUser()" data-id="Keluar" data-en="Logout">Keluar</button>
             </div>
         </div>
@@ -310,52 +471,71 @@
         <!-- 1. Dashboard Baru yang Lebih Ringkas -->
         <div id="dashboard" class="tab-content active">
             <h1 class="lang" data-id="Dashboard Akademik" data-en="Academic Dashboard">Dashboard Akademik</h1>
-            
+
             <!-- ADMIN DASHBOARD -->
             <div class="bento-grid admin-only">
                 <div class="bento-card bento-col-3" style="flex-direction: row; align-items: center; gap: 20px;">
                     <div style="flex-grow: 1;">
                         <h3 style="margin-bottom: 5px; color: var(--heading-color);">Kirim Pengumuman Instan</h3>
-                        <input type="text" id="input-broadcast-dashboard" placeholder="Ketik pengumuman di sini..." style="margin-bottom: 0;">
+                        <input type="text" id="input-broadcast-dashboard" placeholder="Ketik pengumuman di sini..."
+                            style="margin-bottom: 0;">
                     </div>
-                    <button class="btn-primary" onclick="postAnnouncementFromDashboard()" style="width: auto; padding: 14px 28px; white-space: nowrap; height: fit-content; margin-top: 20px;">Sebarkan</button>
+                    <button class="btn-primary" onclick="postAnnouncementFromDashboard()"
+                        style="width: auto; padding: 14px 28px; white-space: nowrap; height: fit-content; margin-top: 20px;">Sebarkan</button>
                 </div>
-                
+
                 <div class="bento-card bento-col-2">
-                    <div class="bento-header"><h3 class="lang" data-id="Overview Status" data-en="Status Overview">Overview Status</h3></div>
+                    <div class="bento-header">
+                        <h3 class="lang" data-id="Overview Status" data-en="Status Overview">Overview Status</h3>
+                    </div>
                     <div class="stat-cards-grid">
-                        <div class="stat-card stat-pending"><span class="stat-num" id="stat-count-pending">0</span><span class="stat-label">Pending</span></div>
-                        <div class="stat-card stat-resubmitted"><span class="stat-num" id="stat-count-resubmitted">0</span><span class="stat-label">Resubmitted</span></div>
-                        <div class="stat-card stat-revision"><span class="stat-num" id="stat-count-revision">0</span><span class="stat-label">Revisi</span></div>
-                        <div class="stat-card stat-accepted"><span class="stat-num" id="stat-count-accepted">0</span><span class="stat-label">Accepted</span></div>
+                        <div class="stat-card stat-pending"><span class="stat-num" id="stat-count-pending">0</span><span
+                                class="stat-label">Pending</span></div>
+                        <div class="stat-card stat-resubmitted"><span class="stat-num"
+                                id="stat-count-resubmitted">0</span><span class="stat-label">Resubmitted</span></div>
+                        <div class="stat-card stat-revision"><span class="stat-num"
+                                id="stat-count-revision">0</span><span class="stat-label">Revisi</span></div>
+                        <div class="stat-card stat-accepted"><span class="stat-num"
+                                id="stat-count-accepted">0</span><span class="stat-label">Accepted</span></div>
                     </div>
                 </div>
 
                 <div class="bento-card bento-col-1 bento-card-dark">
-                    <div class="bento-header"><h3 style="color: var(--umy-gold);">Batas Yudisium</h3></div>
+                    <div class="bento-header">
+                        <h3 style="color: var(--umy-gold);">Batas Yudisium</h3>
+                    </div>
                     <div class="bento-body-center">
-                        <div style="font-size: 13px; font-weight: 700; color: #fff; opacity: 0.8; margin-bottom: 5px;">Periode II</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #fff; opacity: 0.8; margin-bottom: 5px;">
+                            Periode II</div>
                         <div id="countdown-timer-display" class="bento-timer-text">Memuat...</div>
                     </div>
                 </div>
 
                 <div class="bento-card bento-col-1">
-                    <div class="bento-header"><h3>Rasio Verifikasi</h3></div>
+                    <div class="bento-header">
+                        <h3>Rasio Verifikasi</h3>
+                    </div>
                     <div class="chart-container-bento"><canvas id="ratioChart"></canvas></div>
                 </div>
                 <div class="bento-card bento-col-2">
-                    <div class="bento-header"><h3>Pengajuan Per Jenis Ujian</h3></div>
+                    <div class="bento-header">
+                        <h3>Pengajuan Per Jenis Ujian</h3>
+                    </div>
                     <div class="chart-container-bento"><canvas id="typeChart"></canvas></div>
                 </div>
             </div>
 
             <!-- MAHASISWA DASHBOARD -->
-            <div id="alert-revision-student" class="alert-box student-only" style="display:none; background: #FDECEA; border-left-color: #D9534F; color: #721C24;">
+            <div id="alert-revision-student" class="alert-box student-only"
+                style="display:none; background: #FDECEA; border-left-color: #D9534F; color: #721C24;">
                 <strong class="lang" data-id="Perhatian:" data-en="Attention:">Perhatian:</strong>
-                <div class="lang" data-id="Anda memiliki berkas pendaftaran berstatus Revisi." data-en="You have a registration file with Revision status." style="margin-top: 4px;">Anda memiliki berkas pendaftaran berstatus <b>Revisi</b>. Silakan cek tab Status Pengajuanku.</div>
+                <div class="lang" data-id="Anda memiliki berkas pendaftaran berstatus Revisi."
+                    data-en="You have a registration file with Revision status." style="margin-top: 4px;">Anda memiliki
+                    berkas pendaftaran berstatus <b>Revisi</b>. Silakan cek tab Status Pengajuanku.</div>
             </div>
-            
-            <div id="alert-checklist-reminder" class="alert-box student-only" style="display:none; background: rgba(23, 162, 184, 0.12); border-left-color: #17a2b8;">
+
+            <div id="alert-checklist-reminder" class="alert-box student-only"
+                style="display:none; background: rgba(23, 162, 184, 0.12); border-left-color: #17a2b8;">
                 <strong>Status Checklist Akademik:</strong>
                 <div id="reminder-text-content" style="margin-top: 4px;">Menghitung progres checklist...</div>
             </div>
@@ -364,39 +544,51 @@
                 <!-- 6. Progress tracker yang lebih visual (Digabung dalam 1 Bento Box) -->
                 <div class="bento-card bento-col-2" style="background: var(--card-bg);">
                     <div class="bento-header">
-                        <h3 class="lang" data-id="Tracking Progress Akademik" data-en="Academic Progress Tracking">Tracking Progress Akademik</h3>
+                        <h3 class="lang" data-id="Tracking Progress Akademik" data-en="Academic Progress Tracking">
+                            Tracking Progress Akademik</h3>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 20px;">
                         <div>
-                            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
                                 <span>Kewajiban Magang</span> <span id="text-pct-magang">0%</span>
                             </div>
-                            <div class="progress-container" style="margin: 0; height: 16px;"><div id="bar-magang" class="progress-bar"></div></div>
+                            <div class="progress-container" style="margin: 0; height: 16px;">
+                                <div id="bar-magang" class="progress-bar"></div>
+                            </div>
                         </div>
                         <div>
-                            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
                                 <span>Skripsi / Tugas Akhir</span> <span id="text-pct-skripsi">0%</span>
                             </div>
-                            <div class="progress-container" style="margin: 0; height: 16px;"><div id="bar-skripsi" class="progress-bar"></div></div>
+                            <div class="progress-container" style="margin: 0; height: 16px;">
+                                <div id="bar-skripsi" class="progress-bar"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="bento-card bento-col-1 bento-card-dark" style="text-align: center;">
-                    <div style="font-size: 12px; font-weight: 700; color: var(--umy-gold); text-transform: uppercase;">Yudisium Terdekat</div>
-                    <div style="font-size: 14px; font-weight: 600; color: #fff; margin: 10px 0;">Periode II (Oktober 2026)</div>
+                    <div style="font-size: 12px; font-weight: 700; color: var(--umy-gold); text-transform: uppercase;">
+                        Yudisium Terdekat</div>
+                    <div style="font-size: 14px; font-weight: 600; color: #fff; margin: 10px 0;">Periode II (Oktober
+                        2026)</div>
                     <div class="countdown-timer-display bento-timer-text" style="font-size: 24px;">Memuat...</div>
                 </div>
 
                 <!-- 5. Activity Timeline Mahasiswa -->
                 <div class="bento-card bento-col-3" style="max-height: 300px; overflow-y: auto;">
                     <div class="bento-header">
-                        <h3 class="lang" data-id="Aktivitas Terakhir" data-en="Recent Activities">Aktivitas Terakhir</h3>
+                        <h3 class="lang" data-id="Aktivitas Terakhir" data-en="Recent Activities">Aktivitas Terakhir
+                        </h3>
                     </div>
-                    <div id="activity-timeline-container" style="padding-left: 15px; border-left: 2px solid var(--item-border); margin-left: 10px; display: flex; flex-direction: column; gap: 15px;">
+                    <div id="activity-timeline-container"
+                        style="padding-left: 15px; border-left: 2px solid var(--item-border); margin-left: 10px; display: flex; flex-direction: column; gap: 15px;">
                         <!-- Timeline item mockup -->
                         <div style="position: relative;">
-                            <span style="position: absolute; left: -21px; top: 2px; width: 10px; height: 10px; background: var(--umy-gold); border-radius: 50%;"></span>
+                            <span
+                                style="position: absolute; left: -21px; top: 2px; width: 10px; height: 10px; background: var(--umy-gold); border-radius: 50%;"></span>
                             <div style="font-size: 12px; color: var(--text-muted); font-weight: bold;">Hari ini</div>
                             <div style="font-size: 13.5px;">Selamat datang di portal IPCOS versi terbaru!</div>
                         </div>
@@ -407,24 +599,32 @@
 
         <!-- 7. Status Checklist Dokumen yang Jelas (Magang & Skripsi) -->
         <div id="magang" class="tab-content">
-            <h1 class="lang" data-id="Kewajiban Magang (2 SKS)" data-en="Internship Requirements (2 Credits)">Kewajiban Magang (2 SKS)</h1>
+            <h1 class="lang" data-id="Kewajiban Magang (2 SKS)" data-en="Internship Requirements (2 Credits)">Kewajiban
+                Magang (2 SKS)</h1>
             <div class="card">
-                <button class="btn-primary admin-only" onclick="openContentEditor('magang')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten Magang</button>
+                <button class="btn-primary admin-only" onclick="openContentEditor('magang')"
+                    style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten
+                    Magang</button>
                 <div class="student-only" style="width: 100%; flex-direction: column;">
                     <h2>Checklist Dokumen & Pelaksanaan</h2>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Centang poin di bawah ini jika dokumen/tahapan sudah Anda selesaikan.</p>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Centang poin di bawah ini
+                        jika dokumen/tahapan sudah Anda selesaikan.</p>
                     <div id="magang-checklist-container"></div>
                 </div>
             </div>
         </div>
 
         <div id="skripsi" class="tab-content">
-            <h1 class="lang" data-id="Tugas Akhir / Skripsi (6 SKS)" data-en="Final Thesis (6 Credits)">Tugas Akhir / Skripsi (6 SKS)</h1>
+            <h1 class="lang" data-id="Tugas Akhir / Skripsi (6 SKS)" data-en="Final Thesis (6 Credits)">Tugas Akhir /
+                Skripsi (6 SKS)</h1>
             <div class="card">
-                <button class="btn-primary admin-only" onclick="openContentEditor('skripsi')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten Skripsi</button>
+                <button class="btn-primary admin-only" onclick="openContentEditor('skripsi')"
+                    style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten
+                    Skripsi</button>
                 <div class="student-only" style="width: 100%; flex-direction: column;">
                     <h2>Checklist Tahapan Skripsi</h2>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Pantau pengumpulan dokumen dan tahapan validasi skripsi Anda.</p>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Pantau pengumpulan
+                        dokumen dan tahapan validasi skripsi Anda.</p>
                     <div id="skripsi-checklist-container"></div>
                 </div>
             </div>
@@ -432,11 +632,13 @@
 
         <!-- Tab Pendaftaran (Sama seperti sebelumnya) -->
         <div id="pendaftaran" class="tab-content">
-            <h1 class="lang" data-id="Pusat Pendaftaran" data-en="Registration Center">Pusat Pendaftaran Ujian & Skripsi</h1>
+            <h1 class="lang" data-id="Pusat Pendaftaran" data-en="Registration Center">Pusat Pendaftaran Ujian & Skripsi
+            </h1>
             <div class="card">
                 <div class="form-group">
-                    <label>Pilih Jenis Pendaftaran *</label>
-                    <select id="reg-jenis-utama" onchange="toggleExamForm()" style="border-color: var(--umy-maroon); border-width: 2px;">
+                    <label for="reg-jenis-utama">Pilih Jenis Pendaftaran *</label>
+                    <select id="reg-jenis-utama" onchange="toggleExamForm()"
+                        style="border-color: var(--umy-maroon); border-width: 2px;">
                         <option value="">-- Pilih Formulir --</option>
                         <option value="Outline">Pengajuan Outline Skripsi</option>
                         <option value="Proposal">Ujian Seminar Proposal</option>
@@ -445,30 +647,70 @@
                         <option value="Pergantian Pembimbing">Pengajuan Pergantian Dosen Pembimbing</option>
                     </select>
                 </div>
-                
-                <form id="dynamic-exam-form" onsubmit="submitForm(event)" style="display: none; margin-top: 25px; border-top: 1px solid var(--item-border); padding-top: 25px;">
+
+                <form id="dynamic-exam-form" onsubmit="submitForm(event)"
+                    style="display: none; margin-top: 25px; border-top: 1px solid var(--item-border); padding-top: 25px;">
                     <div class="form-group" id="group-judul">
-                        <label>Judul Skripsi / Tugas Akhir *</label>
+                        <label for="reg-judul">Judul Skripsi / Tugas Akhir *</label>
                         <input type="text" id="reg-judul" placeholder="Masukkan judul..." required>
                     </div>
 
-                    <!-- Outline, Sempro, Pendadaran, Jurnal, Ganti Dosen blocks tetap sama strukturnya, hanya dipersingkat di view ini agar rapi -->
+                    <!-- Outline, Sempro, Pendadaran, Jurnal, Ganti Dosen blocks -->
                     <div id="req-outline-only" style="display:none;">
                         <div class="form-group">
-                            <label>Upload Transkrip Nilai (PDF, Max 10MB) *</label>
-                            <input type="file" id="file-transkrip" accept=".pdf">
+                            <label for="file-transkrip">Upload Transkrip Nilai (PDF, Max 10MB) *</label>
+                            <input type="file" id="file-transkrip" accept=".pdf"
+                                onchange="validateFile(this, 'name-transkrip-badge')">
+                            <div id="name-transkrip-badge"></div>
                         </div>
                         <div class="form-group">
-                            <label>Upload Draft Proposal (PDF/DOCX, Max 10MB) *</label>
-                            <input type="file" id="file-proposal" accept=".pdf,.doc,.docx">
+                            <label for="file-proposal">Upload Draft Proposal (PDF/DOCX, Max 10MB) *</label>
+                            <input type="file" id="file-proposal" accept=".pdf,.doc,.docx"
+                                onchange="validateFile(this, 'name-proposal-badge')">
+                            <div id="name-proposal-badge"></div>
                         </div>
                     </div>
-                    <div id="req-sempro-only" style="display:none;"><input type="file" id="file-acc-sempro"></div>
-                    <div id="req-pendadaran" style="display:none;"><input type="file" id="file-folder-pendadaran"></div>
-                    <div id="req-jurnal-only" style="display:none;"><input type="file" id="file-loa-jurnal"><input type="file" id="file-draft-jurnal"></div>
-                    <div id="req-ganti-dosen" style="display:none;"><input type="file" id="file-surat-ganti"></div>
+                    <div id="req-sempro-only" style="display:none;">
+                        <div class="form-group">
+                            <label for="file-acc-sempro">Upload Form ACC Seminar Proposal (PDF, Max 10MB) *</label>
+                            <input type="file" id="file-acc-sempro" accept=".pdf"
+                                onchange="validateFile(this, 'name-sempro-badge')">
+                            <div id="name-sempro-badge"></div>
+                        </div>
+                    </div>
+                    <div id="req-pendadaran" style="display:none;">
+                        <div class="form-group">
+                            <label for="file-folder-pendadaran">Upload Berkas Pendadaran (PDF/ZIP, Max 10MB) *</label>
+                            <input type="file" id="file-folder-pendadaran" accept=".pdf,.zip,.rar"
+                                onchange="validateFile(this, 'name-pendadaran-badge')">
+                            <div id="name-pendadaran-badge"></div>
+                        </div>
+                    </div>
+                    <div id="req-jurnal-only" style="display:none;">
+                        <div class="form-group">
+                            <label for="file-loa-jurnal">Upload LoA Jurnal (PDF, Max 10MB) *</label>
+                            <input type="file" id="file-loa-jurnal" accept=".pdf"
+                                onchange="validateFile(this, 'name-loa-badge')">
+                            <div id="name-loa-badge"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="file-draft-jurnal">Upload Draft Jurnal (PDF/DOCX, Max 10MB) *</label>
+                            <input type="file" id="file-draft-jurnal" accept=".pdf,.doc,.docx"
+                                onchange="validateFile(this, 'name-draftjurnal-badge')">
+                            <div id="name-draftjurnal-badge"></div>
+                        </div>
+                    </div>
+                    <div id="req-ganti-dosen" style="display:none;">
+                        <div class="form-group">
+                            <label for="file-surat-ganti">Upload Surat Permohonan Ganti Dosen (PDF, Max 10MB) *</label>
+                            <input type="file" id="file-surat-ganti" accept=".pdf"
+                                onchange="validateFile(this, 'name-gantidosen-badge')">
+                            <div id="name-gantidosen-badge"></div>
+                        </div>
+                    </div>
 
-                    <button type="submit" id="btn-submit-registration" class="btn-primary" style="background-color: var(--umy-maroon); margin-top:30px;">Kirim Pendaftaran</button>
+                    <button type="submit" id="btn-submit-registration" class="btn-primary"
+                        style="background-color: var(--umy-maroon); margin-top:30px;">Kirim Pendaftaran</button>
                 </form>
             </div>
         </div>
@@ -478,7 +720,15 @@
             <div class="card" style="padding: 16px;">
                 <div class="responsive-table-wrapper">
                     <table>
-                        <thead><tr><th>Tanggal</th><th>Jenis Formulir</th><th>Detail</th><th>Status Berkas</th><th>Tindakan & Riwayat</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Jenis Formulir</th>
+                                <th>Detail</th>
+                                <th>Status Berkas</th>
+                                <th>Tindakan & Riwayat</th>
+                            </tr>
+                        </thead>
                         <tbody id="table-my-status"></tbody>
                     </table>
                 </div>
@@ -489,7 +739,8 @@
             <h1>Data Pendaftaran Mahasiswa</h1>
             <div class="card" style="padding: 16px;">
                 <div class="admin-table-controls">
-                    <input type="text" id="admin-search-input" placeholder="Cari Nama / NIM..." onkeyup="debounceAdminSearch()">
+                    <input type="text" id="admin-search-input" placeholder="Cari Nama / NIM..."
+                        onkeyup="debounceAdminSearch()">
                     <select id="admin-status-filter" onchange="filterAdminData()">
                         <option value="ALL">-- Semua Status --</option>
                         <option value="Pending">Sedang Diverifikasi</option>
@@ -497,39 +748,82 @@
                         <option value="Resubmitted">Direvisi Mhs</option>
                         <option value="Accepted">Diterima</option>
                     </select>
-                    <button class="btn-primary" onclick="exportAdminDataCSV()" style="background-color: var(--umy-green); width: auto;">Ekspor CSV</button>
+                    <button class="btn-primary" onclick="exportAdminDataCSV()"
+                        style="background-color: var(--umy-green); width: auto;">Ekspor CSV</button>
+                    <!-- TOMBOL KOSONGKAN DATA -->
+                    <button class="btn-primary lang" onclick="deleteAllRegistrations()"
+                        style="background-color: var(--umy-maroon); width: auto;" data-id="Kosongkan Data"
+                        data-en="Clear All Data">Kosongkan Data</button>
                 </div>
                 <div class="responsive-table-wrapper" style="max-height: 60vh;">
                     <table id="admin-table-main">
                         <thead>
                             <tr>
-                                <th class="sticky-th" onclick="toggleSortDate()" style="cursor: pointer;">Tanggal <span id="admin-sort-icon"></span></th>
-                                <th class="sticky-th">Mahasiswa</th><th class="sticky-th">Jenis Formulir</th><th class="sticky-th">Link Berkas</th><th class="sticky-th">Status</th><th class="sticky-th">Aksi</th>
+                                <th class="sticky-th" onclick="toggleSortDate()" style="cursor: pointer;">Tanggal <span
+                                        id="admin-sort-icon"></span></th>
+                                <th class="sticky-th">Mahasiswa</th>
+                                <th class="sticky-th">Jenis Formulir</th>
+                                <th class="sticky-th">Link Berkas</th>
+                                <th class="sticky-th">Status</th>
+                                <th class="sticky-th">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="table-admin-reg"></tbody>
                     </table>
                 </div>
-                <div class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px;">
-                    <button id="admin-btn-prev" class="btn-secondary" style="width: auto;" onclick="changeAdminPage(-1)">Mundur</button>
+                <div class="pagination"
+                    style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px;">
+                    <button id="admin-btn-prev" class="btn-secondary" style="width: auto;"
+                        onclick="changeAdminPage(-1)">Mundur</button>
                     <span id="admin-page-info" style="font-weight: bold; font-size: 13px;">Halaman 1 / 1</span>
-                    <button id="admin-btn-next" class="btn-secondary" style="width: auto;" onclick="changeAdminPage(1)">Maju</button>
+                    <button id="admin-btn-next" class="btn-secondary" style="width: auto;"
+                        onclick="changeAdminPage(1)">Maju</button>
                 </div>
             </div>
         </div>
 
         <div id="admin-master" class="tab-content">
             <h1>Master Data & Broadcast</h1>
+
+            <!-- BAGIAN BARU: PENAMBAHAN KOTAK BROADCAST (AGAR JS BERFUNGSI) -->
+            <div class="card" style="margin-bottom: 24px;">
+                <h2>Kirim Pengumuman Global</h2>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px;">
+                    <textarea id="input-broadcast" rows="3"
+                        placeholder="Ketik pesan pengumuman untuk seluruh mahasiswa di sini..."
+                        style="width: 100%; margin-bottom: 0; padding: 12px; border-radius: 12px; border: 1px solid var(--item-border); font-family: inherit; font-size: 14px; outline: none; resize: vertical;"></textarea>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="check-important-broadcast"
+                            style="width: 18px; height: 18px; min-height: auto; margin: 0; cursor: pointer;">
+                        <label for="check-important-broadcast"
+                            style="font-size: 13px; font-weight: 600; margin: 0; color: var(--text-color); cursor: pointer;">Tandai
+                            sebagai Pengumuman Penting (Pop-up)</label>
+                    </div>
+                    <button class="btn-primary"
+                        style="background: var(--umy-maroon); width: fit-content; padding: 10px 24px; min-height: 40px;"
+                        onclick="postAnnouncement()">Sebarkan Pengumuman</button>
+                </div>
+            </div>
+
             <div class="card">
                 <h2>Manajemen Akses Mahasiswa</h2>
                 <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
                     <input type="text" id="add-nim" placeholder="NIM Baru" style="width: 100%; margin-bottom: 0;">
-                    <input type="text" id="add-nama" placeholder="Nama Mahasiswa Lengkap" style="width: 100%; margin-bottom: 0;">
-                    <button class="btn-primary" style="background: var(--umy-green); width: 100%;" onclick="addStudent()">Tambah Akses</button>
+                    <input type="text" id="add-nama" placeholder="Nama Mahasiswa Lengkap"
+                        style="width: 100%; margin-bottom: 0;">
+                    <button class="btn-primary" style="background: var(--umy-green); width: 100%;"
+                        onclick="addStudent()">Tambah Akses</button>
                 </div>
                 <div class="responsive-table-wrapper">
                     <table>
-                        <thead><tr><th>NIM</th><th>Nama Mahasiswa</th><th>Status</th><th>Aksi</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>NIM</th>
+                                <th>Nama Mahasiswa</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
                         <tbody id="table-master-mhs"></tbody>
                     </table>
                 </div>
@@ -538,66 +832,94 @@
 
         <div id="kurikulum" class="tab-content">
             <h1>Sebaran Mata Kuliah IPCOS</h1>
-            <button class="btn-primary admin-only" onclick="openContentEditor('kurikulum')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten Kurikulum</button>
-            <div id="kurikulum-content-container" class="student-only" style="width: 100%; flex-direction: column;"></div>
+            <button class="btn-primary admin-only" onclick="openContentEditor('kurikulum')"
+                style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit Konten
+                Kurikulum</button>
+            <div id="kurikulum-content-container" class="student-only" style="width: 100%; flex-direction: column;">
+            </div>
         </div>
 
         <div id="remidial" class="tab-content">
             <h1>SOP & Prosedur Pelaksanaan Remidial</h1>
             <div class="card">
-                <button class="btn-primary admin-only" onclick="openContentEditor('remidial')" style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit SOP Remidial</button>
-                <div id="remidial-content-container" class="student-only" style="width: 100%; flex-direction: column;"></div>
+                <button class="btn-primary admin-only" onclick="openContentEditor('remidial')"
+                    style="margin-bottom: 20px; background-color: var(--umy-maroon); width: auto;">Edit SOP
+                    Remidial</button>
+                <div id="remidial-content-container" class="student-only" style="width: 100%; flex-direction: column;">
+                </div>
             </div>
         </div>
 
         <!-- 2. Kalender Akademik dengan Reminder -->
         <div id="kalender" class="tab-content">
             <h1>Kalender Yudisium & Wisuda</h1>
-            <div class="card bento-card-dark" style="width: 100%; padding: 24px 20px; margin-bottom: 24px; text-align: center;">
-                <div style="font-size: 12px; font-weight: 700; color: var(--umy-gold); text-transform: uppercase;">Countdown Batas Yudisium Terdekat</div>
-                <div style="font-size: 14px; font-weight: 600; color: #ffffff; opacity: 0.9; margin-top: 5px;">Periode II - Batas: 19 Oktober 2026</div>
-                <div class="countdown-timer-display bento-timer-text" style="font-size: 28px; font-weight: 800; margin-top: 8px;">Memuat...</div>
-                <button class="btn-primary" style="background: var(--umy-green); width: fit-content; margin: 15px auto 0; font-size: 13px;" onclick="downloadICS('Yudisium Terdekat', '2026-10-19')">🔔 Pasang Reminder di HP</button>
+            <div class="card bento-card-dark"
+                style="width: 100%; padding: 24px 20px; margin-bottom: 24px; text-align: center;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--umy-gold); text-transform: uppercase;">
+                    Countdown Batas Yudisium Terdekat</div>
+                <div style="font-size: 14px; font-weight: 600; color: #ffffff; opacity: 0.9; margin-top: 5px;">Periode
+                    II - Batas: 19 Oktober 2026</div>
+                <div class="countdown-timer-display bento-timer-text"
+                    style="font-size: 28px; font-weight: 800; margin-top: 8px;">Memuat...</div>
+                <button class="btn-primary"
+                    style="background: var(--umy-green); width: fit-content; margin: 15px auto 0; font-size: 13px;"
+                    onclick="downloadICS('Yudisium Terdekat', '2026-10-19')">🔔 Pasang Reminder di HP</button>
             </div>
-            <button class="btn-primary admin-only" onclick="openContentEditor('kalender')" style="margin-bottom: 20px; width: auto;">Edit Kalender TA</button>
+            <button class="btn-primary admin-only" onclick="openContentEditor('kalender')"
+                style="margin-bottom: 20px; width: auto;">Edit Kalender TA</button>
             <div class="student-only" style="width: 100%; flex-direction: column;">
                 <div id="kalender-content-container" class="calendar-grid"></div>
             </div>
         </div>
 
-        <!-- 8. Template Download & FAQ -->
+                <!-- 8. Template Download & FAQ -->
         <div id="templates-faq" class="tab-content">
             <h1>Template Berkas & FAQ</h1>
             <p style="margin-bottom: 25px; color: var(--text-muted);">Unduh format dokumen resmi IPCOS dan temukan jawaban dari pertanyaan yang sering diajukan.</p>
-            
+
             <div class="bento-grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- KOTAK TEMPLATE BERKAS -->
                 <div class="bento-card" style="background: var(--card-bg);">
-                    <div class="bento-header"><h3 style="color: var(--heading-color);">📁 Unduh Template Dokumen</h3></div>
-                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
-                        <li style="background: var(--item-bg); padding: 12px; border: 1px solid var(--item-border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 13.5px; font-weight: 600;">Logbook Magang (.docx)</span>
-                            <a href="#" class="btn-secondary" style="width: auto; min-height: 30px; padding: 5px 10px; font-size: 12px;">Unduh</a>
-                        </li>
-                        <li style="background: var(--item-bg); padding: 12px; border: 1px solid var(--item-border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 13.5px; font-weight: 600;">Lembar Pengesahan Skripsi (.docx)</span>
-                            <a href="#" class="btn-secondary" style="width: auto; min-height: 30px; padding: 5px 10px; font-size: 12px;">Unduh</a>
-                        </li>
-                        <li style="background: var(--item-bg); padding: 12px; border: 1px solid var(--item-border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 13.5px; font-weight: 600;">Form Bebas Pustaka (.pdf)</span>
-                            <a href="#" class="btn-secondary" style="width: auto; min-height: 30px; padding: 5px 10px; font-size: 12px;">Unduh</a>
-                        </li>
+                    <div class="bento-header" style="justify-content: space-between; width: 100%;">
+                        <h3 style="color: var(--heading-color);">📁 Unduh Template Dokumen</h3>
+                        <button class="btn-primary admin-only" onclick="openContentEditor('template_berkas')" style="width: auto; padding: 6px 12px; min-height: 30px; font-size: 12px; margin-bottom: 0;">Edit Template</button>
+                    </div>
+                    <!-- Wadah Dinamis Template -->
+                    <ul id="template_berkas-content-container" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
                     </ul>
                 </div>
 
+                <!-- KOTAK FAQ -->
                 <div class="bento-card" style="background: var(--card-bg);">
-                    <div class="bento-header"><h3 style="color: var(--heading-color);">❓ FAQ (Tanya Jawab)</h3></div>
+                    <div class="bento-header" style="justify-content: space-between; width: 100%;">
+                        <h3 style="color: var(--heading-color);">❓ FAQ (Tanya Jawab)</h3>
+                        <button class="btn-primary admin-only" onclick="openContentEditor('faq')" style="width: auto; padding: 6px 12px; min-height: 30px; font-size: 12px; margin-bottom: 0;">Edit FAQ</button>
+                    </div>
+                    <!-- Wadah Dinamis FAQ -->
+                    <div id="faq-content-container">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+                <div class="bento-card" style="background: var(--card-bg);">
+                    <div class="bento-header">
+                        <h3 style="color: var(--heading-color);">❓ FAQ (Tanya Jawab)</h3>
+                    </div>
                     <details style="margin-bottom: 10px; border: 1px solid var(--item-border); border-radius: 8px;">
-                        <summary style="padding: 12px; font-weight: 600; font-size: 13.5px; cursor: pointer;">Bagaimana jika file PDF saya lebih dari 10MB?</summary>
-                        <div style="padding: 12px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--item-border);">Silakan kompres file Anda terlebih dahulu menggunakan layanan gratis seperti ilovepdf.com sebelum diunggah ke sistem.</div>
+                        <summary style="padding: 12px; font-weight: 600; font-size: 13.5px; cursor: pointer;">Bagaimana
+                            jika file PDF saya lebih dari 10MB?</summary>
+                        <div
+                            style="padding: 12px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--item-border);">
+                            Silakan kompres file Anda terlebih dahulu menggunakan layanan gratis seperti ilovepdf.com
+                            sebelum diunggah ke sistem.</div>
                     </details>
                     <details style="margin-bottom: 10px; border: 1px solid var(--item-border); border-radius: 8px;">
-                        <summary style="padding: 12px; font-weight: 600; font-size: 13.5px; cursor: pointer;">Kapan batas waktu revisi proposal?</summary>
-                        <div style="padding: 12px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--item-border);">Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan.</div>
+                        <summary style="padding: 12px; font-weight: 600; font-size: 13.5px; cursor: pointer;">Kapan
+                            batas waktu revisi proposal?</summary>
+                        <div
+                            style="padding: 12px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--item-border);">
+                            Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan.</div>
                     </details>
                 </div>
             </div>
@@ -608,23 +930,29 @@
             <div class="card" style="text-align: center; padding: 30px 20px;">
                 <h2 style="margin-top: 0;">Hubungi Tim IPCOS</h2>
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                    <a href="https://wa.me/6285172228960" target="_blank" class="btn-contact btn-whatsapp">WhatsApp Mincos</a>
+                    <a href="https://wa.me/6285172228960" target="_blank" class="btn-contact btn-whatsapp">WhatsApp
+                        Mincos</a>
                 </div>
             </div>
         </div>
-    </div> 
+    </div>
 
     <!-- WhatsApp Floating Widget -->
     <div id="wa-float-btn" class="wa-float-container" onclick="window.open('https://wa.me/6285172228960', '_blank')">
         <div class="wa-bumper lang" data-id="Hubungi Mincos" data-en="Contact Mincos">Hubungi Mincos</div>
         <div class="wa-icon-circle">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766 0 1.011.263 1.996.763 2.862l-.815 2.977 3.047-.8c.84.463 1.79.707 2.77.707h.001c3.18 0 5.767-2.586 5.767-5.766 0-3.18-2.587-5.767-5.765-5.767zm0 10.428c-.854 0-1.69-.229-2.42-.662l-.174-.103-1.8.472.483-1.753-.113-.18c-.475-.758-.727-1.638-.727-2.548 0-2.651 2.156-4.807 4.808-4.807 2.651 0 4.808 2.156 4.808 4.808 0 2.652-2.157 4.808-4.809 4.808z"/></svg>
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
+                <path
+                    d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766 0 1.011.263 1.996.763 2.862l-.815 2.977 3.047-.8c.84.463 1.79.707 2.77.707h.001c3.18 0 5.767-2.586 5.767-5.766 0-3.18-2.587-5.767-5.765-5.767zm0 10.428c-.854 0-1.69-.229-2.42-.662l-.174-.103-1.8.472.483-1.753-.113-.18c-.475-.758-.727-1.638-.727-2.548 0-2.651 2.156-4.807 4.808-4.807 2.651 0 4.808 2.156 4.808 4.808 0 2.652-2.157 4.808-4.809 4.808z" />
+            </svg>
         </div>
     </div>
 
     <!-- Confetti Canvas untuk Status Selesai 100% -->
-    <canvas id="confetti-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; display: none;"></canvas>
+    <canvas id="confetti-canvas"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; display: none;"></canvas>
 
     <script src="script.js"></script>
 </body>
+
 </html>
