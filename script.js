@@ -857,7 +857,14 @@ function validateFile(input, labelId) {
 
         if (isOverSize) {
             showToast(currentLang === 'id' ? `Ukuran max file adalah ${MAX_FILE_SIZE_MB}MB! (File Anda: ${formattedSize})` : `Max file size is ${MAX_FILE_SIZE_MB}MB! (Your file: ${formattedSize})`, 'error');
-            input.value = "";
+            
+            // KOSONGKAN FILE SECARA HARD-RESET
+            input.value = ""; 
+            try {
+                // Untuk browser modern, gunakan DataTransfer untuk benar-benar mengosongkan antrean file
+                input.files = new DataTransfer().files; 
+            } catch(e) {}
+            
             labelEl.innerHTML = `<div class="dz-file-badge error">⚠️ File terlalu besar (${formattedSize}). Maksimal ${MAX_FILE_SIZE_MB}MB.</div>`;
         } else {
             labelEl.innerHTML = `
@@ -1600,10 +1607,12 @@ function renderAdminTable() {
                 ${getStatusBadge(item.status)}<br>
                 <button class="btn-chat-log lang" onclick="openChatTimeline('${item.id}')" style="margin-top:6px;" data-id="Chat Timeline" data-en="Chat Timeline">Chat Timeline</button>
             </td>
-            <td style="min-width:130px; vertical-align:top;">
+                       <td style="min-width:130px; vertical-align:top;">
                 ${(() => {
                 const stat = String(item.status).trim().toLowerCase();
-                if (stat === 'accepted') return '-';
+                
+                // Jika statusnya Diterima ATAU Revisi, sembunyikan tombol menjadi "-"
+                if (stat === 'accepted' || stat === 'revision') return '-';
 
                 let buttons = '';
                 if (item.jenis === 'Outline') {
