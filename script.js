@@ -362,16 +362,22 @@ function animateDoodles() {
 // ==========================================
 let DB_MAHASISWA = {};
 let currentUser = { nim: '', nama: '', role: '' };
+let isDbLoaded = false; // BUG FIX: guards student login against race condition before first sync finishes
 
 // ==========================================
-// FUNGSI NORMALISASI DATA (BUG FIX)
+// FUNGSI NORMALISASI DATA (BUG FIX KEBAL SPASI)
 // ==========================================
 function normalizeData(registrations) {
     if (!registrations) return [];
     return registrations.map(r => {
         if (r.status) r.status = String(r.status).trim();
-        // PAKSA status menjadi 'Accepted' jika Dospem sudah ditunjuk!
-        if (r.dospem && String(r.dospem).trim() !== '' && r.status !== 'Accepted') {
+        const safeStatus = String(r.status || '').trim().toLowerCase();
+        // BUG FIX: previously this forced status to 'Accepted' whenever a dospem value existed,
+        // even if the admin had *explicitly* set the status to 'Revision' or 'Resubmitted' afterwards
+        // (e.g. re-revision on a record that already had a supervisor assigned in a previous cycle).
+        // Now it only auto-corrects legacy/empty statuses, and never overrides an explicit later decision.
+        const isExplicitDecision = safeStatus === 'revision' || safeStatus === 'resubmitted';
+        if (r.dospem && String(r.dospem).trim() !== '' && safeStatus !== 'accepted' && !isExplicitDecision) {
             r.status = 'Accepted';
         }
         return r;
@@ -422,12 +428,22 @@ function syncDatabase() {
             data.registrations = normalizeData(data.registrations);
 
             localStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
+            
+            // SIMPAN DATA DOSEN
+            if (data.dosens) {
+                localStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
+                if (currentUser.role === 'admin') {
+                    renderDosenTable();
+                    populateDospemDropdown();
+                }
+            }
 
             DB_MAHASISWA = {};
             if (data.students) {
                 data.students.forEach(m => { DB_MAHASISWA[String(m.NIM)] = m.Nama; });
                 if (currentUser.role === 'admin') renderMasterMahasiswa(data.students);
             }
+            isDbLoaded = true;
 
             if (data.announcements && data.announcements.length > 0) {
                 localStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
@@ -444,8 +460,7 @@ function syncDatabase() {
                     const annType = latest.Tipe || latest.type;
                     const annId = latest.Id || latest.date || latest.message;
 
-                    // Cek apakah mahasiswa sudah menceklis 'jangan tampilkan lagi' (localStorage) 
-                    // Atau sudah pernah melihatnya di sesi ini (sessionStorage)
+                    // Cek pop up jangan tampilkan lagi
                     const isHiddenPermanently = localStorage.getItem('hide_announcement_' + annId);
                     const isHiddenSession = sessionStorage.getItem('seen_announcement_' + annId);
 
@@ -453,7 +468,6 @@ function syncDatabase() {
                         document.getElementById('important-announcement-text').innerText = latest.Pesan || latest.message;
                         const modal = document.getElementById('modal-important-announcement');
                         if (modal) {
-                            // Tempelkan ID pengumuman ke modal agar bisa dibaca saat ditutup
                             modal.setAttribute('data-current-ann-id', annId);
                             modal.style.display = 'flex';
                             setTimeout(() => { modal.style.opacity = '1'; }, 10);
@@ -479,6 +493,7 @@ function syncDatabase() {
         })
         .catch(error => {
             console.error("Gagal sync data:", error);
+            isDbLoaded = true; // BUG FIX: don't leave the login form stuck forever if the first fetch fails
         })
         .finally(() => { hideLoader(); });
 }
@@ -506,6 +521,15 @@ function loginMhs() {
     if (nimInput === "") {
         errorMsg.innerText = currentLang === 'id' ? "Mohon masukkan NIM Anda." : "Please enter your NIM.";
         errorMsg.style.display = 'block'; return;
+    }
+
+    // BUG FIX: student database may still be loading on first page load.
+    // Without this guard, a valid NIM typed too quickly was wrongly rejected as "not registered".
+    if (!isDbLoaded) {
+        errorMsg.innerText = currentLang === 'id' ? "Sistem sedang memuat data, mohon tunggu sebentar dan coba lagi..." : "System is still loading data, please wait a moment and try again...";
+        errorMsg.style.display = 'block';
+        setTimeout(() => { if (isDbLoaded) loginMhs(); }, 800);
+        return;
     }
 
     if (DB_MAHASISWA.hasOwnProperty(nimInput)) {
@@ -579,7 +603,6 @@ function finalizeLogin(displayName, displayNim, role) {
         if (el.classList.contains('bento-grid')) {
             el.style.display = role === 'admin' ? 'grid' : 'none';
         } else if (el.classList.contains('nav-item')) {
-            // Ini perbaikannya: Kembalikan menu ke bentuk 'flex' agar sejajar ke bawah
             el.style.display = role === 'admin' ? 'flex' : 'none';
         } else {
             el.style.display = role === 'admin' ? 'inline-block' : 'none';
@@ -664,7 +687,8 @@ function renderNotifications() {
         const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
 
         myRecords.forEach(rec => {
-            if (rec.status === 'Revision') {
+            const stat = String(rec.status).trim().toLowerCase();
+            if (stat === 'revision') {
                 notifs.push({
                     type: 'revision',
                     title: `Perlu Revisi: ${rec.jenis}`,
@@ -672,7 +696,7 @@ function renderNotifications() {
                     date: rec.date || new Date().toISOString(),
                     tab: 'student-status'
                 });
-            } else if (rec.status === 'Accepted') {
+            } else if (stat === 'accepted') {
                 notifs.push({
                     type: 'accepted',
                     title: `Disetujui: ${rec.jenis}`,
@@ -753,14 +777,16 @@ function renderActivityTimeline(records) {
     let html = '';
     myRecords.reverse().slice(0, 5).forEach(r => {
         let text = '';
-        if (r.status === 'Accepted') text = `Pendaftaran <b>${r.jenis}</b> Anda telah diverifikasi dan <b>Diterima</b>.`;
-        else if (r.status === 'Revision') text = `Pendaftaran <b>${r.jenis}</b> Anda perlu <b>Revisi</b>. Silakan cek catatan admin.`;
-        else if (r.status === 'Resubmitted') text = `Anda telah mengunggah perbaikan untuk <b>${r.jenis}</b>.`;
+        const stat = String(r.status).trim().toLowerCase();
+        
+        if (stat === 'accepted') text = `Pendaftaran <b>${r.jenis}</b> Anda telah diverifikasi dan <b>Diterima</b>.`;
+        else if (stat === 'revision') text = `Pendaftaran <b>${r.jenis}</b> Anda perlu <b>Revisi</b>. Silakan cek catatan admin.`;
+        else if (stat === 'resubmitted') text = `Anda telah mengunggah perbaikan untuk <b>${r.jenis}</b>.`;
         else text = `Anda berhasil mendaftar <b>${r.jenis}</b>. Berkas sedang direview.`;
 
         let bulletColor = 'var(--umy-gold)';
-        if (r.status === 'Accepted') bulletColor = 'var(--umy-green)';
-        if (r.status === 'Revision') bulletColor = 'var(--umy-maroon)';
+        if (stat === 'accepted') bulletColor = 'var(--umy-green)';
+        if (stat === 'revision') bulletColor = 'var(--umy-maroon)';
 
         html += `
             <div style="position: relative;">
@@ -871,6 +897,8 @@ function clearFormDraft() {
 function toggleExamForm() {
     const formContainer = document.getElementById('dynamic-exam-form');
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
+    const groupJudul = document.getElementById('group-judul');
+    const inputJudul = document.getElementById('reg-judul');
 
     document.getElementById('req-outline-only').style.display = 'none';
     document.getElementById('req-sempro-only').style.display = 'none';
@@ -881,11 +909,20 @@ function toggleExamForm() {
     if (jenisUjian === "") { formContainer.style.display = 'none'; return; }
     formContainer.style.display = 'block';
 
-    if (jenisUjian === "Outline") document.getElementById('req-outline-only').style.display = 'block';
-    else if (jenisUjian === "Proposal") document.getElementById('req-sempro-only').style.display = 'block';
-    else if (jenisUjian === "Pendadaran") document.getElementById('req-pendadaran').style.display = 'block';
-    else if (jenisUjian === "Skripsi Jurnal") document.getElementById('req-jurnal-only').style.display = 'block';
-    else if (jenisUjian === "Pergantian Pembimbing") document.getElementById('req-ganti-dosen').style.display = 'block';
+    // Logika Khusus untuk Pergantian Pembimbing (Sembunyikan Judul)
+    if (jenisUjian === "Pergantian Pembimbing") {
+        groupJudul.style.display = 'none';           
+        inputJudul.removeAttribute('required');      
+        document.getElementById('req-ganti-dosen').style.display = 'block';
+    } else {
+        groupJudul.style.display = 'block';          
+        inputJudul.setAttribute('required', 'true'); 
+        
+        if (jenisUjian === "Outline") document.getElementById('req-outline-only').style.display = 'block';
+        else if (jenisUjian === "Proposal") document.getElementById('req-sempro-only').style.display = 'block';
+        else if (jenisUjian === "Pendadaran") document.getElementById('req-pendadaran').style.display = 'block';
+        else if (jenisUjian === "Skripsi Jurnal") document.getElementById('req-jurnal-only').style.display = 'block';
+    }
 }
 
 async function submitForm(e) {
@@ -937,7 +974,8 @@ async function submitForm(e) {
             if (!dLama || !dBaru || !kets) throw new Error(currentLang === 'id' ? "Semua field dosen dan alasan wajib diisi!" : "All fields are required!");
             if (dLama === dBaru) throw new Error(currentLang === 'id' ? "Dosen lama dan baru tidak boleh sama!" : "Old and new supervisor cannot be the same!");
 
-            finalDetail += `<br><b>Dosen Lama:</b> ${dLama}<br><b>Dosen Baru:</b> ${dBaru}<br><b>Alasan:</b> ${kets}`;
+            // KHUSUS PERGANTIAN DOSEN, JUDUL DIHILANGKAN DARI DETAIL
+            finalDetail = `<b>Dosen Lama:</b> ${dLama}<br><b>Dosen Baru:</b> ${dBaru}<br><b>Alasan:</b> ${kets}`;
             filesToUpload.push({ label: 'Surat Pergantian', fileName: fSurat.name, mimeType: fSurat.type, base64: await fileToBase64(fSurat) });
         }
 
@@ -1036,6 +1074,7 @@ const defaultKalender = [
     { title: "Periode III (Apr 2027)", items: [{ id: "c3", text: "18 Jan 2027", sub: "19 - 29 Jan 2027" }] },
     { title: "Periode IV (Jun 2027)", items: [{ id: "c4", text: "19 Apr 2027", sub: "20 - 30 Apr 2027" }] }
 ];
+
 const defaultTemplate = [
     { title: "Daftar Berkas", items: [
         { id: "t1", text: "Logbook Magang (.docx)", sub: "#" },
@@ -1050,6 +1089,7 @@ const defaultFaq = [
         { id: "f2", text: "Kapan batas waktu revisi proposal?", sub: "Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan." }
     ]}
 ];
+
 function getChecklistData(type) {
     const localData = localStorage.getItem(`ipcos_content_${type}`);
     if (localData) {
@@ -1066,7 +1106,7 @@ function getChecklistData(type) {
 }
 
 function renderDynamicContent() {
-       const types = ['magang', 'skripsi', 'kurikulum', 'remidial', 'kalender', 'template_berkas', 'faq'];
+    const types = ['magang', 'skripsi', 'kurikulum', 'remidial', 'kalender', 'template_berkas', 'faq'];
 
     types.forEach(type => {
         const containerId = (type === 'magang' || type === 'skripsi') ? `${type}-checklist-container` : `${type}-content-container`;
@@ -1134,7 +1174,7 @@ function renderDynamicContent() {
                 });
             });
         }
-                else if (type === 'template_berkas') {
+        else if (type === 'template_berkas') {
             data.forEach(group => {
                 group.items.forEach(item => {
                     html += `<li style="background: var(--item-bg); padding: 12px; border: 1px solid var(--item-border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -1170,7 +1210,7 @@ function openContentEditor(type) {
     editorCurrentType = type;
     editorTempData = JSON.parse(JSON.stringify(getChecklistData(type)));
 
-        const titles = { 
+    const titles = { 
         'magang': 'Edit Konten Magang', 
         'skripsi': 'Edit Konten Skripsi', 
         'kurikulum': 'Edit Konten Kurikulum', 
@@ -1350,11 +1390,11 @@ function loadProgressData() {
 }
 
 function getStatusBadge(status) {
-    const safeStatus = String(status).trim();
+    const safeStatus = String(status).trim().toLowerCase();
 
-    if (safeStatus === 'Accepted') return `<span class="status-badge badge-accepted lang" data-id="Diterima" data-en="Accepted">${currentLang === 'id' ? 'Diterima' : 'Accepted'}</span>`;
-    if (safeStatus === 'Revision') return `<span class="status-badge badge-revision lang" data-id="Perlu Revisi" data-en="Revision Required">${currentLang === 'id' ? 'Perlu Revisi' : 'Revision Required'}</span>`;
-    if (safeStatus === 'Resubmitted') return `<span class="status-badge badge-resubmitted lang" data-id="Direvisi Mhs" data-en="Resubmitted">${currentLang === 'id' ? 'Direvisi Mhs' : 'Resubmitted'}</span>`;
+    if (safeStatus === 'accepted') return `<span class="status-badge badge-accepted lang" data-id="Diterima" data-en="Accepted">${currentLang === 'id' ? 'Diterima' : 'Accepted'}</span>`;
+    if (safeStatus === 'revision') return `<span class="status-badge badge-revision lang" data-id="Perlu Revisi" data-en="Revision Required">${currentLang === 'id' ? 'Perlu Revisi' : 'Revision Required'}</span>`;
+    if (safeStatus === 'resubmitted') return `<span class="status-badge badge-resubmitted lang" data-id="Direvisi Mhs" data-en="Resubmitted">${currentLang === 'id' ? 'Direvisi Mhs' : 'Resubmitted'}</span>`;
 
     return `<span class="status-badge badge-pending lang" data-id="Sedang Diverifikasi" data-en="Under Verification">${currentLang === 'id' ? 'Sedang Diverifikasi' : 'Under Verification'}</span>`;
 }
@@ -1408,10 +1448,11 @@ function loadStudentStatus() {
         </td></tr>`;
     } else {
         myRecords.reverse().forEach(item => {
-            if (item.status === 'Revision') hasRevision = true;
+            const stat = String(item.status).trim().toLowerCase();
+            if (stat === 'revision') hasRevision = true;
 
             let actionButtons = `<button class="btn-chat-log lang" onclick="openChatTimeline('${item.id}')" data-id="Lihat Riwayat Note" data-en="View Note History">${currentLang === 'id' ? 'Lihat Riwayat Note' : 'View Note History'}</button>`;
-            if (item.status === 'Revision') {
+            if (stat === 'revision') {
                 actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
             }
 
@@ -1467,7 +1508,8 @@ function filterAdminData() {
 
     adminFilteredData = records.filter(item => {
         const matchSearch = String(item.nama).toLowerCase().includes(searchVal) || String(item.nim).toLowerCase().includes(searchVal);
-        const matchFilter = filterVal === 'ALL' || item.status === filterVal;
+        const stat = String(item.status).trim().toLowerCase();
+        const matchFilter = filterVal === 'ALL' || stat === filterVal.toLowerCase();
         return matchSearch && matchFilter;
     });
 
@@ -1521,11 +1563,15 @@ function renderAdminTable() {
             </td>
             <td style="min-width:130px; vertical-align:top;">
                 ${(() => {
-                if (item.status === 'Accepted') return '-';
+                const stat = String(item.status).trim().toLowerCase();
+                if (stat === 'accepted') return '-';
 
                 let buttons = '';
                 if (item.jenis === 'Outline') {
                     buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem" data-en="Assign Dospem">Tunjuk Dospem</button>`;
+                } else if (item.jenis === 'Pergantian Pembimbing') {
+                    // Tombol khusus Pergantian Pembimbing yang membuka Modal Dospem
+                    buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem Baru" data-en="Assign New Dospem">Tunjuk Dospem Baru</button>`;
                 } else {
                     buttons += `<button class="action-btn btn-acc lang" onclick="acceptSubmission('${item.id}')" data-id="Terima" data-en="Accept">${currentLang === 'id' ? 'Terima' : 'Accept'}</button>`;
                 }
@@ -1560,58 +1606,48 @@ function exportAdminDataCSV() {
     showToast("Data CSV berhasil diunduh!", "success");
 }
 
-// ==========================================
-// FUNGSI HAPUS SELURUH DATA PENDAFTAR (KOSONGKAN DATA)
-// ==========================================
-async function deleteAllRegistrations() {
+function deleteAllRegistrations() {
     if (isOffline) {
         showToast(currentLang === 'id' ? "Tidak dapat menghapus saat offline." : "Cannot delete while offline.", "error");
         return;
     }
 
-    // Peringatan pertama
     const confirmMsg = currentLang === 'id'
         ? "PERINGATAN BAHAYA!\nApakah Anda yakin ingin MENGHAPUS SELURUH DATA PENDAFTAR secara permanen?\nTindakan ini tidak dapat dibatalkan!"
         : "DANGER WARNING!\nAre you sure you want to PERMANENTLY DELETE ALL REGISTRATION DATA?\nThis action cannot be undone!";
 
     if (!confirm(confirmMsg)) return;
 
-    // Peringatan kedua (Ketik HAPUS)
     const promptText = currentLang === 'id' ? "Ketik 'HAPUS' (tanpa tanda kutip) untuk mengonfirmasi:" : "Type 'DELETE' to confirm:";
     const confirmInput = prompt(promptText);
-
-    if (currentLang === 'id' && confirmInput !== 'HAPUS') {
-        showToast("Proses dibatalkan.", "error");
-        return;
-    } else if (currentLang === 'en' && confirmInput !== 'DELETE') {
-        showToast("Process cancelled.", "error");
+    // BUG FIX: previous logic only validated the confirmation word when currentLang was exactly
+    // 'id' or 'en'; any other/unexpected value silently skipped validation and deleted everything.
+    const requiredWord = currentLang === 'id' ? 'HAPUS' : 'DELETE';
+    if (confirmInput !== requiredWord) {
+        showToast(currentLang === 'id' ? "Proses dibatalkan." : "Process cancelled.", "error");
         return;
     }
 
     showLoader(currentLang === 'id' ? 'Menghapus Seluruh Data...' : 'Deleting All Data...');
 
-    try {
-        const payload = { action: 'delete_all_registrations' };
-        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
-        const result = await res.json();
-
-        if (result.status === "success") {
-            showToast(currentLang === 'id' ? "Seluruh data pendaftar berhasil dikosongkan!" : "All registration data cleared successfully!", "success");
-
-            // Bersihkan data di frontend
-            localStorage.setItem('ipcos_registrations', '[]');
-            adminFilteredData = [];
-
-            // Refresh ulang tabel dan chart
-            syncDatabase();
-        } else {
-            showToast("Gagal menghapus data: " + (result.message || "Error tidak diketahui"), "error");
-        }
-    } catch (err) {
-        showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan." : "Network error occurred.", "error");
-    } finally {
-        hideLoader();
-    }
+    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'delete_all_registrations' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } })
+        .then(res => res.json())
+        .then(result => {
+            if (result.status === "success") {
+                showToast(currentLang === 'id' ? "Seluruh data pendaftar berhasil dikosongkan!" : "All registration data cleared successfully!", "success");
+                localStorage.setItem('ipcos_registrations', '[]');
+                adminFilteredData = [];
+                syncDatabase();
+            } else {
+                showToast("Gagal menghapus data: " + (result.message || "Error tidak diketahui"), "error");
+            }
+        })
+        .catch(err => {
+            showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan." : "Network error occurred.", "error");
+        })
+        .finally(() => {
+            hideLoader();
+        });
 }
 
 function openDocPreview(url) {
@@ -1667,7 +1703,8 @@ function openChatTimeline(id) {
         }
     }
 
-    if (target.jenis === 'Outline' && target.status === 'Accepted' && target.dospem) {
+    const stat = String(target.status).trim().toLowerCase();
+    if ((target.jenis === 'Outline' || target.jenis === 'Pergantian Pembimbing') && stat === 'accepted' && target.dospem) {
         const hasDospemLog = logs.some(log => log.message.includes('Dosen Pembimbing'));
 
         if (!hasDospemLog) {
@@ -1676,8 +1713,8 @@ function openChatTimeline(id) {
                 role: 'admin',
                 time: target.date,
                 message: currentLang === 'id'
-                    ? `Selamat! Berkas Outline Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style='color:#E03F4F; font-size:15px;'>${target.dospem}</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya.`
-                    : `Congratulations! Your Outline is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>${target.dospem}</b><br><br>Please contact them for further guidance.`
+                    ? `Selamat! Pengajuan Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style='color:#E03F4F; font-size:15px;'>${target.dospem}</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya.`
+                    : `Congratulations! Your Submission is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>${target.dospem}</b><br><br>Please contact them for further guidance.`
             });
         }
     }
@@ -1727,7 +1764,10 @@ function openRevisionModal(id) {
 
 function openDospemModal(id) {
     document.getElementById('hidden-dospem-id').value = id;
-    document.getElementById('input-dospem-select').value = "";
+    
+    // Auto-update dropdown dosen
+    populateDospemDropdown();
+
     const modal = document.getElementById('modal-dospem');
     modal.style.display = 'flex';
     setTimeout(() => { modal.style.opacity = '1'; }, 10);
@@ -1744,8 +1784,8 @@ function submitAdminDospem() {
     closeModal('modal-dospem');
 
     const note = currentLang === 'id'
-        ? "Selamat! Berkas Outline Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style='color:#E03F4F; font-size:15px;'>" + dospem + "</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya."
-        : "Congratulations! Your Outline is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>" + dospem + "</b><br><br>Please contact them for further guidance.";
+        ? `Selamat! Pengajuan Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda (yang baru) adalah:<br><b style='color:#E03F4F; font-size:15px;'>${dospem}</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya.`
+        : `Congratulations! Your Submission is <b>ACCEPTED</b>.<br><br>Your (New) Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>${dospem}</b><br><br>Please contact them for further guidance.`;
 
     sendUpdateRequest(id, 'Accepted', note, [], dospem);
 }
@@ -1858,10 +1898,10 @@ let ratioChartInstance = null; let typeChartInstance = null;
 function renderDashboardCharts(records) {
     if (currentUser.role !== 'admin') return;
 
-    const pendingCount = records.filter(r => r.status === 'Pending').length;
-    const acceptedCount = records.filter(r => r.status === 'Accepted').length;
-    const revisionCount = records.filter(r => r.status === 'Revision').length;
-    const resubmittedCount = records.filter(r => r.status === 'Resubmitted').length;
+    const pendingCount = records.filter(r => String(r.status).trim().toLowerCase() === 'pending').length;
+    const acceptedCount = records.filter(r => String(r.status).trim().toLowerCase() === 'accepted').length;
+    const revisionCount = records.filter(r => String(r.status).trim().toLowerCase() === 'revision').length;
+    const resubmittedCount = records.filter(r => String(r.status).trim().toLowerCase() === 'resubmitted').length;
 
     const elPending = document.getElementById('stat-count-pending');
     const elResubmitted = document.getElementById('stat-count-resubmitted');
@@ -1958,7 +1998,6 @@ function postAnnouncementFromDashboard() {
     const msg = input ? input.value.trim() : '';
     if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return; }
 
-    // Kirim pesan langsung dari dashboard tanpa harus mencari input master
     postAnnouncement(msg, 'info').then(() => { if (input) input.value = ''; });
 }
 
@@ -1968,12 +2007,10 @@ async function postAnnouncement(customMsg = null, customType = null) {
     const masterInput = document.getElementById('input-broadcast');
     const checkImportant = document.getElementById('check-important-broadcast');
 
-    // Gunakan customMsg (dari dashboard) jika ada. Jika tidak, ambil dari input Master Data
     const msg = customMsg !== null ? customMsg : (masterInput ? masterInput.value.trim() : '');
 
     if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return; }
 
-    // Tentukan tipe pengumuman
     const annType = customType !== null ? customType : (checkImportant && checkImportant.checked ? 'important' : 'info');
 
     showLoader();
@@ -1986,7 +2023,6 @@ async function postAnnouncement(customMsg = null, customType = null) {
 
         showToast("Pengumuman berhasil disebarkan!", "success");
 
-        // Bersihkan inputan
         if (!customMsg && masterInput) masterInput.value = '';
         if (!customType && checkImportant) checkImportant.checked = false;
 
@@ -2026,40 +2062,6 @@ async function deleteStudent(nim) {
     try { await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'delete', nim: nim }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Akses Mahasiswa berhasil dihapus!", "success"); syncDatabase(); } catch (e) { showToast("Gagal menghapus data", "error"); } finally { hideLoader(); }
 }
 
-async function postAnnouncement() {
-    if (isOffline) { showToast("Tidak dapat mengirim broadcast saat offline.", "error"); return; }
-    const masterInput = document.getElementById('input-broadcast');
-    const checkImportant = document.getElementById('check-important-broadcast');
-    const msg = masterInput ? masterInput.value.trim() : '';
-
-    if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return; }
-
-    const annType = checkImportant && checkImportant.checked ? 'important' : 'info';
-
-    showLoader();
-    try {
-        await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'post_announcement', message: msg, type: annType }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-
-        showToast("Pengumuman berhasil disebarkan!", "success");
-
-        if (masterInput) masterInput.value = '';
-        if (checkImportant) checkImportant.checked = false;
-
-        syncDatabase();
-    } catch (e) {
-        showToast("Gagal mengirim pengumuman", "error");
-    } finally {
-        hideLoader();
-    }
-}
-
-// ==========================================
-// 17. HELPER INTERAKSI CHECKLIST MOBILE
-// ==========================================
 function toggleCheckFromRow(event, id) {
     if (event.target.tagName !== 'INPUT') {
         const chk = document.getElementById(id);
@@ -2069,9 +2071,7 @@ function toggleCheckFromRow(event, id) {
         }
     }
 }
-// ==========================================
-// FUNGSI TUTUP POP-UP PENGUMUMAN (DENGAN CHECKBOX)
-// ==========================================
+
 function closeAnnouncementModal() {
     const modal = document.getElementById('modal-important-announcement');
     const annId = modal.getAttribute('data-current-ann-id');
@@ -2079,15 +2079,137 @@ function closeAnnouncementModal() {
 
     if (annId) {
         if (chkDontShow && chkDontShow.checked) {
-            // Jika diceklis, simpan permanen di memory browser
             localStorage.setItem('hide_announcement_' + annId, 'true');
         } else {
-            // Jika tidak diceklis, jangan munculkan lagi HANYA SELAMA browser belum ditutup
             sessionStorage.setItem('seen_announcement_' + annId, 'true');
         }
     }
 
-    // Reset ceklisan dan tutup pop-up
     if (chkDontShow) chkDontShow.checked = false;
     closeModal('modal-important-announcement');
+}
+
+// ==========================================
+// FITUR BARU: MANAJEMEN PLOTTING DOSEN
+// ==========================================
+function renderDosenTable() {
+    const tbody = document.getElementById('table-admin-dosen');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    const dosens = JSON.parse(localStorage.getItem('ipcos_dosens') || '[]');
+    
+    dosens.sort((a, b) => {
+        const sisaA = parseInt(a.Maksimal) - parseInt(a.Terpakai);
+        const sisaB = parseInt(b.Maksimal) - parseInt(b.Terpakai);
+        return sisaB - sisaA;
+    });
+
+    dosens.forEach(d => {
+        const nama = d.Nama;
+        const terpakai = parseInt(d.Terpakai) || 0;
+        const maksimal = parseInt(d.Maksimal) || 0;
+        const sisa = maksimal - terpakai;
+        
+        let statusBadge = `<span class="status-badge badge-accepted">Tersedia (${sisa})</span>`;
+        if (sisa <= 0) statusBadge = `<span class="status-badge badge-revision">Penuh</span>`;
+        else if (sisa <= 2) statusBadge = `<span class="status-badge badge-pending">Hampir Penuh</span>`;
+
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${nama}</b></td>
+                <td style="text-align: center; font-size: 16px; font-weight: bold;">${terpakai}</td>
+                <td style="text-align: center;">${maksimal}</td>
+                <td style="text-align: center;">${statusBadge}</td>
+                <td>
+                    <button class="action-btn" style="background: var(--item-hover); border: 1px solid var(--item-border);" onclick="openEditDosen('${nama}', ${terpakai}, ${maksimal})">Edit</button>
+                    <button class="action-btn btn-rev" onclick="deleteDosen('${nama}')">Hapus</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function populateDospemDropdown() {
+    const select = document.getElementById('input-dospem-select');
+    if (!select) return;
+    
+    const dosens = JSON.parse(localStorage.getItem('ipcos_dosens') || '[]');
+    let html = '<option value="">-- Pilih Dosen Pembimbing --</option>';
+    
+    dosens.sort((a, b) => a.Nama.localeCompare(b.Nama));
+
+    dosens.forEach(d => {
+        const sisa = parseInt(d.Maksimal) - parseInt(d.Terpakai);
+        const disabled = sisa <= 0 ? 'disabled' : '';
+        const warn = sisa <= 0 ? '(PENUH)' : `(Sisa Kuota: ${sisa})`;
+        html += `<option value="${d.Nama}" ${disabled}>${d.Nama} ${warn}</option>`;
+    });
+    
+    select.innerHTML = html;
+}
+
+function openEditDosen(nama, terpakai, maksimal) {
+    document.getElementById('hidden-dosen-nama').value = nama;
+    document.getElementById('edit-dosen-name-display').innerText = nama;
+    document.getElementById('edit-dosen-terpakai').value = terpakai;
+    document.getElementById('edit-dosen-maksimal').value = maksimal;
+    
+    const modal = document.getElementById('modal-edit-dosen');
+    modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
+}
+
+async function saveDosenQuota() {
+    if (isOffline) { showToast("Sedang offline.", "error"); return; }
+    
+    const nama = document.getElementById('hidden-dosen-nama').value;
+    const terpakai = document.getElementById('edit-dosen-terpakai').value;
+    const maksimal = document.getElementById('edit-dosen-maksimal').value;
+    
+    showLoader();
+    try {
+        await fetch(GAS_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'manage_dosen', method: 'update', nama: nama, terpakai: terpakai, maksimal: maksimal }), 
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+        });
+        showToast("Kuota dosen diperbarui!", "success");
+        closeModal('modal-edit-dosen');
+        syncDatabase();
+    } catch (e) { showToast("Gagal menyimpan.", "error"); } finally { hideLoader(); }
+}
+
+async function addDosenQuota() {
+    if (isOffline) { showToast("Sedang offline.", "error"); return; }
+    
+    const nama = document.getElementById('add-dosen-nama').value.trim();
+    const max = document.getElementById('add-dosen-max').value;
+    
+    if (!nama) { showToast("Nama tidak boleh kosong!", "error"); return; }
+    
+    showLoader();
+    try {
+        await fetch(GAS_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'manage_dosen', method: 'add', nama: nama, maksimal: max }), 
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+        });
+        showToast("Dosen ditambahkan!", "success");
+        document.getElementById('add-dosen-nama').value = '';
+        syncDatabase();
+    } catch (e) { showToast("Gagal.", "error"); } finally { hideLoader(); }
+}
+
+async function deleteDosen(nama) {
+    if (!confirm(`Hapus dosen ${nama}?`)) return;
+    showLoader();
+    try {
+        await fetch(GAS_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'manage_dosen', method: 'delete', nama: nama }), 
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+        });
+        showToast("Dosen dihapus!", "success");
+        syncDatabase();
+    } catch (e) { showToast("Gagal.", "error"); } finally { hideLoader(); }
 }
