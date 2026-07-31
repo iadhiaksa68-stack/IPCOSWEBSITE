@@ -362,20 +362,32 @@ function animateDoodles() {
 // ==========================================
 let DB_MAHASISWA = {};
 let currentUser = { nim: '', nama: '', role: '' };
-let isDbLoaded = false; // BUG FIX: guards student login against race condition before first sync finishes
+let isDbLoaded = false; 
 
 // ==========================================
-// FUNGSI NORMALISASI DATA (BUG FIX KEBAL SPASI)
+// FUNGSI NORMALISASI DATA
+// ==========================================
+// ==========================================
+// FUNGSI NORMALISASI DATA (ANTI-ERROR HURUF BESAR/KECIL)
 // ==========================================
 function normalizeData(registrations) {
     if (!registrations) return [];
     return registrations.map(r => {
+        // --- FIX CASE-SENSITIVITY HEADER GOOGLE SHEETS ---
+        if (r.Status !== undefined && r.status === undefined) r.status = r.Status;
+        if (r.Note !== undefined && r.note === undefined) r.note = r.Note;
+        if (r.Jenis !== undefined && r.jenis === undefined) r.jenis = r.Jenis;
+        if (r.Detail !== undefined && r.detail === undefined) r.detail = r.Detail;
+        if (r.Date !== undefined && r.date === undefined) r.date = r.Date;
+        if (r.Id !== undefined && r.id === undefined) r.id = r.Id;
+        if (r.Nim !== undefined && r.nim === undefined) r.nim = r.Nim;
+        if (r.Nama !== undefined && r.nama === undefined) r.nama = r.Nama;
+        if (r.Link !== undefined && r.link === undefined) r.link = r.Link;
+        // -------------------------------------------------
+
         if (r.status) r.status = String(r.status).trim();
         const safeStatus = String(r.status || '').trim().toLowerCase();
-        // BUG FIX: previously this forced status to 'Accepted' whenever a dospem value existed,
-        // even if the admin had *explicitly* set the status to 'Revision' or 'Resubmitted' afterwards
-        // (e.g. re-revision on a record that already had a supervisor assigned in a previous cycle).
-        // Now it only auto-corrects legacy/empty statuses, and never overrides an explicit later decision.
+        
         const isExplicitDecision = safeStatus === 'revision' || safeStatus === 'resubmitted';
         if (r.dospem && String(r.dospem).trim() !== '' && safeStatus !== 'accepted' && !isExplicitDecision) {
             r.status = 'Accepted';
@@ -424,12 +436,10 @@ function syncDatabase() {
         .then(response => response.json())
         .then(data => {
 
-            // TERAPKAN NORMALIZER SEBELUM DISIMPAN KE LOKAL
             data.registrations = normalizeData(data.registrations);
 
             localStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
             
-            // SIMPAN DATA DOSEN
             if (data.dosens) {
                 localStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
                 if (currentUser.role === 'admin') {
@@ -460,7 +470,6 @@ function syncDatabase() {
                     const annType = latest.Tipe || latest.type;
                     const annId = latest.Id || latest.date || latest.message;
 
-                    // Cek pop up jangan tampilkan lagi
                     const isHiddenPermanently = localStorage.getItem('hide_announcement_' + annId);
                     const isHiddenSession = sessionStorage.getItem('seen_announcement_' + annId);
 
@@ -493,7 +502,7 @@ function syncDatabase() {
         })
         .catch(error => {
             console.error("Gagal sync data:", error);
-            isDbLoaded = true; // BUG FIX: don't leave the login form stuck forever if the first fetch fails
+            isDbLoaded = true; 
         })
         .finally(() => { hideLoader(); });
 }
@@ -523,8 +532,6 @@ function loginMhs() {
         errorMsg.style.display = 'block'; return;
     }
 
-    // BUG FIX: student database may still be loading on first page load.
-    // Without this guard, a valid NIM typed too quickly was wrongly rejected as "not registered".
     if (!isDbLoaded) {
         errorMsg.innerText = currentLang === 'id' ? "Sistem sedang memuat data, mohon tunggu sebentar dan coba lagi..." : "System is still loading data, please wait a moment and try again...";
         errorMsg.style.display = 'block';
@@ -689,10 +696,23 @@ function renderNotifications() {
         myRecords.forEach(rec => {
             const stat = String(rec.status).trim().toLowerCase();
             if (stat === 'revision') {
+                let latestRevNote = `Berkas Pendaftaran Anda membutuhkan perbaikan.`;
+                if (rec.note && rec.note.trim() !== '') {
+                    try {
+                        const parsedLogs = JSON.parse(rec.note);
+                        const lastAdminLog = parsedLogs.slice().reverse().find(l => l.role === 'admin');
+                        if (lastAdminLog) {
+                            latestRevNote = `Catatan: ${lastAdminLog.message.replace(/<[^>]+>/g, '').substring(0, 65)}...`; 
+                        }
+                    } catch(e) {
+                        latestRevNote = `Catatan: ${rec.note.substring(0, 65)}...`;
+                    }
+                }
+
                 notifs.push({
                     type: 'revision',
                     title: `Perlu Revisi: ${rec.jenis}`,
-                    text: rec.catatanAdmin ? `Catatan: ${rec.catatanAdmin}` : `Berkas Pendaftaran Anda membutuhkan perbaikan.`,
+                    text: latestRevNote,
                     date: rec.date || new Date().toISOString(),
                     tab: 'student-status'
                 });
@@ -1461,6 +1481,21 @@ function loadStudentStatus() {
                 detailText += `<br><br><b style="color:var(--umy-maroon);">Dosen Pembimbing:</b><br>${item.dospem}`;
             }
 
+            const statCheck = String(item.status).trim().toLowerCase();
+            if (statCheck === 'revision' && item.note) {
+                let latestRevNote = "Silakan klik tombol Chat Timeline untuk melihat revisi.";
+                try {
+                    const parsedLogs = JSON.parse(item.note);
+                    const lastAdminLog = parsedLogs.slice().reverse().find(l => l.role === 'admin');
+                    if (lastAdminLog) {
+                        latestRevNote = lastAdminLog.message;
+                    }
+                } catch(e) {
+                    latestRevNote = item.note;
+                }
+                detailText += `<br><br><b style="color:var(--umy-maroon);">Catatan Revisi Admin:</b><br><span style="color:var(--text-muted);">${latestRevNote}</span>`;
+            }
+
             tbody.innerHTML += `<tr>
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
                 <td style="vertical-align:top;"><b>${item.jenis}</b></td>
@@ -1507,15 +1542,19 @@ function filterAdminData() {
     const filterVal = document.getElementById('admin-status-filter')?.value || 'ALL';
 
     adminFilteredData = records.filter(item => {
-        const matchSearch = String(item.nama).toLowerCase().includes(searchVal) || String(item.nim).toLowerCase().includes(searchVal);
-        const stat = String(item.status).trim().toLowerCase();
+        const matchSearch = String(item.nama || '').toLowerCase().includes(searchVal) || String(item.nim || '').toLowerCase().includes(searchVal);
+        const stat = String(item.status || '').trim().toLowerCase();
         const matchFilter = filterVal === 'ALL' || stat === filterVal.toLowerCase();
         return matchSearch && matchFilter;
     });
 
     adminFilteredData.sort((a, b) => {
-        const dateA = new Date(a.date.replace(' ', 'T')).getTime();
-        const dateB = new Date(b.date.replace(' ', 'T')).getTime();
+        const safeDateA = a.date ? String(a.date).replace(' ', 'T') : '';
+        const safeDateB = b.date ? String(b.date).replace(' ', 'T') : '';
+        
+        const dateA = safeDateA ? (new Date(safeDateA).getTime() || 0) : 0;
+        const dateB = safeDateB ? (new Date(safeDateB).getTime() || 0) : 0;
+        
         return isAdminSortDesc ? (dateB - dateA) : (dateA - dateB);
     });
 
@@ -1570,7 +1609,6 @@ function renderAdminTable() {
                 if (item.jenis === 'Outline') {
                     buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem" data-en="Assign Dospem">Tunjuk Dospem</button>`;
                 } else if (item.jenis === 'Pergantian Pembimbing') {
-                    // Tombol khusus Pergantian Pembimbing yang membuka Modal Dospem
                     buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem Baru" data-en="Assign New Dospem">Tunjuk Dospem Baru</button>`;
                 } else {
                     buttons += `<button class="action-btn btn-acc lang" onclick="acceptSubmission('${item.id}')" data-id="Terima" data-en="Accept">${currentLang === 'id' ? 'Terima' : 'Accept'}</button>`;
@@ -1620,8 +1658,6 @@ function deleteAllRegistrations() {
 
     const promptText = currentLang === 'id' ? "Ketik 'HAPUS' (tanpa tanda kutip) untuk mengonfirmasi:" : "Type 'DELETE' to confirm:";
     const confirmInput = prompt(promptText);
-    // BUG FIX: previous logic only validated the confirmation word when currentLang was exactly
-    // 'id' or 'en'; any other/unexpected value silently skipped validation and deleted everything.
     const requiredWord = currentLang === 'id' ? 'HAPUS' : 'DELETE';
     if (confirmInput !== requiredWord) {
         showToast(currentLang === 'id' ? "Proses dibatalkan." : "Process cancelled.", "error");
@@ -1745,11 +1781,64 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
     }
     showLoader(currentLang === 'id' ? 'Sedang Memproses...' : 'Processing...');
     try {
-        const payload = { action: 'update', id: id, status: newStatus, note: noteText, senderName: currentUser.nama, senderRole: currentUser.role, files: files, dospem: dospem };
+        const records = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+        const targetIndex = records.findIndex(r => r.id === id);
+        const target = targetIndex !== -1 ? records[targetIndex] : null;
+        const existingNote = target ? target.note : '';
+        
+        let logs = [];
+        if (existingNote && existingNote.trim() !== '') {
+            try {
+                logs = JSON.parse(existingNote);
+            } catch (e) {
+                logs = [{ sender: 'Sistem', role: 'system', time: target ? target.date : new Date().toISOString(), message: existingNote }];
+            }
+        }
+        
+        if (noteText && noteText.trim() !== '') {
+            logs.push({
+                sender: currentUser.nama,
+                role: currentUser.role,
+                time: new Date().toISOString(),
+                message: noteText
+            });
+        }
+        
+        const finalNoteJSON = JSON.stringify(logs);
+
+        const payload = { action: 'update', id: id, status: newStatus, note: finalNoteJSON, senderName: currentUser.nama, senderRole: currentUser.role, files: files, dospem: dospem };
         const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         const result = await res.json();
-        if (result.status === "success") syncDatabase(); else showToast("Gagal: " + (result.message || "Error tidak diketahui"), "error");
-    } catch (err) { showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error"); } finally { hideLoader(); }
+        
+        if (result.status === "success") {
+            // --- UPDATE LOKAL INSTAN ---
+            if (targetIndex !== -1) {
+                records[targetIndex].status = newStatus;
+                records[targetIndex].note = finalNoteJSON;
+                if (dospem) {
+                    records[targetIndex].dospem = dospem;
+                }
+                localStorage.setItem('ipcos_registrations', JSON.stringify(records));
+            }
+
+            // Refresh UI langsung tanpa tunggu sync
+            if (currentUser.role === 'admin') {
+                filterAdminData();
+                renderDashboardCharts(records);
+            } else {
+                loadStudentStatus();
+                renderActivityTimeline(records);
+            }
+            
+            showToast("Status berhasil diperbarui!", "success");
+        } else {
+            showToast("Gagal: " + (result.message || "Error tidak diketahui"), "error");
+        }
+    } catch (err) { 
+        showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error"); 
+    } finally { 
+        hideLoader(); 
+    }
 }
 
 function acceptSubmission(id) {
@@ -1872,7 +1961,7 @@ function silentSyncDatabase() {
 
             if (oldDataStr !== newDataStr) {
                 localStorage.setItem('ipcos_registrations', newDataStr);
-                if (currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(data.registrations || []); }
+                if (currentUser.role === 'admin') { filterAdminData(); renderDashboardCharts(data.registrations || []); }
                 else { loadStudentStatus(); renderActivityTimeline(data.registrations || []); }
             }
         }).catch(error => console.log("Silent Sync terhambat..."));
