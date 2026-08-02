@@ -2311,3 +2311,16 @@ async function deleteDosen(nama) {
         syncDatabase();
     } catch (e) { showToast("Gagal.", "error"); } finally { hideLoader(); }
 }
+// Menutup sidebar di mobile saat user klik di luar area sidebar
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('main-sidebar');
+    const toggleBtn = document.querySelector('.mobile-nav-toggle');
+    
+    // Cek apakah mode mobile sedang aktif (lebar <= 850px)
+    if (window.innerWidth <= 850) {
+        // Jika sidebar aktif dan target klik BUKAN sidebar dan BUKAN tombol toggle
+        if (sidebar.classList.contains('active') && !sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+            sidebar.classList.remove('active');
+        }
+    }
+});

@@ -47,18 +47,21 @@
     <div id="modal-global-search" class="overlay"
         style="display: none; z-index: 3500; align-items: flex-start; padding-top: 10vh;">
         <div class="modal-card" style="max-width: 600px; padding: 20px; border-radius: 16px;">
-            <div
-                style="display: flex; align-items: center; border-bottom: 2px solid var(--item-border); padding-bottom: 10px; margin-bottom: 15px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input type="text" id="global-search-input"
-                    placeholder="Cari menu, form, atau panduan (Ketik di sini)..."
-                    style="border: none; box-shadow: none; margin-bottom: 0; font-size: 16px; background: transparent;"
-                    autocomplete="off">
-                <span
-                    style="font-size: 12px; background: var(--item-hover); padding: 4px 8px; border-radius: 6px; color: var(--text-muted);">ESC</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--item-border); padding-bottom: 10px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; flex: 1;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" style="flex-shrink: 0;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="global-search-input"
+                        placeholder="Cari menu, form, atau panduan (Ketik di sini)..."
+                        style="border: none; box-shadow: none; margin-bottom: 0; font-size: 15px; background: transparent; width: 100%; margin-left: 8px; outline: none;"
+                        autocomplete="off">
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 12px; background: var(--item-hover); padding: 4px 8px; border-radius: 6px; color: var(--text-muted);" class="student-only">ESC</span>
+                    <button onclick="closeModal('modal-global-search')" style="background: none; border: none; font-size: 18px; font-weight: bold; color: var(--text-muted); cursor: pointer; padding: 0 4px;">✕</button>
+                </div>
             </div>
             <div id="global-search-results" style="text-align: left; max-height: 300px; overflow-y: auto;">
                 <p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">Ketik sesuatu
@@ -406,9 +409,9 @@
 
             <!-- Global Search & Notifications -->
             <div style="display: flex; gap: 15px; align-items: center;">
-                <button class="btn-secondary"
-                    onclick="document.getElementById('modal-global-search').style.display='flex'"
-                    style="min-height: 40px; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; gap: 8px; align-items: center; background: var(--item-bg);">
+               <button class="btn-secondary"
+    onclick="openGlobalSearch()"
+    style="min-height: 40px; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; gap: 8px; align-items: center; background: var(--item-bg);">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -429,7 +432,7 @@
                             style="display: none; position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; background: var(--umy-maroon); color: white; border-radius: 50%; font-size: 10px; font-weight: 800; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-color);">0</span>
                     </div>
                     <div id="notif-dropdown"
-                        style="display: none; position: absolute; top: 110%; right: 0; background: var(--card-bg); width: 320px; border: 1px solid var(--card-border); border-radius: 14px; box-shadow: var(--shadow-floating); z-index: 1000; overflow: hidden;">
+                        style="display: none; position: absolute; top: 110%; right: 0; background: var(--card-bg); width: 320px; border: 1px solid var(--card-border); border-radius: 14px; box-shadow: var(--shadow-floating); z-index: 1500; overflow: hidden;">
                         <div
                             style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
                             <span class="lang" data-id="Pusat Notifikasi" data-en="Notification Center">Pusat

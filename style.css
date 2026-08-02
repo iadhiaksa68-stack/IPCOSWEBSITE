@@ -230,6 +230,7 @@ body {
 }
 
 /* FULL INTERFACE LOGIN SCREEN */
+/* Cari blok kode #welcome-modal di style.css dan ubah z-index nya */
 #welcome-modal {
     position: fixed;
     top: 0;
@@ -237,7 +238,7 @@ body {
     width: 100vw;
     height: 100vh;
     background: var(--bg-color) !important;
-    z-index: 2000;
+    z-index: 9999; /* Ubah dari 2000 menjadi 9999 */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1962,4 +1963,19 @@ dialog.overlay-dialog::backdrop {
 
 dialog.overlay-dialog[open] {
     display: flex;
+}
+/* Perbaikan Dropdown Notifikasi untuk Layar HP */
+@media screen and (max-width: 480px) {
+    #notif-dropdown {
+        position: fixed !important;
+        top: 65px !important; /* Memposisikan dropdown pas di bawah tombol header */
+        left: 16px !important;
+        width: calc(100vw - 32px) !important; 
+        right: auto !important; /* Menimpa aturan right sebelumnya */
+    }
+    
+    /* Opsional: Mendorong tombol Search dan Lonceng tetap ke kanan pada HP */
+    .main-content > div:first-child {
+        justify-content: flex-end !important;
+    }
 }
