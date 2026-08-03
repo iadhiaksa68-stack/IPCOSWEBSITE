@@ -230,7 +230,6 @@ body {
 }
 
 /* FULL INTERFACE LOGIN SCREEN */
-/* Cari blok kode #welcome-modal di style.css dan ubah z-index nya */
 #welcome-modal {
     position: fixed;
     top: 0;
@@ -238,7 +237,7 @@ body {
     width: 100vw;
     height: 100vh;
     background: var(--bg-color) !important;
-    z-index: 9999; /* Ubah dari 2000 menjadi 9999 */
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -919,6 +918,18 @@ body.dark-mode .stat-accepted {
     -webkit-overflow-scrolling: touch;
     border-radius: 12px;
     border: 1px solid var(--item-border);
+    
+    /* Tambahan efek bayangan (Shadow Hint) otomatis */
+    background-image: 
+        linear-gradient(to right, var(--card-bg), var(--card-bg)),
+        linear-gradient(to right, var(--card-bg), var(--card-bg)),
+        linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0)),
+        linear-gradient(to left, rgba(0,0,0,0.15), rgba(255,255,255,0));
+    background-position: left center, right center, left center, right center;
+    background-repeat: no-repeat;
+    background-color: var(--card-bg);
+    background-size: 30px 100%, 30px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
 }
 
 table {
@@ -1515,7 +1526,7 @@ summary {
    ========================================== */
 @media screen and (max-width: 950px) {
     .bento-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
     }
 
     .bento-col-1,
@@ -1538,6 +1549,18 @@ summary {
     .bento-card[style*="flex-direction: row"] button {
         margin-top: 10px !important;
         width: 100% !important;
+    }
+
+    /* Pengaturan untuk Card Pengumuman Instan di layar HP */
+    .card-broadcast-admin {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    .btn-broadcast {
+        margin-top: 5px !important;
+        width: 100% !important; /* Memaksa tombol menyesuaikan lebar layar */
     }
 }
 
@@ -1567,7 +1590,7 @@ summary {
     .main-content {
         margin-left: 0;
         width: 100%;
-        padding: 70px 16px 100px 16px;
+        padding: 70px 16px 80px 16px;
     }
 
     .btn-toggle-sidebar {
@@ -1964,18 +1987,57 @@ dialog.overlay-dialog::backdrop {
 dialog.overlay-dialog[open] {
     display: flex;
 }
+
 /* Perbaikan Dropdown Notifikasi untuk Layar HP */
 @media screen and (max-width: 480px) {
     #notif-dropdown {
         position: fixed !important;
-        top: 65px !important; /* Memposisikan dropdown pas di bawah tombol header */
+        top: 65px !important;
         left: 16px !important;
         width: calc(100vw - 32px) !important; 
-        right: auto !important; /* Menimpa aturan right sebelumnya */
+        right: auto !important;
     }
     
-    /* Opsional: Mendorong tombol Search dan Lonceng tetap ke kanan pada HP */
     .main-content > div:first-child {
         justify-content: flex-end !important;
     }
+}
+
+/* Perbaikan Tinggi Preview Dokumen di HP */
+@media screen and (max-width: 480px) {
+    #modal-doc-preview > div > div:nth-child(2) {
+        height: 60vh !important; 
+    }
+}
+
+/* Perbaikan Layout Panel Admin di HP */
+@media screen and (max-width: 480px) {
+    .admin-table-controls {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+    .admin-table-controls input,
+    .admin-table-controls select {
+        grid-column: span 2 !important;
+    }
+    .admin-table-controls button {
+        grid-column: span 1 !important;
+    }
+}
+
+/* Desain bawaan (untuk layar laptop) KOTAK BROADCAST ADMIN */
+.card-broadcast-admin {
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+}
+
+button.btn-broadcast {
+    width: auto;
+    padding: 14px 28px;
+    white-space: nowrap;
+    height: fit-content;
+    margin-top: 20px;
+    flex-shrink: 0; /* Kunci rahasia agar tombol tidak melar/tergencet flexbox */
 }

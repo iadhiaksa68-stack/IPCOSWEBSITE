@@ -2324,3 +2324,13 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+// Menutup modal apa pun jika area gelap (overlay) diklik
+document.querySelectorAll('.overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+        // Pastikan yang diklik adalah background overlay-nya, bukan isi card-nya
+        if (e.target === this && this.id !== 'welcome-modal') {
+            closeModal(this.id);
+        }
+    });
+});

@@ -409,15 +409,15 @@
 
             <!-- Global Search & Notifications -->
             <div style="display: flex; gap: 15px; align-items: center;">
-               <button class="btn-secondary"
+              <button class="btn-secondary"
     onclick="openGlobalSearch()"
-    style="min-height: 40px; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; gap: 8px; align-items: center; background: var(--item-bg);">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <span class="lang" data-id="Cari (Ctrl+K)" data-en="Search (Ctrl+K)">Cari (Ctrl+K)</span>
-                </button>
+    aria-label="Cari"
+    style="width: 42px; height: 42px; min-height: 42px; padding: 0; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: var(--item-bg); border: 1px solid var(--item-border);">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+</button>
 
                 <!-- 4. Dynamic Notification Center -->
                 <div style="position: relative; cursor: pointer;" id="notif-wrapper">
@@ -481,14 +481,14 @@
 
             <!-- ADMIN DASHBOARD -->
             <div class="bento-grid admin-only">
-                <div class="bento-card bento-col-3" style="flex-direction: row; align-items: center; gap: 20px;">
+                <!-- KOTAK BROADCAST SUDAH DIPERBAIKI: HANYA ADA SATU CLASS & TIDAK ADA INLINE STYLE -->
+                <div class="bento-card bento-col-3 card-broadcast-admin">
                     <div style="flex-grow: 1;">
                         <h3 style="margin-bottom: 5px; color: var(--heading-color);">Kirim Pengumuman Instan</h3>
                         <input type="text" id="input-broadcast-dashboard" placeholder="Ketik pengumuman di sini..."
                             style="margin-bottom: 0;">
                     </div>
-                    <button class="btn-primary" onclick="postAnnouncementFromDashboard()"
-                        style="width: auto; padding: 14px 28px; white-space: nowrap; height: fit-content; margin-top: 20px;">Sebarkan</button>
+                    <button class="btn-primary btn-broadcast" onclick="postAnnouncementFromDashboard()">Sebarkan</button>
                 </div>
 
                 <div class="bento-card bento-col-2">
