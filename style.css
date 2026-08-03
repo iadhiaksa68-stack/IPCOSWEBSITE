@@ -2027,17 +2027,19 @@ dialog.overlay-dialog[open] {
 }
 
 /* Desain bawaan (untuk layar laptop) KOTAK BROADCAST ADMIN */
-.card-broadcast-admin {
-    flex-direction: row;
-    align-items: center;
-    gap: 20px;
-}
+@media screen and (min-width: 951px) {
+    .card-broadcast-admin {
+        flex-direction: row;
+        align-items: center;
+        gap: 20px;
+    }
 
-button.btn-broadcast {
-    width: auto;
-    padding: 14px 28px;
-    white-space: nowrap;
-    height: fit-content;
-    margin-top: 20px;
-    flex-shrink: 0; /* Kunci rahasia agar tombol tidak melar/tergencet flexbox */
+    button.btn-broadcast {
+        width: auto;
+        padding: 14px 28px;
+        white-space: nowrap;
+        height: fit-content;
+        margin-top: 20px;
+        flex-shrink: 0; 
+    }
 }
