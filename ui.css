@@ -153,7 +153,7 @@ body.dark-mode .badge-accepted { background:#22372b; color:#a6d9b7; border-color
 }
 @media (max-width:850px) {
   .sidebar { width:270px; }
-  .main-content,.main-content.expanded { margin-left:0; width:100%; padding:76px 20px 64px; }
+  .main-content,.main-content.expanded { margin-left:0; width:100%; padding:76px 20px 64px; transition:none; }
   .workspace-toolbar { justify-content:flex-end!important; padding-bottom:16px; }
   .mobile-nav-toggle { background:var(--sidebar-bg); color:var(--heading-color); border:1px solid var(--card-border); box-shadow:var(--shadow-sm); border-radius:9px; }
   #welcome-modal { padding:20px; }
@@ -187,3 +187,26 @@ body.dark-mode .badge-accepted { background:#22372b; color:#a6d9b7; border-color
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; scroll-behavior:auto!important; }
 }
+
+/* Transaction workflow tools */
+.service-availability { padding:16px; margin:16px 0; border:1px solid var(--item-border); border-radius:12px; background:var(--item-bg); }
+.service-availability p { margin:8px 0 12px; }
+.waiting-badge { font-size:12px; line-height:1.6; color:var(--text-muted); margin:8px 0; }
+.waiting-overdue { color:#9a3412; font-weight:600; }
+body.dark-mode .waiting-overdue { color:#fdba74; }
+.document-version { display:block; margin-top:4px; overflow-wrap:anywhere; }
+.service-management { margin-bottom:20px; }
+.service-management > summary { font-weight:700; cursor:pointer; padding:8px 0; }
+.service-management > p { color:var(--text-muted); line-height:1.7; }
+.service-setting { margin:16px 0; padding:16px; border:1px solid var(--item-border); border-radius:12px; min-width:0; }
+.service-setting legend { font-weight:650; padding:0 6px; }
+.service-setting-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.service-setting-fields label { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.service-setting-fields input { width:100%; min-width:0; }
+.service-enabled, .overdue-filter { display:flex; align-items:center; gap:8px; margin:8px 0; }
+.service-enabled input, .overdue-filter input { width:18px; min-height:18px; margin:0; }
+.admin-table-controls { flex-wrap:wrap; }
+.overdue-filter { font-size:13px; white-space:normal; }
+.revision-association { display:block; margin:12px 0; overflow-wrap:anywhere; }
+.revision-association select { display:block; width:100%; margin-top:6px; }
+@media(max-width:600px) { .service-setting-fields { grid-template-columns:1fr; } .admin-table-controls > select, .admin-table-controls > label { width:100%; } }

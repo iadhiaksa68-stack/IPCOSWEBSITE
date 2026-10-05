@@ -519,6 +519,10 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    serviceSettings = []; serviceSettingsEditing = false;
+    const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = '';
+    const backupFolder = document.getElementById('backup-folder'); if (backupFolder) { backupFolder.hidden = true; backupFolder.removeAttribute('href'); }
+    const serviceFields = document.getElementById('service-settings'); if (serviceFields) serviceFields.innerHTML = '';
     sessionEpoch++; readVersion++;
     ['ipcos_students', 'ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft', 'ipcos_pending_submission'].forEach(key => sessionStorage.removeItem(key));
     DB_MAHASISWA = {}; isDbLoaded = false; selectedCaseId = ''; lastSubmittedCaseId = '';
@@ -579,12 +583,16 @@ function syncDatabase() {
 }
 
 function applyDatabaseSnapshot(data) {
+            serviceSettings = Array.isArray(data.services) ? data.services : [];
+            renderServiceSettings();
+            if (data.backup && currentUser.role === 'admin') renderBackupStatus(data.backup);
             if (!Array.isArray(data.registrations || [])) throw new Error('Data pengajuan belum dapat dibaca.');
             data.registrations = normalizeData(data.registrations);
 
             sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
             sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
             renderNotifications();
+            refreshServiceAvailability();
 
             if (data.dosens) {
                 sessionStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
@@ -1099,6 +1107,7 @@ function setFieldError(id, message) {
     else input.removeAttribute('aria-describedby');
 }
 function validateRegistration() {
+    if (!registrationServiceAllowed()) return false;
     const jenis = document.getElementById('reg-jenis-utama').value;
     const ids = jenis === 'Pergantian Pembimbing' ? ['reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'] : ['reg-judul'];
     let firstError = '';
@@ -1193,15 +1202,24 @@ function renderTaskHome() {
         : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
     home.innerHTML = `<div class="task-home-header"><div><h2>${title}</h2><p>${subtitle}</p></div>
         <button type="button" class="btn-primary" onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : "switchTab(null, 'pendaftaran')"}">${admin ? uxText('Buka Antrean', 'Open Queue') : uxText('Buat Pengajuan', 'New Request')}</button></div>
-        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div>${getStatusBadge(item.status)}<h3>${escapeHtml(item.jenis)}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}<p>${escapeHtml(caseNextStep(item))}</p></div>
+        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div>${getStatusBadge(item.status)}<h3>${escapeHtml(item.jenis)}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}<p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</div>
         <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
         : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
         <button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>`;
 }
 function caseFileListHtml(item) {
     const files = getCaseFiles(item);
-    return files.length ? files.map((file,index) => `<div class="case-file-row"><strong>${escapeHtml(file.label)}</strong><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${index}">${uxText('Pratinjau', 'Preview')}</button><a href="${escapeHtml(file.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a></div></div>`).join('') : uxText('Belum ada berkas.', 'No files available.');
+    let logs=[]; try { logs=JSON.parse(item.note || '[]'); } catch (_) {}
+    const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
+    const rows=files.map((file,index)=>{const doc=metadata.find(doc=>doc.url===file.url); return {...file,index,document:doc};});
+    const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
+    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(row.document?.label || row.label)}</strong>${row.document?`<small class="document-version">Versi ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button><a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a></div></div>`;
+    const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
+    const old=rows.filter(row=>!current.includes(row));
+    if(!current.length) return files.length?'<p class="field-helper">Berkas lama belum memiliki penanda versi. Periksa tanggal dan nama berkas sebelum meninjau.</p>'+rows.map(html).join(''):uxText('Belum ada berkas.','No files available.');
+    return '<h4>Versi terbaru</h4>'+current.map(html).join('')+(old.length?'<details class="case-history"><summary>Versi sebelumnya dan berkas lama ('+old.length+')</summary>'+old.map(html).join('')+'</details>':'');
 }
+
 function previewCaseFile(index) {
     const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
     const file = item && getCaseFiles(item)[index];
@@ -1234,7 +1252,7 @@ function caseDetailAction(action) {
     panel.dataset.action = action;
     let html = '';
     if (action === 'revision') {
-        const files = [...new Set([...registrationSpecs(item.jenis).map(spec => spec[1]), ...getCaseFiles(item).map(file => file.label)])];
+        const files = caseDocumentOptions(item);
         html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(label)}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label></fieldset>
         <label for="case-revision-note">${uxText('Apa yang harus diperbaiki?','What needs correcting?')}</label><textarea id="case-revision-note" rows="4" placeholder="${uxText('Contoh: Unggah transkrip yang sudah disahkan.','Example: Upload an officially certified transcript.')}"></textarea>`;
     } else if (action === 'dospem') {
@@ -1302,7 +1320,8 @@ async function submitCaseAction() {
     isPreparingCorrection = true;
     const requestEpoch = sessionEpoch;
     try {
-        const payloadFiles = await Promise.all(files.map(async file => ({fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
+        const labels = action === 'reply' ? revisionFileLabels(files,item) : [];
+        const payloadFiles = await Promise.all(files.map(async (file,index) => ({label:labels[index],fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
         if (requestEpoch !== sessionEpoch) return;
         // Escape user text before it enters the existing rich-text note history.
         const success = await sendUpdateRequest(item.id, newStatus, escapeHtml(note), payloadFiles, dospem);
@@ -1318,6 +1337,7 @@ async function submitCaseAction() {
 
 function toggleExamForm() {
     editRegistration();
+    refreshServiceAvailability();
     const formContainer = document.getElementById('dynamic-exam-form');
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
     const groupJudul = document.getElementById('group-judul');
@@ -1423,7 +1443,7 @@ async function submitForm(e) {
 
             // KHUSUS PERGANTIAN DOSEN, JUDUL DIHILANGKAN DARI DETAIL
             finalDetail = `<b>Dosen Lama:</b> ${dLama}<br><b>Dosen Baru:</b> ${dBaru}<br><b>Alasan:</b> ${kets}`;
-            filesToUpload.push({ label: 'Surat Pergantian', fileName: fSurat.name, mimeType: fSurat.type, base64: await fileToBase64(fSurat) });
+            filesToUpload.push({ label: 'Surat Permohonan Ganti Dosen', fileName: fSurat.name, mimeType: fSurat.type, base64: await fileToBase64(fSurat) });
         }
 
         showLoader(currentLang === 'id' ? 'Mengunggah Data ke Server...' : 'Uploading to Server...');
@@ -1462,6 +1482,12 @@ async function submitForm(e) {
             document.querySelectorAll('#registration-fields [id$="-badge"]').forEach(el => { el.textContent = ''; });
             document.querySelectorAll('#registration-fields input, #registration-fields textarea').forEach(el => setFieldError(el.id, ''));
             await syncDatabase();
+        } else if (result.status === 'duplicate' && result.id) {
+            await syncDatabase();
+            if (requestEpoch !== sessionEpoch) return;
+            openCaseDetail(result.id);
+            refreshServiceAvailability();
+            if (submitStatus) submitStatus.textContent = result.message;
         } else {
             throw new Error(result.message || (currentLang === 'id' ? "Gagal menyimpan berkas." : "Failed to save files."));
         }
@@ -1490,7 +1516,7 @@ function showSubmissionReceipt(receipt) {
         <dt>Jenis</dt><dd>${escapeHtml(receipt.jenis)}</dd>
         <dt>Waktu kirim</dt><dd>${escapeHtml(formatDateTime(receipt.date).replace(/<[^>]*>/g, ' '))}</dd>
         <dt>Berkas</dt><dd>${receipt.files.map(f => escapeHtml(f.fileName)).join('<br>') || '-'}</dd>
-        <dt>Status awal</dt><dd>Menunggu admin</dd></dl>`;
+        <dt>Status awal</dt><dd>Menunggu admin</dd></dl><button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(receipt.id)}">Unduh Bukti PDF</button>`;
     const modal = document.getElementById('modal-submission-receipt');
     modal.style.display = 'flex';
     modal.style.opacity = '1';
@@ -1992,7 +2018,8 @@ function openCaseDetail(id) {
     }
     const content = document.getElementById('case-detail-content');
     content.innerHTML = `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
-        <div>${getStatusBadge(item.status)}</div>
+        <div>${getStatusBadge(item.status)}${waitingHtml(item)}</div>
+        <button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(item.id)}">Unduh Bukti PDF</button>
         <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(item.jenis)}</dd>
         <dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
         ${isAdmin ? `<dt>${uxText('Mahasiswa','Student')}</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
@@ -2002,7 +2029,7 @@ function openCaseDetail(id) {
         <div id="case-file-preview" hidden><iframe title="Pratinjau berkas" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
         <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
-        <h3>${uxText('Tindakan','Actions')}</h3><p>${escapeHtml(caseNextStep(item))}</p>
+        <h3>${uxText('Tindakan','Actions')}</h3><p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
         <div id="case-action-panel" hidden></div></aside></div>`;
     content.querySelectorAll('[data-preview-index]').forEach(button => button.addEventListener('click', () => previewCaseFile(Number(button.dataset.previewIndex))));
@@ -2016,7 +2043,7 @@ function openCaseDetail(id) {
 function caseMobileCard(item, isAdmin) {
     return `<article class="case-mobile-card"><div class="case-mobile-top">${getStatusBadge(item.status)}<small>${escapeHtml(formatDate(isAdmin ? getCaseEventTime(item) : item.date))}</small></div>
         <strong>${escapeHtml(item.jenis)}</strong>${isAdmin ? `<p>${escapeHtml(item.nama)}<br><small>${escapeHtml(item.nim)}</small></p>` : ''}
-        <p>${escapeHtml(caseNextStep(item))}</p>
+        <p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}
         <button type="button" class="btn-primary" data-case-id="${escapeHtml(item.id)}">Buka Detail & Tindakan</button></article>`;
 }
 
@@ -2073,7 +2100,7 @@ function loadStudentStatus() {
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
                 <td style="vertical-align:top;"><b>${escapeHtml(item.jenis)}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${detailText}</td>
-                <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p></td>
+                <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</td>
                 <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
             </tr>`;
         });
@@ -2132,7 +2159,9 @@ function filterAdminData() {
         const matchSearch = String(item.nama || '').toLowerCase().includes(searchVal) || String(item.nim || '').toLowerCase().includes(searchVal);
         const stat = String(item.status || '').trim().toLowerCase();
         const matchFilter = filterVal === 'ALL' || (filterVal === 'ACTION_REQUIRED' ? ['pending', 'resubmitted'].includes(stat) : stat === filterVal.toLowerCase());
-        return matchSearch && matchFilter;
+        const type = document.getElementById('admin-type-filter')?.value || '';
+        const overdueOnly = document.getElementById('admin-overdue-filter')?.checked;
+        return matchSearch && matchFilter && (!type || item.jenis === type) && (!overdueOnly || caseWaiting(item)?.overdue);
     });
 
     adminFilteredData.sort((a, b) => {
@@ -2197,7 +2226,7 @@ function renderAdminTable() {
             <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
             <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
             <td><strong>${escapeHtml(item.jenis)}</strong></td>
-            <td class="queue-next-step">${escapeHtml(caseNextStep(item))}</td>
+            <td class="queue-next-step">${escapeHtml(caseNextStep(item))}${waitingHtml(item)}</td>
             <td>${getStatusBadge(item.status)}</td>
             <td><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${uxText('Buka Pengajuan','Open Request')}</button></td>
         </tr>`;
