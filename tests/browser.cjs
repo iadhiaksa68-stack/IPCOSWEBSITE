@@ -5,7 +5,7 @@ exports.chromium = { async launch() {
     const local = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     if (process.platform === 'darwin' && fs.existsSync(local)) return playwright.launch({ executablePath: local, headless: true });
     if (process.platform === 'linux') {
-        const chromium = require('@sparticuz/chromium');
+        const { default: chromium } = await import('@sparticuz/chromium');
         return playwright.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true });
     }
     throw new Error('Set IPCOS_TEST_BROWSER to a local Chrome/Chromium executable.');
