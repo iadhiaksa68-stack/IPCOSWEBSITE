@@ -441,12 +441,16 @@ async function apiPostSuccess(url, options) {
 }
 async function apiRead() {
     const version = ++readVersion;
+    const epoch = sessionEpoch;
+    setSyncPhase('syncing');
+    try {
     const data = await readApiResult(await apiPost(GAS_URL, {
         method: 'POST', body: JSON.stringify({ action: 'get_data' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
     }));
     if (version !== readVersion) throw staleRequestError();
     if (data.status === 'error') throw new Error(data.message || 'Akses data ditolak.');
     return data;
+    } catch (error) { if (epoch === sessionEpoch && version === readVersion && getSessionToken() && !error.staleSession) setSyncPhase('error'); throw error; }
 }
 function expireSession() {
     sessionStorage.removeItem('ipcos_session');
@@ -519,6 +523,7 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    resetWorkflowSession();
     clearCaseBlobUrls();
     ratioChartInstance?.destroy(); typeChartInstance?.destroy();
     ratioChartInstance = null; typeChartInstance = null;
@@ -560,6 +565,7 @@ function renderCachedTransactions() {
 function syncDatabase() {
     if (!getSessionToken()) return Promise.resolve();
     if (isOffline) {
+        renderSyncStatus();
         const cachedRegs = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
         if (currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(cachedRegs); }
         else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(cachedRegs); }
@@ -581,6 +587,7 @@ function syncDatabase() {
         })
         .catch(error => {
             if (error.staleSession || !getSessionToken()) return;
+            setSyncPhase('error');
             renderCachedTransactions();
             showToast(uxText('Gagal menyegarkan data. Data terakhir tetap ditampilkan.', 'Refresh failed. Showing the last available data.'), 'error');
         });
@@ -659,6 +666,7 @@ function applyDatabaseSnapshot(data) {
                 loadStudentStatus();
                 renderActivityTimeline(data.registrations || []);
             }
+            setSyncPhase('success');
 }
 
 function switchLoginMode(role) {
@@ -796,7 +804,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
 
 function logoutUser() {
     const msg = currentLang === 'id' ? "Apakah Anda yakin ingin keluar?" : "Are you sure you want to log out?";
-    if (confirm(msg)) {
+    if (confirm(msg + ((registrationDirty || caseEditorDirty() || isSubmittingRegistration || isPreparingCorrection) ? uxText(' Isian yang belum dikirim akan ditinggalkan.',' Unsent inputs will be discarded.') : ''))) {
         loginAttempt++; loginBusy = false; resetLoginButtons();
         sessionStorage.removeItem('ipcos_session');
         apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(() => {});
@@ -1067,11 +1075,13 @@ function loadFormDraft() {
             if (el) el.value = draft[id] || '';
         });
         const indicator = document.getElementById('form-draft-status');
+        registrationDirty = true;
         if (indicator) indicator.textContent = 'Draf isian dipulihkan. Pilih ulang berkas sebelum mengirim.';
     } catch (e) { }
 }
 
 function clearFormDraft() {
+    registrationDirty = false;
     sessionStorage.removeItem('ipcos_form_draft');
     const indicator = document.getElementById('form-draft-status');
     if (indicator) indicator.textContent = '';
@@ -1254,12 +1264,12 @@ function caseDetailAction(action) {
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') return;
     const panel = document.getElementById('case-action-panel');
-    panel.dataset.action = action;
+    panel.dataset.action = action; panel.dataset.dirty = 'false';
     let html = '';
     if (action === 'revision') {
         const files = caseDocumentOptions(item);
         html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(label)}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label></fieldset>
-        <label for="case-revision-note">${uxText('Apa yang harus diperbaiki?','What needs correcting?')}</label><textarea id="case-revision-note" rows="4" placeholder="${uxText('Contoh: Unggah transkrip yang sudah disahkan.','Example: Upload an officially certified transcript.')}"></textarea>`;
+        ${revisionTemplateHtml()}<label for="case-revision-note">${uxText('Apa yang harus diperbaiki?','What needs correcting?')}</label><textarea id="case-revision-note" rows="4" placeholder="${uxText('Contoh: Unggah transkrip yang sudah disahkan.','Example: Upload an officially certified transcript.')}"></textarea>`;
     } else if (action === 'dospem') {
         html = `<h3>${uxText('Tunjuk dosen & selesaikan', 'Assign Supervisor & Complete')}</h3><label for="case-supervisor">${uxText('Dosen pembimbing', 'Supervisor')}</label><select id="case-supervisor">${supervisorOptions()}</select><p>${uxText('Dosen terpilih akan dicatat saat pengajuan disetujui.','The selected supervisor will be recorded when this request is approved.')}</p>`;
     } else if (action === 'accept') {
@@ -1281,6 +1291,8 @@ function caseDetailAction(action) {
 }
 function cancelCaseAction() {
     if (activeUpdateIds.has(selectedCaseId) || isPreparingCorrection) return;
+    if (!confirmLeaveCase()) return;
+    document.getElementById('case-action-panel').dataset.dirty = 'false';
     document.getElementById('case-action-panel').hidden = true;
     document.getElementById('case-detail-actions').hidden = false;
 }
@@ -1322,6 +1334,7 @@ async function submitCaseAction() {
     const button = document.getElementById('btn-case-submit');
     button.disabled = true; button.textContent = uxText('Sedang menyimpan...', 'Saving...');
     feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
+    setSubmissionStage('case-action-feedback','preparing');
     isPreparingCorrection = true;
     const requestEpoch = sessionEpoch;
     try {
@@ -1329,11 +1342,14 @@ async function submitCaseAction() {
         const payloadFiles = await Promise.all(files.map(async (file,index) => ({label:labels[index],fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
         if (requestEpoch !== sessionEpoch) return;
         // Escape user text before it enters the existing rich-text note history.
+        setSubmissionStage('case-action-feedback','sending');
         const success = await sendUpdateRequest(item.id, newStatus, escapeHtml(note), payloadFiles, dospem);
         if (requestEpoch !== sessionEpoch) return;
+        setSubmissionStage('case-action-feedback',success?'confirmed':'uncertain');
+        if (success) panel.dataset.dirty='false';
         if (success && selectedCaseId === String(item.id) && document.getElementById('modal-case-detail').style.display !== 'none') openCaseDetail(item.id);
         else if (!success && document.getElementById('case-action-feedback')) fail(uxText('Penyimpanan belum dapat dipastikan. Isian Anda tetap tersedia. Segarkan status sebelum mencoba lagi.', 'Saving could not be confirmed. Your inputs remain available. Refresh the status before retrying.'));
-    } catch (error) { if (requestEpoch !== sessionEpoch) return; fail(error.message || uxText('Berkas belum dapat diproses. Coba kembali.', 'The file could not be processed. Try again.')); }
+    } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); fail(error.message || uxText('Berkas belum dapat diproses. Coba kembali.', 'The file could not be processed. Try again.')); }
     finally {
         if (requestEpoch === sessionEpoch) isPreparingCorrection = false;
         if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = uxText('Coba Simpan Lagi', 'Try Saving Again'); }
@@ -1408,6 +1424,7 @@ async function submitForm(e) {
     document.getElementById('btn-edit-registration').disabled = true;
     submitButton.disabled = true;
     submitButton.textContent = 'Sedang mengirim...';
+    setSubmissionStage('form-submit-status','preparing');
     if (submitStatus) submitStatus.textContent = 'Menyiapkan berkas. Jangan tutup halaman sampai ada konfirmasi.';
 
     let finalDetail = `<b>Judul:</b> ${document.getElementById('reg-judul').value}`;
@@ -1467,6 +1484,7 @@ async function submitForm(e) {
         };
 
         requestStarted = true;
+        setSubmissionStage('form-submit-status','sending');
         const response = await apiPost(GAS_URL, {
             method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
@@ -1475,6 +1493,7 @@ async function submitForm(e) {
 
         if (result.status === "success") {
             showToast(currentLang === 'id' ? "Pendaftaran & Berkas berhasil dikirim!" : "Registration & Files submitted successfully!", "success");
+            setSubmissionStage('form-submit-status','confirmed');
             lastSubmittedCaseId = result.id || '';
             sessionStorage.removeItem('ipcos_pending_submission');
             showSubmissionReceipt({ id: lastSubmittedCaseId, date: result.date || dateStr, jenis: jenisUjian, files: filesToUpload });
@@ -1498,6 +1517,7 @@ async function submitForm(e) {
         }
     } catch (err) {
         if (err.staleSession || requestEpoch !== sessionEpoch) return;
+        setSubmissionStage('form-submit-status',requestStarted?'uncertain':'error');
         showToast(err.message, "error");
         if (submitStatus) submitStatus.textContent = requestStarted
             ? `Pengiriman belum dapat dipastikan: ${err.message}. Periksa Status Pengajuanku sebelum mencoba lagi agar tidak mengirim dua kali.`
@@ -2003,6 +2023,7 @@ function caseTimelineHtml(item) {
 }
 
 function openCaseDetail(id) {
+    if ((String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return;
     clearCaseBlobUrls();
     const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const item = records.find(record => String(record.id) === String(id));
@@ -2135,7 +2156,7 @@ let isAdminSortDesc = true;
 
 function debounceAdminSearch() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { currentAdminPage = 1; filterAdminData(); }, 300); }
 
-function loadAdminData() { filterAdminData(); }
+function loadAdminData() { restoreQueueView(); filterAdminData(); }
 
 function toggleSortDate() {
     isAdminSortDesc = !isAdminSortDesc;
@@ -2185,6 +2206,7 @@ function filterAdminData() {
     });
 
     renderAdminTable();
+    saveQueueView();
     renderTaskHome();
 }
 
@@ -2201,6 +2223,7 @@ function renderAdminTable() {
     tbody.innerHTML = '';
 
     if (adminFilteredData.length === 0) {
+        currentAdminPage = 1;
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 30px;">
             <div style="font-size: 30px; opacity: 0.5; margin-bottom: 10px;">-</div>
             <span class="lang" data-id="Tidak ada data yang sesuai pencarian." data-en="No matching data found.">${currentLang === 'id' ? 'Tidak ada data yang sesuai pencarian.' : 'No matching data found.'}</span>
@@ -2246,6 +2269,7 @@ function changeAdminPage(direction) {
     if (currentAdminPage < 1) currentAdminPage = 1;
     if (currentAdminPage > totalPages) currentAdminPage = totalPages;
     renderAdminTable();
+    saveQueueView();
 }
 
 function exportAdminDataCSV() {
@@ -2507,6 +2531,7 @@ async function submitStudentReply() {
 }
 
 function closeModal(modalId, force = false) {
+    if (!force && modalId === 'modal-case-detail' && !confirmLeaveCase()) return;
     if (!force && modalId === 'modal-case-detail' && (isPreparingCorrection || activeUpdateIds.has(selectedCaseId))) return;
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -2537,6 +2562,7 @@ function canAccessTab(tabId) {
 }
 function switchTab(event, tabId) {
     if (!canAccessTab(tabId)) return;
+    if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return;
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -2565,10 +2591,10 @@ function showCat() { catEl.classList.add('peek'); setTimeout(() => { if (catEl.c
 function hideCat() { catEl.classList.remove('peek'); clearTimeout(catTimer); scheduleCat(); }
 
 function silentSyncDatabase() {
-    if (document.hidden || isOffline || !getSessionToken()) return;
-    return apiRead().then(applyDatabaseSnapshot).catch(error => { if (!error.staleSession && getSessionToken()) console.log('Sinkronisasi latar belakang tertunda.'); });
+    if (document.hidden || isOffline || !getSessionToken() || syncPhase === 'syncing') return;
+    return apiRead().then(applyDatabaseSnapshot).catch(error => { if (!error.staleSession && getSessionToken()) setSyncPhase('error'); });
 }
-setInterval(silentSyncDatabase, 180000);
+// Active-tab timer lives in workflow.js.
 
 // ==========================================
 // 14. SIDEBAR INTERAKTIF & WHATSAPP FLOAT

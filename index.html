@@ -438,6 +438,7 @@
                 <span class="lang" data-id="Menu" data-en="Menu">Menu</span>
             </button>
 
+            <p id="sync-status" class="sync-status" role="status" hidden></p>
             <!-- Global Search & Notifications -->
             <div style="display: flex; gap: 15px; align-items: center;">
               <button class="btn-secondary"
@@ -805,7 +806,7 @@
                 <div class="admin-table-controls">
                     <input type="text" id="admin-search-input" placeholder="Cari Nama / NIM..."
                         oninput="debounceAdminSearch()">
-                    <select id="admin-status-filter" onchange="filterAdminData()">
+                    <select id="admin-status-filter" onchange="currentAdminPage=1;filterAdminData()">
                         <option value="ACTION_REQUIRED" selected>Perlu Ditinjau</option>
                         <option value="ALL">-- Semua Status --</option>
                         <option value="Pending">Menunggu admin</option>
@@ -1034,6 +1035,7 @@
 
     <script src="script.js"></script>
     <script src="features.js"></script>
+    <script src="workflow.js"></script>
 </body>
 
 </html>
