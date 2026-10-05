@@ -2,62 +2,15 @@
    COLOR PALETTE "FUN & ELEGANT"
    ========================================== */
 :root {
-    --umy-maroon: #E03F4F;
-    --umy-maroon-dark: #C83140;
-    --umy-gold: #F8C463;
-    --umy-gold-light: rgba(248, 196, 99, 0.15);
-    --umy-green: #81912F;
     --umy-white: #FFFFFF;
-
-    --bg-gradient: #F5EFE6;
-    --bg-color: #F5EFE6;
-    --text-color: #2D2723;
-    --text-muted: #796C63;
-    --heading-color: #1A1512;
-    --card-bg: #FFFFFF;
-    --card-border: #E8DFD3;
-    --item-bg: #FFFFFF;
-    --item-border: #E8DFD3;
-    --item-hover: #FFFAF0;
-    --progress-bg: #E8DFD3;
-    --table-header: #FFFAF0;
-    --sticky-header-bg: #FFFAF0;
-    --input-bg: #FFFFFF;
-
-    --sidebar-bg: #FFFAF0;
-    --sidebar-text: #4A403A;
-    --sidebar-active-bg: rgba(224, 63, 79, 0.1);
-    --sidebar-active-text: #E03F4F;
-
-    --shadow-sm: 0 2px 4px rgba(45, 39, 35, 0.03);
-    --shadow-md: 0 8px 16px rgba(45, 39, 35, 0.05);
-    --shadow-floating: 0 20px 25px -5px rgba(45, 39, 35, 0.08);
     --trans-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    --trans-fast: all 0.15s ease-in-out;
+
 }
 
 body.dark-mode {
-    --bg-gradient: #1A1614;
-    --bg-color: #1A1614;
-    --text-color: #FFFAF0;
-    --text-muted: #A3968C;
-    --heading-color: #FFFFFF;
-    --card-bg: #26211E;
-    --card-border: #38312D;
-    --item-bg: #26211E;
-    --item-border: #38312D;
-    --item-hover: #38312D;
-    --progress-bg: #38312D;
-    --table-header: #38312D;
-    --sticky-header-bg: #26211E;
-    --input-bg: #26211E;
-
-    --sidebar-bg: #141110;
-    --sidebar-text: #A3968C;
-    --sidebar-active-bg: rgba(224, 63, 79, 0.15);
-    --sidebar-active-text: #E03F4F;
 
     --shadow-floating: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+
 }
 
 /* ==========================================

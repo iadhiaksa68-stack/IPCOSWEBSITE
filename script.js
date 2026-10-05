@@ -520,6 +520,9 @@ window.onload = function () {
 
 function clearPrivateCache() {
     clearCaseBlobUrls();
+    ratioChartInstance?.destroy(); typeChartInstance?.destroy();
+    ratioChartInstance = null; typeChartInstance = null;
+    const chartStatus = document.getElementById('chart-load-status'); if (chartStatus) { chartStatus.hidden = true; chartStatus.textContent = ''; }
     serviceSettings = []; serviceSettingsEditing = false;
     const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = '';
     const backupFolder = document.getElementById('backup-folder'); if (backupFolder) { backupFolder.hidden = true; backupFolder.removeAttribute('href'); }
@@ -2581,6 +2584,39 @@ window.addEventListener('scroll', () => {
 // 15. DASHBOARD CHART ANALYTICS & STATS (BENTO ADMIN)
 // ==========================================
 let ratioChartInstance = null; let typeChartInstance = null;
+let chartLibraryPromise = null;
+function loadChartLibrary() {
+    if (typeof Chart !== 'undefined') return Promise.resolve();
+    if (chartLibraryPromise) return chartLibraryPromise;
+    chartLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
+        script.async = true;
+        const fail = () => { clearTimeout(timeout); script.remove(); chartLibraryPromise = null; reject(new Error('Chart unavailable')); };
+        const timeout = setTimeout(fail, 15000);
+        script.onerror = fail;
+        script.onload = () => { clearTimeout(timeout); if (typeof Chart === 'undefined') fail(); else resolve(); };
+        document.head.appendChild(script);
+    });
+    return chartLibraryPromise;
+}
+async function showDashboardCharts() {
+    const details = document.querySelector('.dashboard-secondary');
+    if (!details?.open || currentUser.role !== 'admin') return;
+    const epoch = sessionEpoch;
+    const status = document.getElementById('chart-load-status');
+    status.hidden = false; status.textContent = uxText('Memuat grafik…','Loading charts…');
+    try {
+        await loadChartLibrary();
+        if (epoch !== sessionEpoch || currentUser.role !== 'admin' || !details.open) return;
+        status.hidden = true;
+        renderDashboardCharts(readStoredJSON(sessionStorage, 'ipcos_registrations', []));
+    } catch (_) {
+        if (epoch !== sessionEpoch || currentUser.role !== 'admin' || !details.open) return;
+        status.textContent = uxText('Grafik belum tersedia. Angka ringkasan dan antrean tetap dapat digunakan. Tutup lalu buka ringkasan untuk mencoba lagi.','Charts unavailable. Summary totals and the queue remain available. Close and reopen the summary to retry.');
+    }
+}
+
 
 function renderDashboardCharts(records) {
     if (currentUser.role !== 'admin') return;
@@ -2608,7 +2644,8 @@ function renderDashboardCharts(records) {
 
     const ctxRatio = document.getElementById('ratioChart');
     const ctxType = document.getElementById('typeChart');
-    if (!ctxRatio || !ctxType || typeof Chart === 'undefined') return;
+    if (!ctxRatio || !ctxType || !document.querySelector('.dashboard-secondary')?.open) return;
+    if (typeof Chart === 'undefined') { showDashboardCharts(); return; }
 
     if (ratioChartInstance) ratioChartInstance.destroy();
     if (typeChartInstance) typeChartInstance.destroy();
@@ -2936,9 +2973,7 @@ document.querySelectorAll('.overlay').forEach(overlay => {
 
 const secondaryDashboard = document.querySelector('.dashboard-secondary');
 if (secondaryDashboard) secondaryDashboard.addEventListener('toggle', () => {
-    if (secondaryDashboard.open && typeof Chart !== 'undefined') {
-        secondaryDashboard.querySelectorAll('canvas').forEach(canvas => { const chart = Chart.getChart?.(canvas); if (chart) chart.resize(); });
-    }
+    if (secondaryDashboard.open) showDashboardCharts();
 });
 document.addEventListener('keydown', event => {
     const login = document.getElementById('welcome-modal');

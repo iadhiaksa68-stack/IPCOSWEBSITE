@@ -22,7 +22,7 @@
     <!-- Font Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&display=swap"
         rel="stylesheet">
 
     <!-- Lightweight IPCOS mark, matching the sidebar identity. -->
@@ -30,7 +30,6 @@
 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="ui.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 
 <body class="transaction-view">
@@ -556,6 +555,7 @@
                     <div class="bento-header">
                         <h3>Rasio Verifikasi</h3>
                     </div>
+                    <p id="chart-load-status" role="status" hidden></p>
                     <div class="chart-container-bento"><canvas id="ratioChart"></canvas></div>
                 </div>
                 <div class="bento-card bento-col-2">

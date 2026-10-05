@@ -66,9 +66,9 @@ button,a,input,select,textarea,[role="button"],summary { touch-action:manipulati
 .logo-area p { color:var(--text-muted); letter-spacing:1.1px; }
 .logo-area h2 { font-size:21px; }
 .nav-tabs { padding:0 12px; }
-.nav-header { font-size:9px; letter-spacing:1.5px; margin:20px 0 10px 12px; opacity:1; }
-.nav-item { font-size:12px; font-weight:500; min-height:42px; padding:10px 12px; border-radius:8px; margin-bottom:2px; gap:10px; }
-.nav-item::before { content:''; width:6px; height:6px; flex:0 0 6px; border:1px solid currentColor; border-radius:2px; opacity:.6; }
+.nav-header { font-size:10px; letter-spacing:1.5px; margin:20px 0 10px 12px; opacity:1; }
+.nav-item { font-size:13px; font-weight:500; min-height:44px; padding:10px 12px; border-radius:8px; margin-bottom:2px; gap:10px; }
+.nav-item::before { content:''; width:18px; height:18px; flex:0 0 18px; opacity:.8; background:currentColor; mask:var(--nav-icon) center / contain no-repeat; -webkit-mask:var(--nav-icon) center / contain no-repeat; }
 .nav-item.active { border-left:0; border-radius:8px; font-weight:650; }
 .nav-item.active::before { background:currentColor; opacity:1; }
 .btn-sidebar { min-height:38px; font-size:11px; border-radius:8px; }
@@ -212,9 +212,6 @@ body.dark-mode .waiting-overdue { color:#fdba74; }
 @media(max-width:600px) { .service-setting-fields { grid-template-columns:1fr; } .admin-table-controls > select, .admin-table-controls > label { width:100%; } }
 
 /* Compact vector icons: no icon font, library, or extra network requests. */
-.nav-item { min-height:44px; font-size:13px; }
-.nav-header { font-size:10px; }
-.nav-item::before { width:18px; height:18px; flex:0 0 18px; border:0; border-radius:0; opacity:.8; background:currentColor; mask:var(--nav-icon) center / contain no-repeat; -webkit-mask:var(--nav-icon) center / contain no-repeat; }
 .nav-item.active::before { opacity:1; }
 .notification-toggle { color:var(--text-color); cursor:pointer; display:grid; place-items:center; }
 .workspace-toolbar button[aria-label="Cari"],.notification-toggle { width:44px!important; height:44px!important; min-height:44px!important; border-radius:10px!important; }
