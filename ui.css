@@ -159,7 +159,10 @@ body.dark-mode .badge-accepted { background:#22372b; color:#a6d9b7; border-color
   #welcome-modal { padding:20px; }
   .login-shell { grid-template-columns:1fr; width:min(480px,100%); min-height:0; border-radius:18px; }
   .login-story { padding:24px 28px; }
-  .login-story-body,.login-story-footer { display:none; }
+  .login-story-body { margin:0; padding:18px 0 0; }
+  .login-story-body .eyebrow,.login-story-body p,.journey,.journey-labels { display:none; }
+  .login-story h1 { font-size:22px; line-height:1.35; letter-spacing:-.6px; margin:0; }
+  .login-story-footer { margin-top:14px; font-size:11px; }
   .login-panel { padding:30px 28px; }
   .login-panel-intro h2 { font-size:25px; }
   .login-panel-intro .eyebrow { display:none; }
@@ -240,3 +243,31 @@ body.dark-mode .waiting-overdue { color:#fdba74; }
 .submission-steps .done { color:var(--umy-green); }
 .submission-steps p { width:100%; margin:0; }
 @media(max-width:600px) { .workspace-toolbar { flex-wrap:wrap; gap:10px; } .sync-status { order:3; flex:0 0 100%; text-align:left; padding:0; } }
+
+/* Text and controls stay in normal flow, including low-height screens. */
+.login-appearance { display:flex; justify-content:flex-end; margin:0 0 20px; }
+.theme-toggle { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:9px 12px; border:1px solid var(--item-border); border-radius:9px; background:var(--item-bg); color:var(--text-color); font:inherit; font-size:12px; cursor:pointer; }
+.theme-toggle svg { flex:0 0 18px; }
+.theme-moon { display:none; }
+body.dark-mode .theme-sun { display:none; }
+body.dark-mode .theme-moon { display:block; }
+.login-copyright { margin-top:24px; color:var(--text-muted); font-size:11px; line-height:1.6; text-align:center; }
+.workspace-copyright { margin-top:36px; padding-top:20px; border-top:1px solid var(--item-border); color:var(--text-muted); text-align:center; font-size:11px; line-height:1.6; }
+.login-story h1 { overflow-wrap:normal; text-wrap:balance; }
+.login-story-body p { max-width:none; }
+.login-story-footer { font-size:12px; line-height:1.6; }
+.brand-lockup > span:last-child,.user-greeting-wrapper,.task-home-header > div,.task-card > div { min-width:0; }
+.user-greeting-text,.user-subtext,.case-summary dd,.case-content-block,.task-card h3,.service-setting legend { overflow-wrap:anywhere; }
+.student-info-actions { flex-shrink:0; }
+.button-row > button,.button-row > a { white-space:normal; line-height:1.5; }
+.service-enabled span,.check-row span,.overdue-filter { min-width:0; overflow-wrap:anywhere; }
+@media(max-width:850px) { .login-appearance { margin-bottom:16px; } .login-panel { padding-top:20px; } }
+@media(max-width:600px) { .student-info { align-items:stretch; flex-direction:column; } .student-info-actions { display:flex; width:100%; } .student-info-actions button { flex:1; min-width:0; } .case-detail-heading h2 { min-width:0; overflow-wrap:anywhere; } }
+
+.admin-table-controls .overdue-filter { grid-column:1 / -1; min-height:44px; }
+.admin-table-controls .overdue-filter input { width:18px!important; flex:0 0 18px; }
+.overdue-filter span { min-width:0; overflow-wrap:anywhere; }
+
+/* Auto margins center short login cards but never push tall cards above the viewport. */
+#welcome-modal { align-items:flex-start; }
+.login-shell { margin-block:auto; }

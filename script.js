@@ -502,6 +502,7 @@ window.onload = function () {
         document.body.classList.add('dark-mode');
     }
 
+    syncThemeControl();
     startCountdownWidget();
     renderDynamicContent();
     initDoodleCanvas();
@@ -1973,6 +1974,8 @@ function toggleLanguage() {
 }
 
 function applyDynamicLanguage() {
+    syncThemeControl();
+    renderSyncStatus();
     document.querySelectorAll('.lang').forEach(el => {
         const text = el.getAttribute(`data-${currentLang}`);
         if (text && el.innerHTML !== text) {
@@ -2548,10 +2551,19 @@ function closeModal(modalId, force = false) {
         modalCloseTimers.set(modalId, setTimeout(() => { modal.style.display = 'none'; modalCloseTimers.delete(modalId); }, 300));
     }
 }
+function syncThemeControl() {
+    const button = document.getElementById('login-theme-toggle');
+    if (!button) return;
+    const dark = document.body.classList.contains('dark-mode');
+    button.setAttribute('aria-pressed', String(dark));
+    button.setAttribute('aria-label', uxText('Mode gelap','Dark mode'));
+    document.getElementById('login-theme-label').textContent = uxText('Tema: ','Theme: ') + (dark ? uxText('gelap','dark') : uxText('terang','light'));
+}
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('ipcos_theme', isDark ? 'dark' : 'light');
+    syncThemeControl();
 }
 function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); }
 
