@@ -513,6 +513,7 @@ function syncDatabase() {
             data.registrations = normalizeData(data.registrations);
 
             sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
+            sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
             renderNotifications();
             
             if (data.dosens) {
@@ -531,9 +532,6 @@ function syncDatabase() {
             isDbLoaded = true;
 
             if (data.announcements && data.announcements.length > 0) {
-                sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
-                renderNotifications();
-
                 const latest = data.announcements[data.announcements.length - 1];
                 if (currentUser.role === 'mhs') {
                     const bannerText = document.getElementById('announcement-text');
@@ -558,6 +556,9 @@ function syncDatabase() {
                         }
                     }
                 }
+            } else if (currentUser.role === 'mhs') {
+                const banner = document.getElementById('announcement-banner');
+                if (banner) banner.style.display = 'none';
             }
 
             if (data.contents && data.contents.length > 0) {
@@ -2246,10 +2247,8 @@ function silentSyncDatabase() {
             const oldDataStr = sessionStorage.getItem('ipcos_registrations');
             const newDataStr = JSON.stringify(data.registrations || []);
 
-            if (data.announcements && data.announcements.length > 0) {
-                sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
-                renderNotifications();
-            }
+            sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
+            renderNotifications();
 
             if (oldDataStr !== newDataStr) {
                 sessionStorage.setItem('ipcos_registrations', newDataStr);
