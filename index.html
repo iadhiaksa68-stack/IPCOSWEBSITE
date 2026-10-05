@@ -99,6 +99,22 @@
     </svg>
 
     <!-- Modals -->
+    <div id="modal-case-detail" class="overlay" style="display:none; z-index:2050;" role="dialog" aria-modal="true" aria-labelledby="case-detail-title">
+        <div class="modal-card case-detail-card">
+            <div class="case-detail-heading">
+                <h2 id="case-detail-title">Detail Pengajuan</h2>
+                <button type="button" class="btn-secondary case-close" onclick="closeModal('modal-case-detail')" aria-label="Tutup detail pengajuan">Tutup</button>
+            </div>
+            <div id="case-detail-content"></div>
+        </div>
+    </div>
+    <div id="modal-submission-receipt" class="overlay" style="display:none; z-index:2050;" role="dialog" aria-modal="true" aria-labelledby="receipt-title">
+        <div class="modal-card case-detail-card">
+            <h2 id="receipt-title">Pengajuan berhasil dikirim</h2>
+            <div id="submission-receipt-content"></div>
+            <button type="button" class="btn-primary" onclick="goToSubmittedCase()">Lihat Status Pengajuan</button>
+        </div>
+    </div>
     <div id="modal-chat-timeline" class="overlay" style="display: none; z-index: 2000;">
         <div class="modal-card" style="max-width: 550px; text-align: left;">
             <h2 class="lang" data-id="Riwayat Percakapan Revisi" data-en="Revision History Log">Riwayat Percakapan
@@ -642,6 +658,8 @@
             <h1 class="lang" data-id="Pusat Pendaftaran" data-en="Registration Center">Pusat Pendaftaran Ujian & Skripsi
             </h1>
             <div class="card">
+                <p class="form-helper">Isian teks disimpan sementara di tab ini. Berkas perlu dipilih ulang jika halaman ditutup atau dimuat ulang.</p>
+                <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p>
                 <div class="form-group">
                     <label for="reg-jenis-utama">Pilih Jenis Pendaftaran *</label>
                     <select id="reg-jenis-utama" onchange="toggleExamForm()"
@@ -657,6 +675,7 @@
 
                 <form id="dynamic-exam-form" onsubmit="submitForm(event)"
                     style="display: none; margin-top: 25px; border-top: 1px solid var(--item-border); padding-top: 25px;">
+                    <p id="form-submit-status" class="form-submit-status" role="status" aria-live="polite"></p>
                     <div class="form-group" id="group-judul">
                         <label for="reg-judul">Judul Skripsi / Tugas Akhir *</label>
                         <input type="text" id="reg-judul" placeholder="Masukkan judul..." required>
@@ -736,8 +755,9 @@
 
         <div id="student-status" class="tab-content">
             <h1>Status Pengajuan Saya</h1>
+            <div id="student-mobile-list" class="case-mobile-list"></div>
             <div class="card" style="padding: 16px;">
-                <div class="responsive-table-wrapper">
+                <div class="responsive-table-wrapper case-desktop-table">
                     <table>
                         <thead>
                             <tr>
@@ -756,11 +776,13 @@
 
         <div id="admin-data" class="tab-content">
             <h1>Data Pendaftaran Mahasiswa</h1>
+            <div id="admin-queue-summary" class="admin-queue-summary" aria-label="Ringkasan antrean pengajuan"></div>
             <div class="card" style="padding: 16px;">
                 <div class="admin-table-controls">
                     <input type="text" id="admin-search-input" placeholder="Cari Nama / NIM..."
                         onkeyup="debounceAdminSearch()">
                     <select id="admin-status-filter" onchange="filterAdminData()">
+                        <option value="ACTION_REQUIRED" selected>Perlu Ditinjau</option>
                         <option value="ALL">-- Semua Status --</option>
                         <option value="Pending">Sedang Diverifikasi</option>
                         <option value="Revision">Perlu Revisi</option>
@@ -774,7 +796,8 @@
                         style="background-color: var(--umy-maroon); width: auto;" data-id="Kosongkan Data"
                         data-en="Clear All Data">Kosongkan Data</button>
                 </div>
-                <div class="responsive-table-wrapper" style="max-height: 60vh;">
+                <div id="admin-mobile-list" class="case-mobile-list"></div>
+                <div class="responsive-table-wrapper case-desktop-table" style="max-height: 60vh;">
                     <table id="admin-table-main">
                         <thead>
                             <tr>

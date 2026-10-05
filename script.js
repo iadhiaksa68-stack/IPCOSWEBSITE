@@ -487,17 +487,17 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
-    ['ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft'].forEach(key => sessionStorage.removeItem(key));
+    ['ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft', 'ipcos_pending_submission'].forEach(key => sessionStorage.removeItem(key));
 }
 
 function syncDatabase() {
-    if (!getSessionToken()) return;
+    if (!getSessionToken()) return Promise.resolve();
     if (isOffline) {
         const cachedRegs = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
         if (currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(cachedRegs); }
         else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(cachedRegs); }
         renderNotifications();
-        return;
+        return Promise.resolve();
     }
 
     if (currentUser.role === 'admin') {
@@ -507,12 +507,13 @@ function syncDatabase() {
         renderTableSkeleton('table-my-status', 3, 5);
         renderTimelineSkeleton('activity-timeline-container', 3);
     }
-    apiRead()
+    return apiRead()
         .then(data => {
 
             data.registrations = normalizeData(data.registrations);
 
             sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
+            renderNotifications();
             
             if (data.dosens) {
                 sessionStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
@@ -768,49 +769,29 @@ function renderNotifications() {
     if (!listContainer) return;
 
     const notifs = [];
-
-    if (currentUser && currentUser.role === 'mhs') {
-        const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
-        const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
-
-        myRecords.forEach(rec => {
-            const stat = String(rec.status).trim().toLowerCase();
-            if (stat === 'revision') {
-                let latestRevNote = `Berkas Pendaftaran Anda membutuhkan perbaikan.`;
-                if (rec.note && rec.note.trim() !== '') {
-                    try {
-                        const parsedLogs = JSON.parse(rec.note);
-                        const lastAdminLog = parsedLogs.slice().reverse().find(l => l.role === 'admin');
-                        if (lastAdminLog) {
-                            latestRevNote = `Catatan: ${lastAdminLog.message.replace(/<[^>]+>/g, '').substring(0, 65)}...`; 
-                        }
-                    } catch(e) {
-                        latestRevNote = `Catatan: ${rec.note.substring(0, 65)}...`;
-                    }
-                }
-
-                notifs.push({
-                    type: 'revision',
-                    title: `Perlu Revisi: ${rec.jenis}`,
-                    text: latestRevNote,
-                    date: rec.date || new Date().toISOString(),
-                    tab: 'student-status'
-                });
-            } else if (stat === 'accepted') {
-                notifs.push({
-                    type: 'accepted',
-                    title: `Disetujui: ${rec.jenis}`,
-                    text: rec.dospem ? `Dosen Pembimbing: ${rec.dospem}` : `Pendaftaran Anda telah diverifikasi & disetujui.`,
-                    date: rec.date || new Date().toISOString(),
-                    tab: 'student-status'
-                });
-            }
+    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    records.forEach(rec => {
+        const status = String(rec.status || '').toLowerCase();
+        const isStudent = currentUser.role === 'mhs';
+        if (isStudent && String(rec.nim) !== String(currentUser.nim)) return;
+        if (isStudent && !['revision', 'accepted'].includes(status)) return;
+        if (!isStudent && currentUser.role === 'admin' && !['pending', 'resubmitted'].includes(status)) return;
+        if (!['mhs', 'admin'].includes(currentUser.role)) return;
+        const date = getCaseEventTime(rec);
+        notifs.push({
+            key: notificationHash(`${rec.id}:${status}:${date}`), caseId: String(rec.id), date,
+            type: status,
+            title: isStudent ? (status === 'revision' ? `Perlu Revisi: ${rec.jenis}` : `Disetujui: ${rec.jenis}`)
+                : (status === 'resubmitted' ? `Perbaikan Masuk: ${rec.jenis}` : `Pengajuan Baru: ${rec.jenis}`),
+            text: isStudent ? caseNextStep(rec) : `${rec.nama} — ${caseNextStep(rec)}`,
+            tab: isStudent ? 'student-status' : 'admin-data'
         });
-    }
+    });
 
     const announcements = JSON.parse(sessionStorage.getItem('ipcos_announcements') || '[]');
     announcements.slice(-5).reverse().forEach(ann => {
         notifs.push({
+            key: notificationHash(`announcement:${ann.Id || ann.date || ann.Tanggal || ann.Pesan || ann.message}`),
             type: 'broadcast',
             title: `📢 Pengumuman Akademik`,
             text: ann.Pesan || ann.message || 'Pengumuman baru dari Administrator IPCOS',
@@ -819,25 +800,53 @@ function renderNotifications() {
         });
     });
 
+    notifs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    currentNotificationIds = notifs.map(n => n.key);
+    const readIds = getReadNotificationIds();
+    const unreadCount = notifs.filter(n => !readIds.includes(n.key)).length;
+
     if (notifs.length === 0) {
         listContainer.innerHTML = `<div style="padding: 20px; font-size: 13px; color: var(--text-muted); text-align: center;" class="lang" data-id="Belum ada notifikasi baru." data-en="No new notifications.">Belum ada notifikasi baru.</div>`;
         if (badgeEl) badgeEl.style.display = 'none';
     } else {
         if (badgeEl) {
-            badgeEl.innerText = notifs.length;
-            badgeEl.style.display = 'flex';
+            badgeEl.innerText = unreadCount;
+            badgeEl.style.display = unreadCount ? 'flex' : 'none';
         }
         listContainer.innerHTML = notifs.map(n => `
-            <div style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); cursor: pointer; transition: background 0.2s;" class="notif-item" onclick="switchTab(null, '${n.tab}'); toggleNotifDropdown();">
+            <button type="button" class="notif-item ${readIds.includes(n.key) ? 'is-read' : ''}" onclick="openNotification(${escapeHtml(JSON.stringify(n.key))}, ${escapeHtml(JSON.stringify(n.caseId || ''))}, ${escapeHtml(JSON.stringify(n.tab))})">
                 <div style="font-weight: 700; font-size: 13px; color: var(--heading-color); margin-bottom: 3px; display:flex; align-items:center; gap:6px;">
                     <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${n.type === 'revision' ? 'var(--umy-maroon)' : n.type === 'accepted' ? 'var(--umy-green)' : 'var(--umy-gold)'};"></span>
                     ${escapeHtml(n.title)}
                 </div>
                 <div style="font-size: 12px; color: var(--text-color); margin-bottom: 4px; line-height: 1.4;">${escapeHtml(n.text)}</div>
                 <div style="font-size: 10px; color: var(--text-muted);">${timeAgo(n.date)}</div>
-            </div>
+            </button>
         `).join('');
     }
+}
+
+let currentNotificationIds = [];
+function notificationHash(value) {
+    let hash = 2166136261;
+    for (const char of String(value)) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); }
+    return (hash >>> 0).toString(16);
+}
+function notificationReadKey() { return `ipcos_read_${notificationHash(`${currentUser.role}:${currentUser.nim}`)}`; }
+function getReadNotificationIds() {
+    try { const ids = JSON.parse(localStorage.getItem(notificationReadKey()) || '[]'); return Array.isArray(ids) ? ids : []; }
+    catch (_) { return []; }
+}
+function saveReadNotificationIds(ids) {
+    try { localStorage.setItem(notificationReadKey(), JSON.stringify([...new Set(ids)].slice(-100))); } catch (_) {}
+}
+function openNotification(key, caseId, tabName) {
+    saveReadNotificationIds([...getReadNotificationIds(), key]);
+    renderNotifications();
+    switchTab(null, tabName);
+    const dropdown = document.getElementById('notif-dropdown');
+    if (dropdown) dropdown.style.display = 'none';
+    if (caseId) openCaseDetail(caseId);
 }
 
 function toggleNotifDropdown(e) {
@@ -850,8 +859,8 @@ function toggleNotifDropdown(e) {
 }
 
 function markAllNotificationsRead() {
-    const badgeEl = document.getElementById('notif-badge');
-    if (badgeEl) badgeEl.style.display = 'none';
+    saveReadNotificationIds([...getReadNotificationIds(), ...currentNotificationIds]);
+    renderNotifications();
     showToast(currentLang === 'id' ? 'Semua notifikasi ditandai dibaca' : 'All notifications marked as read', 'success');
 }
 
@@ -978,11 +987,12 @@ function fileToBase64(file) {
 // AUTO-SAVE DRAFT FORMULIR PENDAFTARAN
 // ==========================================
 function saveFormDraft() {
-    const draft = {
-        jenis: document.getElementById('reg-jenis-utama')?.value || '',
-        judul: document.getElementById('reg-judul')?.value || ''
-    };
+    const fields = ['reg-jenis-utama', 'reg-judul', 'reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'];
+    const draft = { savedAt: new Date().toISOString() };
+    fields.forEach(id => { draft[id] = document.getElementById(id)?.value || ''; });
     sessionStorage.setItem('ipcos_form_draft', JSON.stringify(draft));
+    const indicator = document.getElementById('form-draft-status');
+    if (indicator) indicator.textContent = 'Draf isian tersimpan di tab ini.';
 }
 
 function loadFormDraft() {
@@ -992,13 +1002,22 @@ function loadFormDraft() {
         const draft = JSON.parse(saved);
         const jenisEl = document.getElementById('reg-jenis-utama');
         const judulEl = document.getElementById('reg-judul');
-        if (draft.jenis && jenisEl) { jenisEl.value = draft.jenis; toggleExamForm(); }
-        if (draft.judul && judulEl) { judulEl.value = draft.judul; }
+        const jenis = draft['reg-jenis-utama'] || draft.jenis;
+        if (jenis && jenisEl) { jenisEl.value = jenis; toggleExamForm(); }
+        if (judulEl) judulEl.value = draft['reg-judul'] || draft.judul || '';
+        ['reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = draft[id] || '';
+        });
+        const indicator = document.getElementById('form-draft-status');
+        if (indicator) indicator.textContent = 'Draf isian dipulihkan. Pilih ulang berkas sebelum mengirim.';
     } catch (e) { }
 }
 
 function clearFormDraft() {
     sessionStorage.removeItem('ipcos_form_draft');
+    const indicator = document.getElementById('form-draft-status');
+    if (indicator) indicator.textContent = '';
 }
 
 function toggleExamForm() {
@@ -1032,8 +1051,11 @@ function toggleExamForm() {
     }
 }
 
+let isSubmittingRegistration = false;
+let lastSubmittedCaseId = '';
 async function submitForm(e) {
     e.preventDefault();
+    if (isSubmittingRegistration) return;
 
     if (isOffline) {
         showToast(currentLang === 'id' ? "Tidak dapat mengirim form saat offline. Periksa koneksi Anda." : "Cannot submit form while offline. Check your connection.", "error");
@@ -1041,9 +1063,16 @@ async function submitForm(e) {
     }
 
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
-    const reqId = Date.now().toString(36);
+    if (!jenisUjian) return;
     const dateStr = new Date().toISOString();
     let filesToUpload = [];
+    let requestStarted = false;
+    const submitButton = document.getElementById('btn-submit-registration');
+    const submitStatus = document.getElementById('form-submit-status');
+    isSubmittingRegistration = true;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Sedang mengirim...';
+    if (submitStatus) submitStatus.textContent = 'Menyiapkan berkas. Jangan tutup halaman sampai ada konfirmasi.';
 
     let finalDetail = `<b>Judul:</b> ${document.getElementById('reg-judul').value}`;
 
@@ -1088,12 +1117,19 @@ async function submitForm(e) {
 
         showLoader(currentLang === 'id' ? 'Mengunggah Data ke Server...' : 'Uploading to Server...');
 
+        const signature = notificationHash(JSON.stringify({ jenisUjian, finalDetail, files: filesToUpload.map(f => [f.fileName, f.base64.length]) }));
+        let pendingRequest = {};
+        try { pendingRequest = JSON.parse(sessionStorage.getItem('ipcos_pending_submission') || '{}'); } catch (_) {}
+        const requestId = pendingRequest.signature === signature && pendingRequest.id
+            ? pendingRequest.id : (window.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
+        sessionStorage.setItem('ipcos_pending_submission', JSON.stringify({ signature, id: requestId }));
         let payload = {
-            action: 'create', id: reqId, date: dateStr, nim: currentUser.nim, nama: currentUser.nama,
+            action: 'create', requestId, date: dateStr, nim: currentUser.nim, nama: currentUser.nama,
             jenis: jenisUjian, detail: finalDetail,
             files: filesToUpload
         };
 
+        requestStarted = true;
         const response = await apiPost(GAS_URL, {
             method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
@@ -1102,18 +1138,47 @@ async function submitForm(e) {
 
         if (result.status === "success") {
             showToast(currentLang === 'id' ? "Pendaftaran & Berkas berhasil dikirim!" : "Registration & Files submitted successfully!", "success");
+            lastSubmittedCaseId = result.id || '';
+            sessionStorage.removeItem('ipcos_pending_submission');
+            showSubmissionReceipt({ id: lastSubmittedCaseId, date: result.date || dateStr, jenis: jenisUjian, files: filesToUpload });
+            if (submitStatus) submitStatus.textContent = 'Pengajuan berhasil dikirim dan tercatat.';
             clearFormDraft();
             document.getElementById('reg-jenis-utama').value = "";
             document.querySelectorAll('.dz-file-name').forEach(el => el.innerText = "");
-            toggleExamForm(); e.target.reset(); syncDatabase();
+            toggleExamForm(); e.target.reset(); await syncDatabase();
         } else {
             throw new Error(result.message || (currentLang === 'id' ? "Gagal menyimpan berkas." : "Failed to save files."));
         }
     } catch (err) {
         showToast(err.message, "error");
+        if (submitStatus) submitStatus.textContent = requestStarted
+            ? `Pengiriman belum dapat dipastikan: ${err.message}. Periksa Status Pengajuanku sebelum mencoba lagi agar tidak mengirim dua kali.`
+            : `Periksa formulir: ${err.message}`;
     } finally {
+        isSubmittingRegistration = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Kirim Pendaftaran';
         hideLoader();
     }
+}
+
+function showSubmissionReceipt(receipt) {
+    const content = document.getElementById('submission-receipt-content');
+    content.innerHTML = `<p>Data dan berkas sudah diterima sistem. Simpan ringkasan ini untuk pengecekan.</p>
+        <dl class="receipt-list"><dt>Nomor pengajuan</dt><dd>${escapeHtml(receipt.id)}</dd>
+        <dt>Jenis</dt><dd>${escapeHtml(receipt.jenis)}</dd>
+        <dt>Waktu kirim</dt><dd>${escapeHtml(formatDateTime(receipt.date).replace(/<[^>]*>/g, ' '))}</dd>
+        <dt>Berkas</dt><dd>${receipt.files.map(f => escapeHtml(f.fileName)).join('<br>') || '-'}</dd>
+        <dt>Status awal</dt><dd>Sedang diverifikasi</dd></dl>`;
+    const modal = document.getElementById('modal-submission-receipt');
+    modal.style.display = 'flex';
+    modal.style.opacity = '1';
+}
+
+function goToSubmittedCase() {
+    closeModal('modal-submission-receipt');
+    switchTab(null, 'student-status');
+    if (lastSubmittedCaseId) openCaseDetail(lastSubmittedCaseId);
 }
 
 // ==========================================
@@ -1548,6 +1613,97 @@ function applyDynamicLanguage() {
 // ==========================================
 // 11. LOAD TABEL MAHASISWA & CHAT TIMELINE
 // ==========================================
+let selectedCaseId = '';
+
+function getCaseEventTime(item) {
+    try {
+        const logs = JSON.parse(item.note || '[]');
+        const latest = Array.isArray(logs) ? logs[logs.length - 1] : null;
+        return latest?.time || item.date || '';
+    } catch (_) { return item.date || ''; }
+}
+
+function caseNextStep(item) {
+    const status = String(item.status || '').trim().toLowerCase();
+    if (status === 'accepted') return 'Selesai diverifikasi. Simpan berkas dan lanjutkan tahapan akademik berikutnya.';
+    if (status === 'revision') return currentUser.role === 'admin'
+        ? 'Menunggu mahasiswa mengirim perbaikan.'
+        : 'Baca catatan admin, siapkan berkas perbaikan, lalu pilih Upload Perbaikan.';
+    if (status === 'resubmitted') return currentUser.role === 'admin'
+        ? 'Perbaikan mahasiswa sudah masuk. Periksa berkas dan putuskan hasilnya.'
+        : 'Perbaikan sudah terkirim. Tunggu pemeriksaan admin.';
+    return currentUser.role === 'admin'
+        ? 'Pengajuan baru menunggu pemeriksaan admin.'
+        : 'Pengajuan sudah masuk. Tunggu pemeriksaan admin.';
+}
+
+function caseTimelineHtml(item) {
+    let logs = [];
+    try { logs = JSON.parse(item.note || '[]'); } catch (_) {
+        if (item.note) logs = [{ sender: 'Sistem', time: item.date, message: item.note }];
+    }
+    if (!Array.isArray(logs) || !logs.length) return '<p>Belum ada catatan.</p>';
+    return logs.map(log => `<div class="case-timeline-item"><strong>${escapeHtml(log.sender || 'Sistem')}</strong>
+        <small>${escapeHtml(formatDateTime(log.time || item.date).replace(/<[^>]*>/g, ' '))}</small>
+        <div>${sanitizeRichHtml(log.message || '')}</div></div>`).join('');
+}
+
+function openCaseDetail(id) {
+    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const item = records.find(record => String(record.id) === String(id));
+    if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) {
+        showToast('Pengajuan belum tersedia. Coba segarkan data.', 'error');
+        return;
+    }
+    selectedCaseId = String(item.id);
+    const isAdmin = currentUser.role === 'admin';
+    const status = String(item.status || '').toLowerCase();
+    let actions = '';
+    if (isAdmin && status !== 'accepted' && status !== 'revision') {
+        if (item.jenis === 'Outline' || item.jenis === 'Pergantian Pembimbing') {
+            actions += '<button type="button" class="btn-primary" onclick="caseDetailAction(\'dospem\')">Tunjuk Dosen & Terima</button>';
+        } else actions += '<button type="button" class="btn-primary" onclick="caseDetailAction(\'accept\')">Terima Pengajuan</button>';
+        actions += '<button type="button" class="btn-secondary" onclick="caseDetailAction(\'revision\')">Minta Revisi</button>';
+    } else if (!isAdmin && status === 'revision') {
+        actions = '<button type="button" class="btn-primary" onclick="caseDetailAction(\'reply\')">Upload Perbaikan</button>';
+    }
+    const content = document.getElementById('case-detail-content');
+    content.innerHTML = `<div class="case-summary">
+        <div>${getStatusBadge(item.status)}<p class="case-next-step">${escapeHtml(caseNextStep(item))}</p></div>
+        <dl class="receipt-list"><dt>Jenis</dt><dd>${escapeHtml(item.jenis)}</dd>
+        <dt>Dikirim</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
+        ${isAdmin ? `<dt>Mahasiswa</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
+        <dt>Nomor</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
+        <h3>Detail</h3><div class="case-content-block">${sanitizeRichHtml(item.detail)}${item.dospem ? `<p><strong>Dosen Pembimbing:</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div>
+        <h3>Berkas</h3><div class="case-content-block">${item.link ? sanitizeRichHtml(item.link) : 'Belum ada berkas.'}</div>
+        <h3>Riwayat</h3><div class="case-timeline">${caseTimelineHtml(item)}</div>
+        <div class="case-detail-actions">${actions}</div>`;
+    const modal = document.getElementById('modal-case-detail');
+    modal.style.display = 'flex';
+    modal.style.opacity = '1';
+}
+
+function caseDetailAction(action) {
+    const id = selectedCaseId;
+    closeModal('modal-case-detail');
+    if (action === 'accept') acceptSubmission(id);
+    else if (action === 'revision') openRevisionModal(id);
+    else if (action === 'dospem') openDospemModal(id);
+    else if (action === 'reply') openReplyModal(id);
+}
+
+function caseMobileCard(item, isAdmin) {
+    return `<article class="case-mobile-card"><div class="case-mobile-top">${getStatusBadge(item.status)}<small>${escapeHtml(formatDate(item.date))}</small></div>
+        <strong>${escapeHtml(item.jenis)}</strong>${isAdmin ? `<p>${escapeHtml(item.nama)}<br><small>${escapeHtml(item.nim)}</small></p>` : ''}
+        <p>${escapeHtml(caseNextStep(item))}</p>
+        <button type="button" class="btn-primary" data-case-id="${escapeHtml(item.id)}">Buka Detail & Tindakan</button></article>`;
+}
+
+document.addEventListener('click', event => {
+    const button = event.target.closest('[data-case-id]');
+    if (button) openCaseDetail(button.dataset.caseId);
+});
+
 function loadStudentStatus() {
     const tbody = document.getElementById('table-my-status');
     const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
@@ -1567,7 +1723,7 @@ function loadStudentStatus() {
             const stat = String(item.status).trim().toLowerCase();
             if (stat === 'revision') hasRevision = true;
 
-            let actionButtons = `<button class="btn-chat-log lang" onclick="openChatTimeline('${item.id}')" data-id="Lihat Riwayat Note" data-en="View Note History">${currentLang === 'id' ? 'Lihat Riwayat Note' : 'View Note History'}</button>`;
+            let actionButtons = `<button type="button" class="btn-chat-log" data-case-id="${escapeHtml(item.id)}">Lihat Detail & Riwayat</button>`;
             if (stat === 'revision') {
                 actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
             }
@@ -1601,6 +1757,11 @@ function loadStudentStatus() {
             </tr>`;
         });
     }
+
+    const mobileList = document.getElementById('student-mobile-list');
+    if (mobileList) mobileList.innerHTML = myRecords.length
+        ? myRecords.map(item => caseMobileCard(item, false)).join('')
+        : '<div class="case-mobile-card">Belum ada pengajuan.</div>';
 
     const alertRev = document.getElementById('alert-revision-student');
     if (alertRev) alertRev.style.display = hasRevision ? 'block' : 'none';
@@ -1636,17 +1797,29 @@ function filterAdminData() {
     const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
     const searchVal = (document.getElementById('admin-search-input')?.value || '').toLowerCase().trim();
     const filterVal = document.getElementById('admin-status-filter')?.value || 'ALL';
+    const counts = { pending: 0, resubmitted: 0, revision: 0, accepted: 0 };
+    records.forEach(item => { const status = String(item.status || '').trim().toLowerCase(); if (status in counts) counts[status]++; });
+    const summary = document.getElementById('admin-queue-summary');
+    if (summary) summary.innerHTML = `
+        <button type="button" onclick="setAdminQueueFilter('ACTION_REQUIRED')"><strong>${counts.pending + counts.resubmitted}</strong><span>Perlu Ditinjau</span></button>
+        <button type="button" onclick="setAdminQueueFilter('Pending')"><strong>${counts.pending}</strong><span>Baru Masuk</span></button>
+        <button type="button" onclick="setAdminQueueFilter('Resubmitted')"><strong>${counts.resubmitted}</strong><span>Perbaikan Masuk</span></button>
+        <button type="button" onclick="setAdminQueueFilter('Revision')"><strong>${counts.revision}</strong><span>Menunggu Mahasiswa</span></button>`;
 
     adminFilteredData = records.filter(item => {
         const matchSearch = String(item.nama || '').toLowerCase().includes(searchVal) || String(item.nim || '').toLowerCase().includes(searchVal);
         const stat = String(item.status || '').trim().toLowerCase();
-        const matchFilter = filterVal === 'ALL' || stat === filterVal.toLowerCase();
+        const matchFilter = filterVal === 'ALL' || (filterVal === 'ACTION_REQUIRED' ? ['pending', 'resubmitted'].includes(stat) : stat === filterVal.toLowerCase());
         return matchSearch && matchFilter;
     });
 
     adminFilteredData.sort((a, b) => {
-        const safeDateA = a.date ? String(a.date).replace(' ', 'T') : '';
-        const safeDateB = b.date ? String(b.date).replace(' ', 'T') : '';
+        if (filterVal === 'ACTION_REQUIRED') {
+            const priority = item => String(item.status).toLowerCase() === 'resubmitted' ? 0 : 1;
+            if (priority(a) !== priority(b)) return priority(a) - priority(b);
+        }
+        const safeDateA = getCaseEventTime(a).replace(' ', 'T');
+        const safeDateB = getCaseEventTime(b).replace(' ', 'T');
         
         const dateA = safeDateA ? (new Date(safeDateA).getTime() || 0) : 0;
         const dateB = safeDateB ? (new Date(safeDateB).getTime() || 0) : 0;
@@ -1655,6 +1828,14 @@ function filterAdminData() {
     });
 
     renderAdminTable();
+}
+
+function setAdminQueueFilter(value) {
+    const filter = document.getElementById('admin-status-filter');
+    if (!filter) return;
+    filter.value = value;
+    currentAdminPage = 1;
+    filterAdminData();
 }
 
 function renderAdminTable() {
@@ -1667,6 +1848,8 @@ function renderAdminTable() {
             <span class="lang" data-id="Tidak ada data yang sesuai pencarian." data-en="No matching data found.">${currentLang === 'id' ? 'Tidak ada data yang sesuai pencarian.' : 'No matching data found.'}</span>
         </td></tr>`;
         document.getElementById('admin-page-info').innerText = `Halaman 1 / 1`;
+        const mobileList = document.getElementById('admin-mobile-list');
+        if (mobileList) mobileList.innerHTML = '<div class="case-mobile-card">Tidak ada pengajuan yang sesuai.</div>';
         return;
     }
 
@@ -1677,6 +1860,8 @@ function renderAdminTable() {
     const startIndex = (currentAdminPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
     const paginatedItems = adminFilteredData.slice(startIndex, endIndex);
+    const mobileList = document.getElementById('admin-mobile-list');
+    if (mobileList) mobileList.innerHTML = paginatedItems.map(item => caseMobileCard(item, true)).join('');
 
     document.getElementById('admin-page-info').innerText = `Halaman ${currentAdminPage} / ${totalPages}`;
 
@@ -1697,7 +1882,7 @@ function renderAdminTable() {
                 <td style="vertical-align:top;">${formattedLink}</td>
             <td style="text-align:center; vertical-align:top;">
                 ${getStatusBadge(item.status)}<br>
-                <button class="btn-chat-log lang" onclick="openChatTimeline('${item.id}')" style="margin-top:6px;" data-id="Chat Timeline" data-en="Chat Timeline">Chat Timeline</button>
+                <button type="button" class="btn-chat-log" data-case-id="${escapeHtml(item.id)}" style="margin-top:6px;">Buka Detail</button>
             </td>
                        <td style="min-width:130px; vertical-align:top;">
                 ${(() => {
@@ -1875,11 +2060,14 @@ function openChatTimeline(id) {
 // ==========================================
 // 13. UPDATE DATA & REVISI PERBAIKAN
 // ==========================================
+const activeUpdateIds = new Set();
 async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = null) {
+    if (activeUpdateIds.has(id)) return;
     if (isOffline) {
         showToast(currentLang === 'id' ? "Tidak dapat menyimpan saat offline." : "Cannot save while offline.", "error");
         return;
     }
+    activeUpdateIds.add(id);
     showLoader(currentLang === 'id' ? 'Sedang Memproses...' : 'Processing...');
     try {
         const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
@@ -1932,12 +2120,14 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
             }
             
             showToast("Status berhasil diperbarui!", "success");
+            await syncDatabase();
         } else {
             showToast("Gagal: " + (result.message || "Error tidak diketahui"), "error");
         }
     } catch (err) { 
         showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error"); 
     } finally { 
+        activeUpdateIds.delete(id);
         hideLoader(); 
     }
 }
@@ -2032,10 +2222,12 @@ function switchTab(event, tabId) {
 
     if (tabId === 'pendaftaran') {
         loadFormDraft();
-        const jenisEl = document.getElementById('reg-jenis-utama');
-        const judulEl = document.getElementById('reg-judul');
-        if (jenisEl && !jenisEl.dataset.draftBound) { jenisEl.addEventListener('change', saveFormDraft); jenisEl.dataset.draftBound = 'true'; }
-        if (judulEl && !judulEl.dataset.draftBound) { judulEl.addEventListener('input', saveFormDraft); judulEl.dataset.draftBound = 'true'; }
+        const form = document.getElementById('pendaftaran');
+        if (form && !form.dataset.draftBound) {
+            form.addEventListener('input', event => { if (event.target.matches('input:not([type="file"]), textarea, select')) saveFormDraft(); });
+            form.addEventListener('change', event => { if (event.target.matches('input:not([type="file"]), textarea, select')) saveFormDraft(); });
+            form.dataset.draftBound = 'true';
+        }
     }
 }
 
@@ -2061,6 +2253,7 @@ function silentSyncDatabase() {
 
             if (oldDataStr !== newDataStr) {
                 sessionStorage.setItem('ipcos_registrations', newDataStr);
+                renderNotifications();
                 if (currentUser.role === 'admin') { filterAdminData(); renderDashboardCharts(data.registrations || []); }
                 else { loadStudentStatus(); renderActivityTimeline(data.registrations || []); }
             }

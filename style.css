@@ -1961,6 +1961,52 @@ a:focus-visible,
 .notif-item:hover {
     background: var(--item-hover);
 }
+.notif-item { display:block; width:100%; padding:12px 15px; border:0; border-bottom:1px solid var(--item-border); background:transparent; text-align:left; color:inherit; cursor:pointer; }
+.notif-item.is-read { opacity:.62; }
+
+.form-helper { color:var(--text-muted); font-size:13px; line-height:1.5; margin:0 0 8px; }
+.form-draft-status, .form-submit-status { color:var(--umy-green); font-size:13px; min-height:1.3em; margin:0 0 12px; }
+.form-submit-status { color:var(--heading-color); }
+#btn-submit-registration:disabled { opacity:.6; cursor:wait; }
+
+.admin-queue-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:0 0 16px; }
+.admin-queue-summary button { border:1px solid var(--item-border); border-radius:12px; background:var(--card-bg); color:var(--text-color); padding:13px; text-align:left; cursor:pointer; }
+.admin-queue-summary strong { display:block; font-size:22px; color:var(--heading-color); }
+.admin-queue-summary span { font-size:12px; }
+.admin-queue-summary button:hover { border-color:var(--umy-maroon); }
+
+.case-detail-card { max-width:720px; width:min(96vw,720px); max-height:88vh; overflow-y:auto; text-align:left; }
+.case-detail-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.case-detail-heading h2 { margin:0 0 16px; }
+.case-close { width:auto; padding:8px 14px; }
+.case-next-step { font-size:14px; line-height:1.5; margin:10px 0 18px; }
+.case-detail-card h3 { font-size:16px; margin:18px 0 8px; }
+.receipt-list { display:grid; grid-template-columns:minmax(110px,150px) 1fr; gap:8px 12px; margin:14px 0; font-size:14px; overflow-wrap:anywhere; }
+.receipt-list dt { color:var(--text-muted); }
+.receipt-list dd { margin:0; font-weight:600; }
+.case-content-block { padding:14px; border:1px solid var(--item-border); border-radius:10px; line-height:1.6; overflow-wrap:anywhere; }
+.case-content-block a { color:var(--umy-maroon); }
+.case-timeline { border-left:2px solid var(--item-border); margin-left:7px; padding-left:17px; }
+.case-timeline-item { position:relative; margin:0 0 15px; line-height:1.5; font-size:14px; }
+.case-timeline-item::before { content:''; position:absolute; left:-24px; top:5px; width:10px; height:10px; border-radius:50%; background:var(--umy-maroon); }
+.case-timeline-item small { display:block; color:var(--text-muted); }
+.case-detail-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+.case-detail-actions button { width:auto; }
+.case-mobile-list { display:none; }
+
+@media screen and (max-width:600px) {
+    .admin-queue-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    #admin-data .case-desktop-table, #student-status .case-desktop-table { display:none; }
+    .case-mobile-list { display:grid; gap:10px; margin-bottom:14px; }
+    .case-mobile-card { background:var(--card-bg); border:1px solid var(--item-border); border-radius:12px; padding:15px; line-height:1.5; }
+    .case-mobile-card p { margin:8px 0; font-size:13px; color:var(--text-muted); }
+    .case-mobile-card button { margin-top:8px; }
+    .case-mobile-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:10px; }
+    .case-mobile-top small { white-space:nowrap; color:var(--text-muted); }
+    .case-detail-actions button { width:100%; }
+    .receipt-list { grid-template-columns:1fr; gap:3px; }
+    .receipt-list dd { margin-bottom:8px; }
+}
 
 /* ==========================================
    HTML5 NATIVE DIALOG STYLING
