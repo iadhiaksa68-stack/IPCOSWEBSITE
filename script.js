@@ -251,7 +251,7 @@ let mouse = { x: -1000, y: -1000, radius: 160 };
 
 function initDoodleCanvas() {
     doodleCanvas = document.getElementById('doodle-canvas');
-    if (!doodleCanvas) return;
+    if (!doodleCanvas || getComputedStyle(doodleCanvas).display === 'none') return;
     doodleCtx = doodleCanvas.getContext('2d');
 
     resizeDoodleCanvas();
@@ -2908,10 +2908,17 @@ if (secondaryDashboard) secondaryDashboard.addEventListener('toggle', () => {
     }
 });
 document.addEventListener('keydown', event => {
-    const modal = document.getElementById('modal-case-detail');
-    if (event.key !== 'Tab' || modal.style.display !== 'flex') return;
+    const login = document.getElementById('welcome-modal');
+    const modal = getComputedStyle(login).display !== 'none' ? login : document.getElementById('modal-case-detail');
+    if (event.key !== 'Tab' || getComputedStyle(modal).display !== 'flex') return;
     const controls = [...modal.querySelectorAll('button, a[href], input, textarea, select')].filter(el => !el.disabled && el.getClientRects().length > 0);
     const first = controls[0], last = controls[controls.length - 1];
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    if (!modal.contains(document.activeElement)) { event.preventDefault(); first?.focus(); }
+    else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 });
+
+// Keyboard access for the existing navigation actions.
+document.querySelectorAll('.nav-item[role="button"]').forEach(item => item.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); item.click(); }
+}));
