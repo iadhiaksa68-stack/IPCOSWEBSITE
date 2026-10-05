@@ -533,8 +533,8 @@ function clearPrivateCache() {
     document.getElementById('btn-review-registration').hidden = false; document.getElementById('btn-submit-registration').hidden = true;
     document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; });
     document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); });
-    document.querySelectorAll('.overlay').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
-    ['table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    document.querySelectorAll('.overlay, .overlay-dialog').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
+    ['table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     document.querySelectorAll('.admin-only, .student-only').forEach(el => { el.style.display = 'none'; });
     document.querySelectorAll('.chk-magang, .chk-skripsi').forEach(el => { el.checked = false; });
@@ -2476,10 +2476,13 @@ function closeModal(modalId, force = false) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
     clearTimeout(modalCloseTimers.get(modalId));
-    if (force) { modal.style.display = 'none'; modal.style.opacity = '0'; return; }
     if (modal.tagName && modal.tagName.toLowerCase() === 'dialog') {
-        modal.close();
-    } else {
+        if (modal.open) modal.close();
+        if (modalId === 'modal-doc-preview') { document.getElementById('iframe-doc-viewer').src = 'about:blank'; document.getElementById('btn-download-direct').removeAttribute('href'); }
+        return;
+    }
+    if (force) { modal.style.display = 'none'; modal.style.opacity = '0'; return; }
+    else {
         modal.style.opacity = '0';
         modalCloseTimers.set(modalId, setTimeout(() => { modal.style.display = 'none'; modalCloseTimers.delete(modalId); }, 300));
     }
