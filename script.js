@@ -1,6 +1,40 @@
 // Link Web App Google Apps Script Terbaru (Pastikan URL sesuai dengan deploy Anda)
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxzpIl1qKKLKVB-O6Jsv08OiK_zEztbGOkEIXUze1zsxL8gdC3-oZfQ2bJ6QaW-hoEE8Q/exec";
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+}
+
+function safeUrl(value) {
+    try {
+        const url = new URL(String(value), window.location.href);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '#';
+    } catch (_) { return '#'; }
+}
+
+function sanitizeRichHtml(value) {
+    const source = new DOMParser().parseFromString(String(value ?? ''), 'text/html');
+    const output = document.createElement('div');
+    const allowed = new Set(['B', 'STRONG', 'I', 'EM', 'BR', 'SPAN', 'DIV', 'P', 'UL', 'LI', 'A']);
+    function copy(node, parent) {
+        if (node.nodeType === Node.TEXT_NODE) { parent.appendChild(document.createTextNode(node.textContent)); return; }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        const tag = allowed.has(node.tagName) ? node.tagName.toLowerCase() : 'span';
+        const child = document.createElement(tag);
+        if (tag === 'a') {
+            child.href = safeUrl(node.getAttribute('href'));
+            child.target = '_blank';
+            child.rel = 'noopener noreferrer';
+        }
+        for (const nested of node.childNodes) copy(nested, child);
+        parent.appendChild(child);
+    }
+    for (const node of source.body.childNodes) copy(node, output);
+    return output.innerHTML;
+}
+
 // ==========================================
 // 1. SISTEM NOTIFIKASI TOAST & FORMAT TANGGAL
 // ==========================================
@@ -180,7 +214,7 @@ function renderSearchResults(query) {
     );
 
     if (results.length === 0) {
-        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">Tidak ditemukan hasil untuk "<b>${query}</b>"</p>`;
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">Tidak ditemukan hasil untuk "<b>${escapeHtml(query)}</b>"</p>`;
         return;
     }
 
@@ -361,8 +395,39 @@ function animateDoodles() {
 // 4. INIT, LOGIN & DATABASE SYNC
 // ==========================================
 let DB_MAHASISWA = {};
-let currentUser = { nim: '', nama: '', role: '' };
+let currentUser = { nim: '', nama: '', role: '', token: '' };
 let isDbLoaded = false; 
+
+function getSessionToken() {
+    if (currentUser.token) return currentUser.token;
+    try { return JSON.parse(sessionStorage.getItem('ipcos_session') || '{}').token || ''; }
+    catch (_) { sessionStorage.removeItem('ipcos_session'); return ''; }
+}
+
+function apiPost(url, options) {
+    const payload = JSON.parse(options.body || '{}');
+    payload.token = getSessionToken();
+    return fetch(url, { ...options, body: JSON.stringify(payload) });
+}
+
+async function apiPostSuccess(url, options) {
+    const response = await apiPost(url, options);
+    const result = await response.json();
+    if (result.status !== 'success') throw new Error(result.message || 'Permintaan gagal.');
+    return result;
+}
+
+function apiRead() {
+    return apiPost(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'get_data' }),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    }).then(async response => {
+        const data = await response.json();
+        if (data.status === 'error') throw new Error(data.message || 'Akses data ditolak.');
+        return data;
+    });
+}
 
 // ==========================================
 // FUNGSI NORMALISASI DATA
@@ -408,16 +473,27 @@ window.onload = function () {
     const session = sessionStorage.getItem('ipcos_session');
 
     if (session) {
-        currentUser = JSON.parse(session);
-        finalizeLogin(currentUser.nama, currentUser.nim, currentUser.role);
+        try {
+            currentUser = JSON.parse(session);
+            if (currentUser.token) finalizeLogin(currentUser.nama, currentUser.nim, currentUser.role, currentUser.token);
+            else { sessionStorage.removeItem('ipcos_session'); clearPrivateCache(); }
+        } catch (_) {
+            sessionStorage.removeItem('ipcos_session');
+            clearPrivateCache();
+        }
     } else {
-        syncDatabase();
+        clearPrivateCache();
     }
 };
 
+function clearPrivateCache() {
+    ['ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft'].forEach(key => sessionStorage.removeItem(key));
+}
+
 function syncDatabase() {
+    if (!getSessionToken()) return;
     if (isOffline) {
-        const cachedRegs = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+        const cachedRegs = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
         if (currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(cachedRegs); }
         else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(cachedRegs); }
         renderNotifications();
@@ -431,17 +507,15 @@ function syncDatabase() {
         renderTableSkeleton('table-my-status', 3, 5);
         renderTimelineSkeleton('activity-timeline-container', 3);
     }
-    const freshUrl = GAS_URL + "?t=" + new Date().getTime();
-    fetch(freshUrl)
-        .then(response => response.json())
+    apiRead()
         .then(data => {
 
             data.registrations = normalizeData(data.registrations);
 
-            localStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
+            sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
             
             if (data.dosens) {
-                localStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
+                sessionStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
                 if (currentUser.role === 'admin') {
                     renderDosenTable();
                     populateDospemDropdown();
@@ -456,7 +530,7 @@ function syncDatabase() {
             isDbLoaded = true;
 
             if (data.announcements && data.announcements.length > 0) {
-                localStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
+                sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
                 renderNotifications();
 
                 const latest = data.announcements[data.announcements.length - 1];
@@ -502,6 +576,14 @@ function syncDatabase() {
         })
         .catch(error => {
             console.error("Gagal sync data:", error);
+            if (String(error.message).includes('Sesi')) {
+                sessionStorage.removeItem('ipcos_session');
+                clearPrivateCache();
+                currentUser = { nim: '', nama: '', role: '', token: '' };
+                document.getElementById('welcome-modal').style.display = 'flex';
+                document.getElementById('welcome-modal').style.opacity = '1';
+                showToast('Sesi berakhir. Silakan masuk lagi.', 'error');
+            }
             isDbLoaded = true; 
         })
         .finally(() => { hideLoader(); });
@@ -524,7 +606,7 @@ function switchLoginMode(role) {
     }
 }
 
-function loginMhs() {
+async function loginMhs() {
     const nimInput = document.getElementById('input-nim').value.trim();
     const errorMsg = document.getElementById('error-msg-mhs');
     if (nimInput === "") {
@@ -532,20 +614,16 @@ function loginMhs() {
         errorMsg.style.display = 'block'; return;
     }
 
-    if (!isDbLoaded) {
-        errorMsg.innerText = currentLang === 'id' ? "Sistem sedang memuat data, mohon tunggu sebentar dan coba lagi..." : "System is still loading data, please wait a moment and try again...";
-        errorMsg.style.display = 'block';
-        setTimeout(() => { if (isDbLoaded) loginMhs(); }, 800);
-        return;
-    }
-
-    if (DB_MAHASISWA.hasOwnProperty(nimInput)) {
-        const nama = DB_MAHASISWA[nimInput];
-        sessionStorage.setItem('ipcos_session', JSON.stringify({ nim: nimInput, nama: nama, role: 'mhs' }));
-        finalizeLogin(nama, nimInput, 'mhs');
-        showToast(currentLang === 'id' ? `Selamat datang, ${nama}!` : `Welcome, ${nama}!`);
-    } else {
-        errorMsg.innerText = currentLang === 'id' ? "NIM tidak terdaftar di sistem kami. Harap hubungi Admin." : "NIM is not registered. Please contact Admin.";
+    try {
+        const response = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'student_login', nim: nimInput }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+        const result = await response.json();
+        if (result.status !== 'success' || !result.token) throw new Error(result.message || 'NIM tidak terdaftar.');
+        const student = { nim: nimInput, nama: result.nama, role: 'mhs', token: result.token };
+        sessionStorage.setItem('ipcos_session', JSON.stringify(student));
+        finalizeLogin(student.nama, student.nim, student.role, student.token);
+        showToast(currentLang === 'id' ? `Selamat datang, ${student.nama}!` : `Welcome, ${student.nama}!`);
+    } catch (error) {
+        errorMsg.innerText = error.message || 'Gagal masuk. Coba lagi.';
         errorMsg.style.display = 'block';
     }
 }
@@ -574,15 +652,15 @@ async function loginAdmin() {
 
     try {
         const payload = { action: 'admin_login', username: userInput, password: passInput };
-        const response = await fetch(GAS_URL, {
+        const response = await apiPost(GAS_URL, {
             method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         const result = await response.json();
 
-        if (result.status === "success") {
-            const adminData = { nim: 'ADMINISTRATOR', nama: 'Administrator IPCOS', role: 'admin' };
+        if (result.status === "success" && result.token) {
+            const adminData = { nim: 'ADMINISTRATOR', nama: 'Administrator IPCOS', role: 'admin', token: result.token };
             sessionStorage.setItem('ipcos_session', JSON.stringify(adminData));
-            finalizeLogin(adminData.nama, adminData.nim, adminData.role);
+            finalizeLogin(adminData.nama, adminData.nim, adminData.role, adminData.token);
             showToast(currentLang === 'id' ? "Berhasil login sebagai Admin." : "Logged in as Admin.", "success");
         } else {
             errorMsg.innerText = result.message;
@@ -597,8 +675,8 @@ async function loginAdmin() {
     }
 }
 
-function finalizeLogin(displayName, displayNim, role) {
-    currentUser = { nim: displayNim, nama: displayName, role: role };
+function finalizeLogin(displayName, displayNim, role, token) {
+    currentUser = { nim: displayNim, nama: displayName, role: role, token: token };
     const firstName = displayName.split(' ')[0];
 
     const greetings = ["Hello", "Hey", "Hai", "Halo", "Greetings", "Welcome"];
@@ -635,7 +713,7 @@ function finalizeLogin(displayName, displayNim, role) {
         if (document.getElementById('header-subtext')) document.getElementById('header-subtext').innerText = "Role: Administrator";
 
         loadAdminData();
-        const cachedRecords = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+        const cachedRecords = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
         renderDashboardCharts(cachedRecords);
 
     } else {
@@ -669,7 +747,9 @@ function logoutUser() {
     const msg = currentLang === 'id' ? "Apakah Anda yakin ingin keluar?" : "Are you sure you want to log out?";
     if (confirm(msg)) {
         sessionStorage.removeItem('ipcos_session');
-        currentUser = { nim: '', nama: '', role: '' };
+        apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(() => {});
+        currentUser = { nim: '', nama: '', role: '', token: '' };
+        clearPrivateCache();
         if (document.getElementById('student-header')) document.getElementById('student-header').style.display = 'none';
         switchTab({ currentTarget: document.querySelector('.nav-tabs li') }, 'dashboard');
         const modal = document.getElementById('welcome-modal');
@@ -690,7 +770,7 @@ function renderNotifications() {
     const notifs = [];
 
     if (currentUser && currentUser.role === 'mhs') {
-        const records = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+        const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
         const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
 
         myRecords.forEach(rec => {
@@ -728,7 +808,7 @@ function renderNotifications() {
         });
     }
 
-    const announcements = JSON.parse(localStorage.getItem('ipcos_announcements') || '[]');
+    const announcements = JSON.parse(sessionStorage.getItem('ipcos_announcements') || '[]');
     announcements.slice(-5).reverse().forEach(ann => {
         notifs.push({
             type: 'broadcast',
@@ -751,9 +831,9 @@ function renderNotifications() {
             <div style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); cursor: pointer; transition: background 0.2s;" class="notif-item" onclick="switchTab(null, '${n.tab}'); toggleNotifDropdown();">
                 <div style="font-weight: 700; font-size: 13px; color: var(--heading-color); margin-bottom: 3px; display:flex; align-items:center; gap:6px;">
                     <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${n.type === 'revision' ? 'var(--umy-maroon)' : n.type === 'accepted' ? 'var(--umy-green)' : 'var(--umy-gold)'};"></span>
-                    ${n.title}
+                    ${escapeHtml(n.title)}
                 </div>
-                <div style="font-size: 12px; color: var(--text-color); margin-bottom: 4px; line-height: 1.4;">${n.text}</div>
+                <div style="font-size: 12px; color: var(--text-color); margin-bottom: 4px; line-height: 1.4;">${escapeHtml(n.text)}</div>
                 <div style="font-size: 10px; color: var(--text-muted);">${timeAgo(n.date)}</div>
             </div>
         `).join('');
@@ -812,7 +892,7 @@ function renderActivityTimeline(records) {
             <div style="position: relative;">
                 <span style="position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; background: ${bulletColor}; border-radius: 50%;"></span>
                 <div style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 2px;">${timeAgo(r.date)}</div>
-                <div style="font-size: 13.5px; line-height: 1.4; color: var(--text-color);">${text}</div>
+                <div style="font-size: 13.5px; line-height: 1.4; color: var(--text-color);">${sanitizeRichHtml(text)}</div>
             </div>
         `;
     });
@@ -869,7 +949,7 @@ function validateFile(input, labelId) {
         } else {
             labelEl.innerHTML = `
                 <div class="dz-file-badge success">
-                    📄 <span>${file.name}</span> <span style="opacity:0.8;">(${formattedSize})</span>
+                    📄 <span>${escapeHtml(file.name)}</span> <span style="opacity:0.8;">(${formattedSize})</span>
                     <button type="button" class="dz-remove-btn" onclick="clearSelectedFile('${input.id}', '${labelId}')">Hapus File</button>
                 </div>`;
         }
@@ -902,11 +982,11 @@ function saveFormDraft() {
         jenis: document.getElementById('reg-jenis-utama')?.value || '',
         judul: document.getElementById('reg-judul')?.value || ''
     };
-    localStorage.setItem('ipcos_form_draft', JSON.stringify(draft));
+    sessionStorage.setItem('ipcos_form_draft', JSON.stringify(draft));
 }
 
 function loadFormDraft() {
-    const saved = localStorage.getItem('ipcos_form_draft');
+    const saved = sessionStorage.getItem('ipcos_form_draft');
     if (!saved) return;
     try {
         const draft = JSON.parse(saved);
@@ -918,7 +998,7 @@ function loadFormDraft() {
 }
 
 function clearFormDraft() {
-    localStorage.removeItem('ipcos_form_draft');
+    sessionStorage.removeItem('ipcos_form_draft');
 }
 
 function toggleExamForm() {
@@ -1014,7 +1094,7 @@ async function submitForm(e) {
             files: filesToUpload
         };
 
-        const response = await fetch(GAS_URL, {
+        const response = await apiPost(GAS_URL, {
             method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
 
@@ -1140,7 +1220,16 @@ function renderDynamicContent() {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        const data = getChecklistData(type);
+        const data = getChecklistData(type).map(group => ({
+            title: escapeHtml(group.title),
+            rawTitle: String(group.title ?? ''),
+            items: (group.items || []).map(item => ({
+                id: String(item.id ?? '').replace(/[^a-zA-Z0-9_-]/g, ''),
+                text: escapeHtml(item.text),
+                rawText: String(item.text ?? ''),
+                sub: type === 'template_berkas' ? escapeHtml(safeUrl(item.sub)) : escapeHtml(item.sub)
+            }))
+        }));
         let html = '';
 
         if (type === 'magang' || type === 'skripsi') {
@@ -1196,7 +1285,7 @@ function renderDynamicContent() {
                                 </div>
                             </div>
                         </div>
-                        <button class="btn-calendar lang" data-id="Tambahkan ke Kalender" data-en="Add to Calendar" onclick="downloadICS('${group.title}', '${item.text}')">Tambahkan ke Kalender</button>
+                        <button class="btn-calendar lang" data-id="Tambahkan ke Kalender" data-en="Add to Calendar" onclick="downloadICS(${escapeHtml(JSON.stringify(group.rawTitle))}, ${escapeHtml(JSON.stringify(item.rawText))})">Tambahkan ke Kalender</button>
                     </div>`;
                 });
             });
@@ -1260,7 +1349,7 @@ function renderEditorUI() {
     editorTempData.forEach((group, gIdx) => {
         html += `<div class="card" style="padding: 15px; margin-bottom: 15px; box-shadow:none; border:1px solid var(--item-border);">
             <div style="display:flex; justify-content:space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <input type="text" value="${group.title}" onchange="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="Judul Kategori Utama">
+                <input type="text" value="${escapeHtml(group.title)}" onchange="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="Judul Kategori Utama">
                 <button class="action-btn btn-rev" onclick="removeContentGroup(${gIdx})">Hapus Kategori</button>
             </div>
             <div style="margin-left: 10px; border-left: 2px solid var(--item-border); padding-left: 10px;">`;
@@ -1268,8 +1357,8 @@ function renderEditorUI() {
         group.items.forEach((item, iIdx) => {
             html += `<div style="display:flex; gap:8px; margin-bottom: 10px; align-items:center;">
                 <div style="flex-grow:1;">
-                    <input type="text" value="${item.text}" placeholder="Data Utama" onchange="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
-                    <input type="text" value="${item.sub}" placeholder="Deskripsi/Detail" onchange="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
+                    <input type="text" value="${escapeHtml(item.text)}" placeholder="Data Utama" onchange="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
+                    <input type="text" value="${escapeHtml(item.sub)}" placeholder="Deskripsi/Detail" onchange="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
                 </div>
                 <button class="action-btn btn-rev" onclick="removeContentItem(${gIdx}, ${iIdx})" style="height: 40px; padding: 0 12px;">X</button>
             </div>`;
@@ -1298,17 +1387,17 @@ async function saveContentChanges() {
     }
 
     const jsonString = JSON.stringify(editorTempData);
-    localStorage.setItem(`ipcos_content_${editorCurrentType}`, jsonString);
-    closeModal('modal-edit-content');
 
     showLoader(currentLang === 'id' ? 'Menyimpan & Mensinkronisasi...' : 'Saving & Syncing...');
 
     try {
         const payload = { action: 'update_content', type: editorCurrentType, content: jsonString };
-        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+        const res = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         const result = await res.json();
 
         if (result.status === "success") {
+            localStorage.setItem(`ipcos_content_${editorCurrentType}`, jsonString);
+            closeModal('modal-edit-content');
             showToast("Konten berhasil diperbarui untuk semua pengguna!", "success");
             renderDynamicContent();
         } else {
@@ -1461,7 +1550,7 @@ function applyDynamicLanguage() {
 // ==========================================
 function loadStudentStatus() {
     const tbody = document.getElementById('table-my-status');
-    const records = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
     const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
 
     let hasRevision = false;
@@ -1483,9 +1572,9 @@ function loadStudentStatus() {
                 actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
             }
 
-            let detailText = item.detail;
+            let detailText = sanitizeRichHtml(item.detail);
             if (item.dospem) {
-                detailText += `<br><br><b style="color:var(--umy-maroon);">Dosen Pembimbing:</b><br>${item.dospem}`;
+                detailText += `<br><br><b style="color:var(--umy-maroon);">Dosen Pembimbing:</b><br>${escapeHtml(item.dospem)}`;
             }
 
             const statCheck = String(item.status).trim().toLowerCase();
@@ -1500,12 +1589,12 @@ function loadStudentStatus() {
                 } catch(e) {
                     latestRevNote = item.note;
                 }
-                detailText += `<br><br><b style="color:var(--umy-maroon);">Catatan Revisi Admin:</b><br><span style="color:var(--text-muted);">${latestRevNote}</span>`;
+                detailText += `<br><br><b style="color:var(--umy-maroon);">Catatan Revisi Admin:</b><br><span style="color:var(--text-muted);">${escapeHtml(latestRevNote)}</span>`;
             }
 
             tbody.innerHTML += `<tr>
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
-                <td style="vertical-align:top;"><b>${item.jenis}</b></td>
+                <td style="vertical-align:top;"><b>${escapeHtml(item.jenis)}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${detailText}</td>
                 <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}</td>
                 <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
@@ -1544,7 +1633,7 @@ function filterAdminData() {
     const tbody = document.getElementById('table-admin-reg');
     if (!tbody) return;
 
-    const records = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
     const searchVal = (document.getElementById('admin-search-input')?.value || '').toLowerCase().trim();
     const filterVal = document.getElementById('admin-status-filter')?.value || 'ALL';
 
@@ -1592,17 +1681,20 @@ function renderAdminTable() {
     document.getElementById('admin-page-info').innerText = `Halaman ${currentAdminPage} / ${totalPages}`;
 
     paginatedItems.forEach(item => {
-        let formattedLink = item.link;
-        if (formattedLink && formattedLink.includes('href="')) {
-            const matchUrl = formattedLink.match(/href="([^"]+)"/);
-            if (matchUrl && matchUrl[1]) { formattedLink += `<br><button class="btn-preview-doc" onclick="openDocPreview('${matchUrl[1]}')">Preview File</button>`; }
+        let formattedLink = sanitizeRichHtml(item.link);
+        if (item.link && item.link.includes('href="')) {
+            const matchUrl = item.link.match(/href="([^"]+)"/);
+            if (matchUrl && matchUrl[1]) {
+                const previewUrl = safeUrl(matchUrl[1]);
+                if (previewUrl !== '#') formattedLink += `<br><button class="btn-preview-doc" onclick="openDocPreview(${escapeHtml(JSON.stringify(previewUrl))})">Preview File</button>`;
+            }
         }
 
         tbody.innerHTML += `<tr>
             <td style="font-size:13px; vertical-align:top;">${formatDateTime(item.date)}</td>
-            <td style="vertical-align:top;">${item.nim}<br><b>${item.nama}</b></td>
-            <td style="vertical-align:top;"><b>${item.jenis}</b></td>
-            <td style="vertical-align:top;">${formattedLink}</td>
+                <td style="vertical-align:top;">${escapeHtml(item.nim)}<br><b>${escapeHtml(item.nama)}</b></td>
+                <td style="vertical-align:top;"><b>${escapeHtml(item.jenis)}</b></td>
+                <td style="vertical-align:top;">${formattedLink}</td>
             <td style="text-align:center; vertical-align:top;">
                 ${getStatusBadge(item.status)}<br>
                 <button class="btn-chat-log lang" onclick="openChatTimeline('${item.id}')" style="margin-top:6px;" data-id="Chat Timeline" data-en="Chat Timeline">Chat Timeline</button>
@@ -1641,7 +1733,7 @@ function changeAdminPage(direction) {
 }
 
 function exportAdminDataCSV() {
-    const records = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
     if (records.length === 0) { showToast("Belum ada data untuk diekspor.", "error"); return; }
     let csvContent = "data:text/csv;charset=utf-8,ID,Tanggal,NIM,Nama,Jenis,Status\n";
     records.forEach(r => { const cleanName = `"${r.nama.replace(/"/g, '""')}"`; csvContent += `${r.id},${r.date},${r.nim},${cleanName},${r.jenis},${r.status}\n`; });
@@ -1675,12 +1767,12 @@ function deleteAllRegistrations() {
 
     showLoader(currentLang === 'id' ? 'Menghapus Seluruh Data...' : 'Deleting All Data...');
 
-    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'delete_all_registrations' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } })
+    apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'delete_all_registrations' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } })
         .then(res => res.json())
         .then(result => {
             if (result.status === "success") {
                 showToast(currentLang === 'id' ? "Seluruh data pendaftar berhasil dikosongkan!" : "All registration data cleared successfully!", "success");
-                localStorage.setItem('ipcos_registrations', '[]');
+                sessionStorage.setItem('ipcos_registrations', '[]');
                 adminFilteredData = [];
                 syncDatabase();
             } else {
@@ -1732,7 +1824,7 @@ function startCountdownWidget() {
 }
 
 function openChatTimeline(id) {
-    const records = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
     const target = records.find(r => r.id === id);
     const container = document.getElementById('chat-timeline-container');
     container.innerHTML = '';
@@ -1770,8 +1862,8 @@ function openChatTimeline(id) {
         logs.forEach(log => {
             const isMhs = log.role === 'mhs';
             container.innerHTML += `<div class="chat-bubble ${isMhs ? 'chat-mhs' : 'chat-admin'}">
-                    <div class="chat-sender"><span>${log.sender} (${log.role.toUpperCase()})</span><span style="opacity:0.7; font-weight:normal;">${formatDate(log.time)}</span></div>
-                    <div>${log.message}</div></div>`;
+                    <div class="chat-sender"><span>${escapeHtml(log.sender)} (${escapeHtml(String(log.role).toUpperCase())})</span><span style="opacity:0.7; font-weight:normal;">${formatDate(log.time)}</span></div>
+                    <div style="white-space:pre-line;">${sanitizeRichHtml(log.message)}</div></div>`;
         });
     }
 
@@ -1790,7 +1882,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
     }
     showLoader(currentLang === 'id' ? 'Sedang Memproses...' : 'Processing...');
     try {
-        const records = JSON.parse(localStorage.getItem('ipcos_registrations') || '[]');
+        const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
         const targetIndex = records.findIndex(r => r.id === id);
         const target = targetIndex !== -1 ? records[targetIndex] : null;
         const existingNote = target ? target.note : '';
@@ -1815,8 +1907,8 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
         
         const finalNoteJSON = JSON.stringify(logs);
 
-        const payload = { action: 'update', id: id, status: newStatus, note: finalNoteJSON, senderName: currentUser.nama, senderRole: currentUser.role, files: files, dospem: dospem };
-        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+        const payload = { action: 'update', id: id, status: newStatus, noteText: noteText, files: files, dospem: dospem };
+        const res = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         const result = await res.json();
         
         if (result.status === "success") {
@@ -1827,7 +1919,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
                 if (dospem) {
                     records[targetIndex].dospem = dospem;
                 }
-                localStorage.setItem('ipcos_registrations', JSON.stringify(records));
+                sessionStorage.setItem('ipcos_registrations', JSON.stringify(records));
             }
 
             // Refresh UI langsung tanpa tunggu sync
@@ -1955,21 +2047,20 @@ function hideCat() { catEl.classList.remove('peek'); clearTimeout(catTimer); sch
 function silentSyncDatabase() {
     if (document.hidden || isOffline) return;
     if (currentUser && currentUser.nim !== '') {
-        const freshUrl = GAS_URL + "?t=" + new Date().getTime();
-        fetch(freshUrl).then(response => response.json()).then(data => {
+        apiRead().then(data => {
 
             data.registrations = normalizeData(data.registrations);
 
-            const oldDataStr = localStorage.getItem('ipcos_registrations');
+            const oldDataStr = sessionStorage.getItem('ipcos_registrations');
             const newDataStr = JSON.stringify(data.registrations || []);
 
             if (data.announcements && data.announcements.length > 0) {
-                localStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
+                sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements));
                 renderNotifications();
             }
 
             if (oldDataStr !== newDataStr) {
-                localStorage.setItem('ipcos_registrations', newDataStr);
+                sessionStorage.setItem('ipcos_registrations', newDataStr);
                 if (currentUser.role === 'admin') { filterAdminData(); renderDashboardCharts(data.registrations || []); }
                 else { loadStudentStatus(); renderActivityTimeline(data.registrations || []); }
             }
@@ -2113,7 +2204,7 @@ async function postAnnouncement(customMsg = null, customType = null) {
 
     showLoader();
     try {
-        await fetch(GAS_URL, {
+        await apiPostSuccess(GAS_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'post_announcement', message: msg, type: annType }),
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
@@ -2141,7 +2232,7 @@ function renderMasterMahasiswa(students) {
     students.reverse().forEach(s => {
         const statusMhs = s.Status || s.status || "Aktif"; let badgeClass = "badge-accepted";
         if (statusMhs.toLowerCase() === "tidak aktif") badgeClass = "badge-revision"; else if (statusMhs.toLowerCase() === "lulus") badgeClass = "badge-resubmitted";
-        tbody.innerHTML += `<tr><td><b>${s.NIM}</b></td><td>${s.Nama}</td><td><span class="status-badge ${badgeClass}">${statusMhs}</span></td><td><button class="action-btn btn-rev" onclick="deleteStudent('${s.NIM}')">Hapus</button></td></tr>`;
+        tbody.innerHTML += `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(statusMhs)}</span></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">Hapus</button></td></tr>`;
     });
 }
 
@@ -2150,14 +2241,14 @@ async function addStudent() {
     const nim = document.getElementById('add-nim').value.trim(); const nama = document.getElementById('add-nama').value.trim();
     if (!nim || !nama) { showToast("NIM dan Nama wajib diisi!", "error"); return; }
     showLoader();
-    try { await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'add', nim: nim, nama: nama }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Mahasiswa berhasil ditambahkan!", "success"); document.getElementById('add-nim').value = ''; document.getElementById('add-nama').value = ''; syncDatabase(); } catch (e) { showToast("Gagal menambah data", "error"); } finally { hideLoader(); }
+    try { await apiPostSuccess(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'add', nim: nim, nama: nama }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Mahasiswa berhasil ditambahkan!", "success"); document.getElementById('add-nim').value = ''; document.getElementById('add-nama').value = ''; syncDatabase(); } catch (e) { showToast("Gagal menambah data", "error"); } finally { hideLoader(); }
 }
 
 async function deleteStudent(nim) {
     if (isOffline) { showToast("Tidak dapat menghapus saat offline.", "error"); return; }
     if (!confirm(`Apakah Anda yakin ingin menghapus akses untuk NIM: ${nim}?`)) return;
     showLoader();
-    try { await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'delete', nim: nim }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Akses Mahasiswa berhasil dihapus!", "success"); syncDatabase(); } catch (e) { showToast("Gagal menghapus data", "error"); } finally { hideLoader(); }
+    try { await apiPostSuccess(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'delete', nim: nim }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Akses Mahasiswa berhasil dihapus!", "success"); syncDatabase(); } catch (e) { showToast("Gagal menghapus data", "error"); } finally { hideLoader(); }
 }
 
 function toggleCheckFromRow(event, id) {
@@ -2195,7 +2286,7 @@ function renderDosenTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    const dosens = JSON.parse(localStorage.getItem('ipcos_dosens') || '[]');
+    const dosens = JSON.parse(sessionStorage.getItem('ipcos_dosens') || '[]');
     
     dosens.sort((a, b) => {
         const sisaA = parseInt(a.Maksimal) - parseInt(a.Terpakai);
@@ -2215,13 +2306,13 @@ function renderDosenTable() {
 
         tbody.innerHTML += `
             <tr>
-                <td><b>${nama}</b></td>
+                <td><b>${escapeHtml(nama)}</b></td>
                 <td style="text-align: center; font-size: 16px; font-weight: bold;">${terpakai}</td>
                 <td style="text-align: center;">${maksimal}</td>
                 <td style="text-align: center;">${statusBadge}</td>
                 <td>
-                    <button class="action-btn" style="background: var(--item-hover); border: 1px solid var(--item-border);" onclick="openEditDosen('${nama}', ${terpakai}, ${maksimal})">Edit</button>
-                    <button class="action-btn btn-rev" onclick="deleteDosen('${nama}')">Hapus</button>
+                    <button class="action-btn" style="background: var(--item-hover); border: 1px solid var(--item-border);" onclick="openEditDosen(${escapeHtml(JSON.stringify(nama))}, ${terpakai}, ${maksimal})">Edit</button>
+                    <button class="action-btn btn-rev" onclick="deleteDosen(${escapeHtml(JSON.stringify(nama))})">Hapus</button>
                 </td>
             </tr>
         `;
@@ -2232,7 +2323,7 @@ function populateDospemDropdown() {
     const select = document.getElementById('input-dospem-select');
     if (!select) return;
     
-    const dosens = JSON.parse(localStorage.getItem('ipcos_dosens') || '[]');
+    const dosens = JSON.parse(sessionStorage.getItem('ipcos_dosens') || '[]');
     let html = '<option value="">-- Pilih Dosen Pembimbing --</option>';
     
     dosens.sort((a, b) => a.Nama.localeCompare(b.Nama));
@@ -2241,7 +2332,7 @@ function populateDospemDropdown() {
         const sisa = parseInt(d.Maksimal) - parseInt(d.Terpakai);
         const disabled = sisa <= 0 ? 'disabled' : '';
         const warn = sisa <= 0 ? '(PENUH)' : `(Sisa Kuota: ${sisa})`;
-        html += `<option value="${d.Nama}" ${disabled}>${d.Nama} ${warn}</option>`;
+        html += `<option value="${escapeHtml(d.Nama)}" ${disabled}>${escapeHtml(d.Nama)} ${warn}</option>`;
     });
     
     select.innerHTML = html;
@@ -2266,7 +2357,7 @@ async function saveDosenQuota() {
     
     showLoader();
     try {
-        await fetch(GAS_URL, { 
+        await apiPostSuccess(GAS_URL, {
             method: 'POST', 
             body: JSON.stringify({ action: 'manage_dosen', method: 'update', nama: nama, terpakai: terpakai, maksimal: maksimal }), 
             headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
@@ -2287,7 +2378,7 @@ async function addDosenQuota() {
     
     showLoader();
     try {
-        await fetch(GAS_URL, { 
+        await apiPostSuccess(GAS_URL, {
             method: 'POST', 
             body: JSON.stringify({ action: 'manage_dosen', method: 'add', nama: nama, maksimal: max }), 
             headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
@@ -2302,7 +2393,7 @@ async function deleteDosen(nama) {
     if (!confirm(`Hapus dosen ${nama}?`)) return;
     showLoader();
     try {
-        await fetch(GAS_URL, { 
+        await apiPostSuccess(GAS_URL, {
             method: 'POST', 
             body: JSON.stringify({ action: 'manage_dosen', method: 'delete', nama: nama }), 
             headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
