@@ -120,4 +120,4 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     assert.deepEqual(errors,[]);
     console.log('PASS Logout/account change clear private readiness and checklist views; admin cannot use student shortcuts; no runtime errors');
     await browser.close();
-})().catch(error=>{console.error(error);process.exit(1);});
+})().catch(require('./browser.cjs').reportFailure);

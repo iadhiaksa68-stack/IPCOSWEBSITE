@@ -94,4 +94,4 @@ student.on('dialog',dialog=>dialog.accept());await student.click('.btn-logout');
 assert.deepEqual(errors,[]);passed('No JavaScript runtime errors in both roles');
 require('node:fs').writeFileSync(path.join(__dirname, '../test-results','transactions-results.json'),JSON.stringify({checks,errors,createRequests:calls.filter(c=>c.action==='create').length,updateRequests:calls.filter(c=>c.action==='update').length},null,2));
 await browser.close();
-})().catch(error=>{console.error(error);process.exit(1)});
+})().catch(require('./browser.cjs').reportFailure);
