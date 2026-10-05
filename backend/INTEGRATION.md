@@ -7,7 +7,7 @@
 - `handleRegistration`: pemeriksaan `featureCheckCreate` dilakukan di dalam lock transaksi yang sudah ada, sesudah pemeriksaan idempotensi. Label unggahan awal dinormalisasi dengan `featureLabels`; catatan pertama menyimpan status dan metadata dokumen dari `featureDocumentMetadata`.
 - `handleUpdate`: `featureValidateRevision` memeriksa asosiasi berkas. Setiap perubahan status dicatat. Metadata dokumen ditempatkan dalam catatan terakhir sebelum satu commit baris, bersama status/link. Baseline berkas lama diperlakukan sebagai versi pertama; dokumen lama tetap disimpan dan tidak dimigrasi.
 - `getDataForSession`: menambahkan konfigurasi layanan untuk kedua peran dan status cadangan hanya untuk admin.
-- `doPost`: `save_services` memakai lock. `save_services`, `get_receipt`, dan `backup_status` diteruskan ke `featureDispatch`, yang memvalidasi sesi dan peran. Endpoint lama tetap digunakan.
+- `doPost`: `save_services` memakai lock. `save_services`, `get_receipt`, `get_document`, dan `backup_status` diteruskan ke `featureDispatch`, yang memvalidasi sesi dan peran. Endpoint lama tetap digunakan.
 
 ## Penyimpanan
 
@@ -25,4 +25,8 @@ Simpan kedua file Google Apps Script, perbarui deployment endpoint lama ke versi
 
 ## Pengujian
 
-66 pemeriksaan lulus: 19 transaksi backend/akses, 3 cadangan, 13 alur transaksi antarmuka, 8 regresi sesi, 6 kelompok tampilan responsif/keyboard, 9 pemeriksaan pratinjau/sesi/grafik, dan 8 fitur baru. Transaksi menggunakan data simulasi. Kesesuaian fungsi transaksi yang diuji dengan sumber Google diverifikasi melalui hash. Google berhasil menghasilkan PDF nyata.
+70 pemeriksaan lulus: 20 transaksi backend/akses, 3 cadangan, 13 alur transaksi antarmuka, 8 regresi sesi, 6 kelompok tampilan responsif/keyboard, 9 pemeriksaan pratinjau/sesi/grafik, 8 fitur baru, dan 3 pemeriksaan dokumen privat. Transaksi menggunakan data simulasi. Kesesuaian fungsi transaksi yang diuji dengan sumber Google diverifikasi melalui hash. Google berhasil menghasilkan PDF nyata.
+
+## Lampiran privat
+
+`get_document` memvalidasi sesi, kepemilikan pengajuan dan kecocokan URL dengan kolom link sebelum membaca Drive. PDF/gambar dipratinjau sebagai blob lokal, format lain diunduh. Blob dicabut saat detail ditutup, berganti pengajuan atau logout. Respons terlambat tidak boleh membuka dokumen setelah sesi berubah.

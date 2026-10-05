@@ -119,3 +119,41 @@ async function downloadReceipt(id,button) {
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-receipt-id]'); if(button) downloadReceipt(button.dataset.receiptId,button);});
 document.addEventListener('change',event=>{if(event.target.id==='case-reply-files') renderRevisionAssociations();});
+
+const caseBlobUrls = new Set();
+let documentRequestVersion = 0;
+let caseDocumentEpoch = 0;
+function isPrivateDriveUrl(url) { try { return ['drive.google.com','docs.google.com'].includes(new URL(url).hostname); } catch (_) { return false; } }
+function clearCaseBlobUrls() {
+    documentRequestVersion++; caseDocumentEpoch++;
+    caseBlobUrls.forEach(url=>URL.revokeObjectURL(url)); caseBlobUrls.clear();
+    const iframe=document.querySelector('#case-file-preview iframe'); if(iframe) iframe.src='about:blank';
+}
+async function accessCaseDocument(index,preview=false,button=null) {
+    const item=currentCase(), file=item && getCaseFiles(item)[index];
+    if(!file || !isPrivateDriveUrl(file.url)) return;
+    const epoch=sessionEpoch, id=String(item.id), version=preview?++documentRequestVersion:0, contextVersion=caseDocumentEpoch;
+    const panel=document.getElementById('case-file-preview');
+    if(preview) { panel.hidden=false; panel.querySelector('p').textContent='Memuat berkas melalui sesi IPCOS...'; panel.querySelector('iframe').src='about:blank'; }
+    if(button) button.disabled=true;
+    try {
+        const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'get_document',id,url:file.url}),headers:{'Content-Type':'text/plain;charset=utf-8'}});
+        const result=await readApiResult(response);
+        if(epoch!==sessionEpoch || selectedCaseId!==id || contextVersion!==caseDocumentEpoch || (preview && version!==documentRequestVersion) || document.getElementById('modal-case-detail').style.display==='none') return;
+        if(result.status!=='success') throw new Error(result.message || 'Berkas belum dapat dibaca.');
+        if(typeof result.base64!=='string' || result.base64.length>13981016) throw new Error('Ukuran berkas tidak valid.');
+        const bytes=Uint8Array.from(atob(result.base64),c=>c.charCodeAt(0));
+        const mime=String(result.mimeType || 'application/octet-stream');
+        const url=URL.createObjectURL(new Blob([bytes],{type:mime})); caseBlobUrls.add(url);
+        const name=String(result.fileName || 'dokumen').replace(/[\\/\x00-\x1f]/g,'_');
+        if(preview && ['application/pdf','image/png','image/jpeg'].includes(mime)) {
+            panel.querySelector('iframe').src=url; panel.querySelector('iframe').title='Pratinjau: '+name;
+            panel.querySelector('p').textContent='Pratinjau berkas privat. Gunakan Unduh Berkas jika pratinjau tidak tersedia.';
+        } else {
+            const link=document.createElement('a'); link.href=url; link.download=name; document.body.appendChild(link);link.click();link.remove();
+            if(preview) panel.querySelector('p').textContent='Format ini diunduh agar dapat dibuka di perangkat Anda.';
+        }
+    } catch(error) { if(epoch===sessionEpoch && contextVersion===caseDocumentEpoch && (!preview || version===documentRequestVersion)) { showToast(error.message || 'Berkas belum dapat dibaca.','error'); if(preview && panel.isConnected) panel.querySelector('p').textContent='Berkas belum dapat dimuat. Coba lagi atau hubungi admin.'; } }
+    finally { if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }
+}
+document.addEventListener('click',event=>{const button=event.target.closest('[data-document-index]');if(button)accessCaseDocument(Number(button.dataset.documentIndex),false,button);});

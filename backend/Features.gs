@@ -121,6 +121,7 @@ function featureDispatch(data) {
   const session=getSession(data.token);
   if (!session) throw new Error('Sesi tidak valid atau berakhir.');
   if (data.action==='get_receipt') return featureReceipt(session,data.id);
+  if (data.action==='get_document') return featureDocument(session,data);
   if (session.role!=='admin') throw new Error('Akses admin diperlukan.');
   if (data.action==='save_services') return featureSaveConfig(data);
   if (data.action==='backup_status') return {status:'success',backup:featureBackupStatus()};
@@ -141,5 +142,24 @@ function verifyFeatureDeployment() {
   const pdf=Utilities.newBlob('<html><body><h1>IPCOS</h1><p>Bukti penerimaan pengajuan - Uji</p></body></html>','text/html','test.html').getAs('application/pdf');
   const header=pdf.getBytes().slice(0,5).map(b=>String.fromCharCode((b+256)%256)).join('');
   const backup=featureBackupStatus();
-  console.log(JSON.stringify({api:data.status,services:data.services.length,pdf:header==='%PDF-',pdfBytes:pdf.getBytes().length,backup:backup}));
+  let document=null, receipt=null;
+  const record=data.registrations.find(r=>featureLinkUrls(r.link).some(url=>/^https:\/\/(drive|docs)\.google\.com\//i.test(url)));
+  if(record) { const url=featureLinkUrls(record.link).find(url=>/^https:\/\/(drive|docs)\.google\.com\//i.test(url)); const result=featureDocument({role:'admin'},{id:record.id,url:url}); document={available:!!result.base64,mime:result.mimeType}; receipt=featureReceipt({role:'admin'},record.id).status==='success'; }
+  console.log(JSON.stringify({api:data.status,services:data.services.length,pdf:header==='%PDF-',pdfBytes:pdf.getBytes().length,document:document,receipt:receipt,backup:backup}));
+}
+
+function featureDocument(session,data) {
+  const row=featureRegistrations().find(r=>String(r.id)===String(data.id));
+  if (!row || (session.role!=='admin' && String(row.nim).trim()!==String(session.nim))) throw new Error('Pengajuan tidak ditemukan atau akses ditolak.');
+  const url=String(data.url || '');
+  if (!featureLinkUrls(row.link).includes(url) || !/^https:\/\/(drive|docs)\.google\.com\//i.test(url)) throw new Error('Berkas tidak termasuk dalam pengajuan ini.');
+  const id=(url.match(/\/d\/([\w-]+)/)||url.match(/[?&]id=([\w-]+)/)||[])[1];
+  if (!id) throw new Error('Tautan berkas tidak valid.');
+  const key=(url.match(/[?&]resourcekey=([^&]+)/)||[])[1];
+  const file=key?DriveApp.getFileByIdAndResourceKey(id,decodeURIComponent(key)):DriveApp.getFileById(id);
+  if (file.getSize()>10*1024*1024) throw new Error('Berkas terlalu besar untuk diunduh melalui IPCOS. Hubungi admin.');
+  const native=String(file.getMimeType()).startsWith('application/vnd.google-apps.');
+  const blob=native?file.getAs('application/pdf'):file.getBlob(), bytes=blob.getBytes();
+  if (bytes.length>10*1024*1024) throw new Error('Berkas terlalu besar untuk diunduh melalui IPCOS. Hubungi admin.');
+  return {status:'success',fileName:file.getName()+(native?'.pdf':''),mimeType:native?'application/pdf':file.getMimeType(),base64:Utilities.base64Encode(bytes)};
 }

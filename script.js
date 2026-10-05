@@ -519,6 +519,7 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    clearCaseBlobUrls();
     serviceSettings = []; serviceSettingsEditing = false;
     const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = '';
     const backupFolder = document.getElementById('backup-folder'); if (backupFolder) { backupFolder.hidden = true; backupFolder.removeAttribute('href'); }
@@ -1213,7 +1214,7 @@ function caseFileListHtml(item) {
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
     const rows=files.map((file,index)=>{const doc=metadata.find(doc=>doc.url===file.url); return {...file,index,document:doc};});
     const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
-    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(row.document?.label || row.label)}</strong>${row.document?`<small class="document-version">Versi ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button><a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a></div></div>`;
+    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(row.document?.label || row.label)}</strong>${row.document?`<small class="document-version">Versi ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">Unduh Berkas</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div></div>`;
     const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
     const old=rows.filter(row=>!current.includes(row));
     if(!current.length) return files.length?'<p class="field-helper">Berkas lama belum memiliki penanda versi. Periksa tanggal dan nama berkas sebelum meninjau.</p>'+rows.map(html).join(''):uxText('Belum ada berkas.','No files available.');
@@ -1224,6 +1225,7 @@ function previewCaseFile(index) {
     const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
     const file = item && getCaseFiles(item)[index];
     if (!file) return;
+    if (isPrivateDriveUrl(file.url)) { accessCaseDocument(index,true); return; }
     const preview = document.getElementById('case-file-preview');
     preview.hidden = false;
     const iframe = preview.querySelector('iframe');
@@ -1998,6 +2000,7 @@ function caseTimelineHtml(item) {
 }
 
 function openCaseDetail(id) {
+    clearCaseBlobUrls();
     const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const item = records.find(record => String(record.id) === String(id));
     if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) {
@@ -2504,6 +2507,7 @@ function closeModal(modalId, force = false) {
     if (!force && modalId === 'modal-case-detail' && (isPreparingCorrection || activeUpdateIds.has(selectedCaseId))) return;
     const modal = document.getElementById(modalId);
     if (!modal) return;
+    if (modalId === 'modal-case-detail') clearCaseBlobUrls();
     clearTimeout(modalCloseTimers.get(modalId));
     if (modal.tagName && modal.tagName.toLowerCase() === 'dialog') {
         if (modal.open) modal.close();
