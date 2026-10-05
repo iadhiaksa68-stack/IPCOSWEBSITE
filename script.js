@@ -1693,7 +1693,7 @@ function caseDetailAction(action) {
 }
 
 function caseMobileCard(item, isAdmin) {
-    return `<article class="case-mobile-card"><div class="case-mobile-top">${getStatusBadge(item.status)}<small>${escapeHtml(formatDate(item.date))}</small></div>
+    return `<article class="case-mobile-card"><div class="case-mobile-top">${getStatusBadge(item.status)}<small>${escapeHtml(formatDate(isAdmin ? getCaseEventTime(item) : item.date))}</small></div>
         <strong>${escapeHtml(item.jenis)}</strong>${isAdmin ? `<p>${escapeHtml(item.nama)}<br><small>${escapeHtml(item.nim)}</small></p>` : ''}
         <p>${escapeHtml(caseNextStep(item))}</p>
         <button type="button" class="btn-primary" data-case-id="${escapeHtml(item.id)}">Buka Detail & Tindakan</button></article>`;
@@ -1876,7 +1876,7 @@ function renderAdminTable() {
         }
 
         tbody.innerHTML += `<tr>
-            <td style="font-size:13px; vertical-align:top;">${formatDateTime(item.date)}</td>
+            <td style="font-size:13px; vertical-align:top;">${formatDateTime(getCaseEventTime(item))}</td>
                 <td style="vertical-align:top;">${escapeHtml(item.nim)}<br><b>${escapeHtml(item.nama)}</b></td>
                 <td style="vertical-align:top;"><b>${escapeHtml(item.jenis)}</b></td>
                 <td style="vertical-align:top;">${formattedLink}</td>
