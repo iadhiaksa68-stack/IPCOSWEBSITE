@@ -271,3 +271,34 @@ body.dark-mode .theme-moon { display:block; }
 /* Auto margins center short login cards but never push tall cards above the viewport. */
 #welcome-modal { align-items:flex-start; }
 .login-shell { margin-block:auto; }
+
+/* Academic stages and a compact, shared readiness checklist. */
+.academic-stage {padding:20px;border:1px solid var(--item-border);border-radius:14px;margin-bottom:16px;background:var(--card-bg);}
+.stage-heading,.readiness-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.stage-heading .checklist-title,.readiness-heading h3 {margin:0;min-width:0;line-height:1.5;overflow-wrap:anywhere;}
+.stage-heading .checklist-title {flex:1;border:0;padding:0;background:transparent;font-size:15px;text-transform:none;letter-spacing:0;}
+.stage-progress {flex-shrink:0;font-size:12px;font-weight:700;line-height:1.5;border-radius:8px;padding:5px 9px;background:var(--item-bg);color:var(--text-muted);white-space:nowrap;}
+.stage-progress.is-ready {color:var(--umy-green);border:1px solid var(--umy-green);}
+.stage-next {font-size:13px;line-height:1.6;color:var(--text-muted);margin:12px 0;overflow-wrap:anywhere;}
+.stage-service {border-top:1px solid var(--item-border);margin-top:14px;padding-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;}
+.stage-service p {margin:0;min-width:0;font-size:13px;line-height:1.6;}
+.stage-service p span {display:block;color:var(--text-muted);overflow-wrap:anywhere;}
+.stage-service .btn-secondary {width:auto;flex-shrink:0;min-height:44px;}
+.registration-readiness {padding:18px;margin-bottom:24px;border:1px solid var(--item-border);border-radius:12px;background:var(--item-bg);}
+.readiness-heading h3 {font-size:15px;}
+.readiness-status {font-size:13px;line-height:1.6;margin:10px 0;color:var(--text-muted);}
+.requirement-list {list-style:none;margin:0;padding:0;}
+.requirement-list li {display:flex;align-items:flex-start;gap:10px;border-top:1px solid var(--item-border);padding:8px 0;}
+.requirement-state {font-size:11px;line-height:1.5;font-weight:700;padding:5px 6px;border-radius:6px;color:var(--text-muted);background:var(--card-bg);flex:0 0 50px;text-align:center;margin-top:3px;}
+.requirement-ready .requirement-state {color:var(--umy-green);}
+.requirement-list button {flex:1;min-width:0;min-height:44px;border:0;background:transparent;color:var(--text-color);font:inherit;cursor:pointer;padding:3px 0;text-align:left;}
+.requirement-list button strong,.requirement-list button span {display:block;font-size:13px;line-height:1.6;overflow-wrap:anywhere;}
+.requirement-list button span {font-size:12px;color:var(--text-muted);}
+.requirement-list button:focus-visible {outline:2px solid var(--umy-maroon);outline-offset:3px;border-radius:4px;}
+@media(max-width:600px) {
+    .academic-stage {padding:16px;}
+    .stage-heading,.readiness-heading {flex-wrap:wrap;gap:8px;}
+    .stage-service {align-items:stretch;flex-direction:column;gap:10px;}
+    .stage-service .btn-secondary {width:100%;}
+    .registration-readiness {padding:14px;}
+}

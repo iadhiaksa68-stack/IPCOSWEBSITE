@@ -28,6 +28,8 @@ function refreshServiceAvailability() {
         : `<strong>Pendaftaran dibuka</strong>${serviceSetting(type).close ? `<p>Batas pengiriman: ${escapeHtml(serviceSetting(type).close)} pukul 23.59 WIB.</p>` : ''}`;
     const review = document.getElementById('btn-review-registration');
     if (review && !isSubmittingRegistration) review.disabled = !!(existing || reason);
+    renderAcademicStages();
+    renderRegistrationReadiness();
 }
 function registrationServiceAllowed() {
     const type = document.getElementById('reg-jenis-utama').value;

@@ -542,6 +542,8 @@ function clearPrivateCache() {
     document.getElementById('btn-submit-registration').textContent = uxText('Konfirmasi & Kirim', 'Confirm & Send');
     document.getElementById('dynamic-exam-form').reset();
     document.getElementById('reg-jenis-utama').value = ''; document.getElementById('reg-jenis-utama').disabled = false;
+    renderRegistrationReadiness();
+    renderAcademicStages();
     document.getElementById('dynamic-exam-form').style.display = 'none';
     document.getElementById('registration-fields').hidden = false; document.getElementById('registration-review').hidden = true;
     document.getElementById('btn-review-registration').hidden = false; document.getElementById('btn-submit-registration').hidden = true;
@@ -552,6 +554,7 @@ function clearPrivateCache() {
     ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     document.querySelectorAll('.admin-only, .student-only').forEach(el => { el.style.display = 'none'; });
     document.querySelectorAll('.chk-magang, .chk-skripsi').forEach(el => { el.checked = false; });
+    renderAcademicStages();
     document.getElementById('admin-search-input').value = ''; document.getElementById('admin-status-filter').value = 'ACTION_REQUIRED';
     ['input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama','input-rev-note','input-reply-note','input-reply-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     editorTempData = [];
@@ -1037,6 +1040,7 @@ function clearSelectedFile(inputId, labelId) {
     if (input) { input.value = ""; setFieldError(inputId, ''); }
     const labelEl = document.getElementById(labelId);
     if (labelEl) labelEl.innerHTML = "";
+    renderRegistrationReadiness();
 }
 
 function fileToBase64(file) {
@@ -1078,6 +1082,7 @@ function loadFormDraft() {
         const indicator = document.getElementById('form-draft-status');
         registrationDirty = true;
         if (indicator) indicator.textContent = 'Draf isian dipulihkan. Pilih ulang berkas sebelum mengirim.';
+        renderRegistrationReadiness();
     } catch (e) { }
 }
 
@@ -1098,6 +1103,11 @@ function registrationSpecs(jenis) {
         'Skripsi Jurnal': [['file-loa-jurnal', 'LoA Jurnal'], ['file-draft-jurnal', 'Draft Jurnal']],
         'Pergantian Pembimbing': [['file-surat-ganti', 'Surat Permohonan Ganti Dosen']]
     })[jenis] || [];
+}
+function registrationTextSpecs(jenis) {
+    return jenis === 'Pergantian Pembimbing'
+        ? [['reg-dosen-lama', uxText('Dosen pembimbing sekarang', 'Current supervisor')], ['reg-dosen-baru', uxText('Usulan dosen pembimbing', 'Proposed supervisor')], ['reg-alasan-ganti', uxText('Alasan pergantian', 'Reason for change')]]
+        : [['reg-judul', uxText('Judul skripsi / tugas akhir', 'Thesis title')]];
 }
 function fileProblem(file, accept) {
     if (!file) return uxText('Pilih berkas ini terlebih dahulu.', 'Choose this file first.');
@@ -1124,7 +1134,7 @@ function setFieldError(id, message) {
 function validateRegistration() {
     if (!registrationServiceAllowed()) return false;
     const jenis = document.getElementById('reg-jenis-utama').value;
-    const ids = jenis === 'Pergantian Pembimbing' ? ['reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'] : ['reg-judul'];
+    const ids = registrationTextSpecs(jenis).map(([id]) => id);
     let firstError = '';
     ids.forEach(id => {
         const error = document.getElementById(id).value.trim() ? '' : uxText('Isian ini wajib diisi.', 'This field is required.');
@@ -1360,6 +1370,7 @@ async function submitCaseAction() {
 function toggleExamForm() {
     editRegistration();
     refreshServiceAvailability();
+    renderRegistrationReadiness();
     const formContainer = document.getElementById('dynamic-exam-form');
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
     const groupJudul = document.getElementById('group-judul');
@@ -1672,7 +1683,7 @@ function renderDynamicContent() {
 
         if (type === 'magang' || type === 'skripsi') {
             data.forEach(group => {
-                html += `<div class="checklist-group"><div class="checklist-title">${group.title}</div>`;
+                html += `<section class="checklist-group academic-stage" data-stage-type="${type}"><div class="stage-heading"><h3 class="checklist-title">${group.title}</h3><span class="stage-progress"></span></div><p class="stage-next"></p>`;
                 group.items.forEach(item => {
                     html += `<div class="checklist-item" onclick="toggleCheckFromRow(event, '${item.id}')">
                         <input type="checkbox" class="chk-${type} custom-checkbox" id="${item.id}" onchange="updateProgress()">
@@ -1682,7 +1693,7 @@ function renderDynamicContent() {
                         </label>
                     </div>`;
                 });
-                html += `</div>`;
+                html += stageServiceGuide(type, group.items) + `</section>`;
             });
         }
         else if (type === 'kurikulum') {
@@ -1754,6 +1765,7 @@ function renderDynamicContent() {
     if (currentUser && currentUser.role === 'mhs') {
         loadProgressData();
     }
+    renderAcademicStages();
 }
 
 // EDITOR KONTEN UI
@@ -1917,6 +1929,7 @@ function updateProgress() {
         localStorage.setItem(`progress_${currentUser.nim}`, JSON.stringify(state));
         updateChecklistReminder(chkMagang.length - checkedMagang.length, chkSkripsi.length - checkedSkripsi.length);
     }
+    renderAcademicStages();
 }
 
 function updateChecklistReminder(unMagang, unSkripsi) {
@@ -1976,6 +1989,8 @@ function toggleLanguage() {
 function applyDynamicLanguage() {
     syncThemeControl();
     renderSyncStatus();
+    renderAcademicStages();
+    renderRegistrationReadiness();
     document.querySelectorAll('.lang').forEach(el => {
         const text = el.getAttribute(`data-${currentLang}`);
         if (text && el.innerHTML !== text) {
