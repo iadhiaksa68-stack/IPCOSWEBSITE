@@ -44,6 +44,7 @@ function showToast(message, type = 'success') {
     toast.className = `toast ${type}`;
     toast.innerText = message;
     container.appendChild(toast);
+    while (container.children.length > 2) container.firstElementChild.remove();
 
     setTimeout(() => {
         toast.classList.add('fadeOut');
@@ -581,7 +582,10 @@ function syncDatabase() {
             if (String(error.message).includes('Sesi')) {
                 sessionStorage.removeItem('ipcos_session');
                 clearPrivateCache();
+                closeModal('modal-case-detail', true);
+                selectedCaseId = '';
                 currentUser = { nim: '', nama: '', role: '', token: '' };
+                renderTaskHome();
                 document.getElementById('welcome-modal').style.display = 'flex';
                 document.getElementById('welcome-modal').style.opacity = '1';
                 showToast('Sesi berakhir. Silakan masuk lagi.', 'error');
@@ -706,6 +710,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
         }
     });
 
+    renderTaskHome();
     if (role === 'admin') {
         const statusLabel = document.getElementById('label-status-user');
         if (statusLabel) {
@@ -752,6 +757,9 @@ function logoutUser() {
         apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(() => {});
         currentUser = { nim: '', nama: '', role: '', token: '' };
         clearPrivateCache();
+        renderTaskHome();
+        closeModal('modal-case-detail', true);
+        selectedCaseId = '';
         if (document.getElementById('student-header')) document.getElementById('student-header').style.display = 'none';
         switchTab({ currentTarget: document.querySelector('.nav-tabs li') }, 'dashboard');
         const modal = document.getElementById('welcome-modal');
@@ -765,6 +773,7 @@ function logoutUser() {
 // 5. NOTIFICATION & ACTIVITY TIMELINE
 // ==========================================
 function renderNotifications() {
+    renderTaskHome();
     const listContainer = document.getElementById('notif-list-container');
     const badgeEl = document.getElementById('notif-badge');
     if (!listContainer) return;
@@ -943,10 +952,11 @@ function validateFile(input, labelId) {
     if (input.files && input.files.length > 0) {
         const file = input.files[0];
         const formattedSize = formatFileSize(file.size);
-        const isOverSize = file.size > MAX_FILE_SIZE_MB * 1024 * 1024;
+        const isOverSize = !!fileProblem(file, input.accept);
+        setFieldError(input.id, fileProblem(file, input.accept));
 
         if (isOverSize) {
-            showToast(currentLang === 'id' ? `Ukuran max file adalah ${MAX_FILE_SIZE_MB}MB! (File Anda: ${formattedSize})` : `Max file size is ${MAX_FILE_SIZE_MB}MB! (Your file: ${formattedSize})`, 'error');
+            showToast(fileProblem(file, input.accept), 'error');
             
             // KOSONGKAN FILE SECARA HARD-RESET
             input.value = ""; 
@@ -955,7 +965,7 @@ function validateFile(input, labelId) {
                 input.files = new DataTransfer().files; 
             } catch(e) {}
             
-            labelEl.innerHTML = `<div class="dz-file-badge error">⚠️ File terlalu besar (${formattedSize}). Maksimal ${MAX_FILE_SIZE_MB}MB.</div>`;
+            labelEl.innerHTML = `<div class="dz-file-badge error">${escapeHtml(document.getElementById(input.id + '-error')?.textContent || 'Berkas tidak valid.')}</div>`;
         } else {
             labelEl.innerHTML = `
                 <div class="dz-file-badge success">
@@ -970,7 +980,7 @@ function validateFile(input, labelId) {
 
 function clearSelectedFile(inputId, labelId) {
     const input = document.getElementById(inputId);
-    if (input) input.value = "";
+    if (input) { input.value = ""; setFieldError(inputId, ''); }
     const labelEl = document.getElementById(labelId);
     if (labelEl) labelEl.innerHTML = "";
 }
@@ -1021,7 +1031,256 @@ function clearFormDraft() {
     if (indicator) indicator.textContent = '';
 }
 
+// Transaction views use the existing registration and note fields.
+function uxText(id, en) { return currentLang === 'en' ? en : id; }
+function registrationSpecs(jenis) {
+    return ({
+        'Outline': [['file-transkrip', 'Transkrip'], ['file-proposal', 'Draft Proposal']],
+        'Proposal': [['file-acc-sempro', 'Form ACC Seminar Proposal']],
+        'Pendadaran': [['file-folder-pendadaran', 'Berkas Pendadaran']],
+        'Skripsi Jurnal': [['file-loa-jurnal', 'LoA Jurnal'], ['file-draft-jurnal', 'Draft Jurnal']],
+        'Pergantian Pembimbing': [['file-surat-ganti', 'Surat Permohonan Ganti Dosen']]
+    })[jenis] || [];
+}
+function fileProblem(file, accept) {
+    if (!file) return uxText('Pilih berkas ini terlebih dahulu.', 'Choose this file first.');
+    if (!file.size) return uxText('Berkas kosong. Pilih berkas yang berisi dokumen.', 'The file is empty. Choose a document.');
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) return uxText('Ukuran berkas maksimal 10 MB.', 'Maximum file size is 10 MB.');
+    const extensions = String(accept || '').split(',').map(ext => ext.trim().toLowerCase()).filter(Boolean);
+    if (extensions.length && !extensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
+        return uxText('Format berkas yang diizinkan: ', 'Allowed file formats: ') + extensions.join(', ');
+    }
+    return '';
+}
+function setFieldError(id, message) {
+    const input = document.getElementById(id);
+    if (!input) return;
+    const errorId = id + '-error';
+    let error = document.getElementById(errorId);
+    if (!error) { error = document.createElement('p'); error.id = errorId; error.className = 'field-error'; input.insertAdjacentElement('afterend', error); }
+    error.textContent = message;
+    error.hidden = !message;
+    input.setAttribute('aria-invalid', message ? 'true' : 'false');
+    if (message) input.setAttribute('aria-describedby', errorId);
+    else input.removeAttribute('aria-describedby');
+}
+function validateRegistration() {
+    const jenis = document.getElementById('reg-jenis-utama').value;
+    const ids = jenis === 'Pergantian Pembimbing' ? ['reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'] : ['reg-judul'];
+    let firstError = '';
+    ids.forEach(id => {
+        const error = document.getElementById(id).value.trim() ? '' : uxText('Isian ini wajib diisi.', 'This field is required.');
+        setFieldError(id, error); if (error && !firstError) firstError = id;
+    });
+    if (jenis === 'Pergantian Pembimbing') {
+        const oldName = document.getElementById('reg-dosen-lama').value.trim().toLowerCase();
+        const newName = document.getElementById('reg-dosen-baru').value.trim().toLowerCase();
+        if (oldName && oldName === newName) { setFieldError('reg-dosen-baru', uxText('Usulkan dosen yang berbeda dari dosen sekarang.', 'Choose a different supervisor.')); firstError ||= 'reg-dosen-baru'; }
+    }
+    registrationSpecs(jenis).forEach(([id]) => {
+        const input = document.getElementById(id);
+        const error = fileProblem(input.files[0], input.accept);
+        setFieldError(id, error); if (error && !firstError) firstError = id;
+    });
+    if (firstError) { document.getElementById(firstError).focus(); return false; }
+    return !!jenis;
+}
+function reviewRegistration(event) {
+    event.preventDefault();
+    if (isSubmittingRegistration || document.getElementById('registration-fields').hidden) return;
+    if (!validateRegistration()) {
+        document.getElementById('form-submit-status').textContent = uxText('Lengkapi isian yang ditandai sebelum melanjutkan.', 'Complete the marked fields to continue.');
+        return;
+    }
+    const jenis = document.getElementById('reg-jenis-utama').value;
+    const detail = jenis === 'Pergantian Pembimbing'
+        ? [['Dosen sekarang', 'reg-dosen-lama'], ['Usulan dosen', 'reg-dosen-baru'], ['Alasan', 'reg-alasan-ganti']]
+        : [['Judul', 'reg-judul']];
+    document.getElementById('registration-review').innerHTML = `<h3 tabindex="-1" id="review-heading">${uxText('Periksa sebelum mengirim', 'Review before sending')}</h3>
+        <dl class="receipt-list"><dt>${uxText('Jenis pengajuan', 'Request type')}</dt><dd>${escapeHtml(jenis)}</dd>
+        ${detail.map(([label,id]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(document.getElementById(id).value.trim())}</dd>`).join('')}</dl>
+        <h4>${uxText('Berkas siap dikirim', 'Files ready to send')}</h4><ul class="review-files">${registrationSpecs(jenis).map(([id,label]) => {
+            const f = document.getElementById(id).files[0];
+            return `<li><strong>${escapeHtml(label)}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span></li>`;
+        }).join('')}</ul><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
+        <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration()">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
+    document.getElementById('registration-fields').hidden = true;
+    document.getElementById('reg-jenis-utama').disabled = true;
+    document.getElementById('registration-review').hidden = false;
+    document.getElementById('btn-review-registration').hidden = true;
+    document.getElementById('btn-submit-registration').hidden = false;
+    document.getElementById('form-submit-status').textContent = '';
+    document.getElementById('review-heading').focus();
+}
+function editRegistration() {
+    if (isSubmittingRegistration) return;
+    document.getElementById('registration-fields').hidden = false;
+    document.getElementById('reg-jenis-utama').disabled = false;
+    document.getElementById('registration-review').hidden = true;
+    document.getElementById('btn-review-registration').hidden = false;
+    document.getElementById('btn-submit-registration').hidden = true;
+}
+function getCaseFiles(item) {
+    const doc = new DOMParser().parseFromString(String(item.link || ''), 'text/html');
+    return [...doc.querySelectorAll('a')].filter(a => a.getAttribute('href') && !a.getAttribute('href').startsWith('#')).map(a => ({ label: a.textContent.trim() || uxText('Berkas', 'Document'), url: safeUrl(a.getAttribute('href')) })).filter(file => file.url !== '#');
+}
+function getRevisionInstructions(item) {
+    let logs = [];
+    try { logs = JSON.parse(item.note || '[]'); } catch (_) { return { files: [], instruction: String(item.note || '') }; }
+    const note = Array.isArray(logs) ? [...logs].reverse().find(log => log.role === 'admin')?.message || '' : '';
+    const doc = new DOMParser().parseFromString(sanitizeRichHtml(note).replace(/<br\s*\/?\s*>/gi, '\n'), 'text/html');
+    const text = doc.body.textContent;
+    const match = text.match(/^Berkas yang perlu diperbaiki:\s*\n([\s\S]*?)\n\nInstruksi:\s*\n([\s\S]*)$/);
+    return match ? { files: match[1].split('\n').map(line => line.replace(/^-\s*/, '').trim()).filter(Boolean), instruction: match[2] }
+        : { files: [], instruction: text };
+}
+function revisionInstructionsHtml(item) {
+    const rev = getRevisionInstructions(item);
+    if (!rev.instruction && !rev.files.length) return '';
+    const heading = String(item.status).toLowerCase() === 'resubmitted' ? uxText('Instruksi revisi sebelumnya', 'Previous correction instructions') : currentUser.role === 'admin' ? uxText('Instruksi untuk mahasiswa', 'Instructions for the student') : uxText('Yang perlu Anda perbaiki', 'Corrections requested');
+    return `<section class="revision-instructions"><h3>${heading}</h3>
+        ${rev.files.length ? `<ul>${rev.files.map(label => `<li>${escapeHtml(label)}</li>`).join('')}</ul>` : ''}
+        <p class="preserve-lines">${escapeHtml(rev.instruction)}</p></section>`;
+}
+function renderTaskHome() {
+    const home = document.getElementById('task-home');
+    if (!home) return;
+    if (!['admin','mhs'].includes(currentUser.role)) { home.innerHTML = ''; return; }
+    const all = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const admin = currentUser.role === 'admin';
+    const records = admin ? all : all.filter(item => String(item.nim) === String(currentUser.nim));
+    const priority = item => { const status = String(item.status).toLowerCase(); return admin ? ({resubmitted:0,pending:1,revision:2,accepted:3}[status] ?? 4) : ({revision:0,resubmitted:1,pending:2,accepted:3}[status] ?? 4); };
+    const actionable = records.filter(item => admin ? ['pending','resubmitted'].includes(String(item.status).toLowerCase()) : String(item.status).toLowerCase() !== 'accepted');
+    actionable.sort((a,b) => priority(a)-priority(b) || new Date(getCaseEventTime(a))-new Date(getCaseEventTime(b)));
+    const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0,1);
+    const revisions = records.filter(item => String(item.status).toLowerCase() === 'revision').length;
+    const title = admin ? uxText('Antrean kerja Anda', 'Your review queue') : uxText('Pengajuan Anda', 'Your requests');
+    const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Perbaikan masuk ditampilkan lebih dulu.', 'requests need review. Resubmissions appear first.')}`
+        : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
+    home.innerHTML = `<div class="task-home-header"><div><h2>${title}</h2><p>${subtitle}</p></div>
+        <button type="button" class="btn-primary" onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : "switchTab(null, 'pendaftaran')"}">${admin ? uxText('Buka Antrean', 'Open Queue') : uxText('Buat Pengajuan', 'New Request')}</button></div>
+        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div>${getStatusBadge(item.status)}<h3>${escapeHtml(item.jenis)}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}<p>${escapeHtml(caseNextStep(item))}</p></div>
+        <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
+        : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
+        <button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>`;
+}
+function caseFileListHtml(item) {
+    const files = getCaseFiles(item);
+    return files.length ? files.map((file,index) => `<div class="case-file-row"><strong>${escapeHtml(file.label)}</strong><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${index}">${uxText('Pratinjau', 'Preview')}</button><a href="${escapeHtml(file.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a></div></div>`).join('') : uxText('Belum ada berkas.', 'No files available.');
+}
+function previewCaseFile(index) {
+    const item = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]').find(item => String(item.id) === selectedCaseId);
+    const file = item && getCaseFiles(item)[index];
+    if (!file) return;
+    const preview = document.getElementById('case-file-preview');
+    preview.hidden = false;
+    const iframe = preview.querySelector('iframe');
+    iframe.src = file.url.includes('drive.google.com') ? file.url.replace(/\/view.*$/, '/preview').replace(/\/edit.*$/, '/preview') : file.url;
+    iframe.title = uxText('Pratinjau: ', 'Preview: ') + file.label;
+    preview.querySelector('p').textContent = uxText('Jika pratinjau tidak muncul, gunakan Buka Berkas di atas.', 'If the preview does not load, use Open File above.');
+}
+function supervisorOptions() {
+    const dosens = JSON.parse(sessionStorage.getItem('ipcos_dosens') || '[]');
+    return `<option value="">${uxText('-- Pilih dosen --','-- Select supervisor --')}</option>` + dosens.slice().sort((a,b) => String(a.Nama).localeCompare(String(b.Nama))).map(d => {
+        const remaining = Number(d.Maksimal) - Number(d.Terpakai);
+        return `<option value="${escapeHtml(d.Nama)}" ${remaining > 0 ? '' : 'disabled'}>${escapeHtml(d.Nama)} · ${remaining > 0 ? uxText('Sisa kuota: ', 'Available: ') + remaining : uxText('Penuh','Full')}</option>`;
+    }).join('');
+}
+function currentCase() {
+    const item = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]').find(item => String(item.id) === selectedCaseId);
+    if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) return null;
+    return item;
+}
+function caseDetailAction(action) {
+    const item = currentCase();
+    if (!item || activeUpdateIds.has(item.id)) return;
+    const status = String(item.status).toLowerCase();
+    if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') return;
+    const panel = document.getElementById('case-action-panel');
+    panel.dataset.action = action;
+    let html = '';
+    if (action === 'revision') {
+        const files = [...new Set([...registrationSpecs(item.jenis).map(spec => spec[1]), ...getCaseFiles(item).map(file => file.label)])];
+        html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(label)}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label></fieldset>
+        <label for="case-revision-note">${uxText('Apa yang harus diperbaiki?','What needs correcting?')}</label><textarea id="case-revision-note" rows="4" placeholder="${uxText('Contoh: Unggah transkrip yang sudah disahkan.','Example: Upload an officially certified transcript.')}"></textarea>`;
+    } else if (action === 'dospem') {
+        html = `<h3>${uxText('Tunjuk dosen & selesaikan', 'Assign Supervisor & Complete')}</h3><label for="case-supervisor">${uxText('Dosen pembimbing', 'Supervisor')}</label><select id="case-supervisor">${supervisorOptions()}</select><p>${uxText('Dosen terpilih akan dicatat saat pengajuan disetujui.','The selected supervisor will be recorded when this request is approved.')}</p>`;
+    } else if (action === 'accept') {
+        html = `<h3>${uxText('Selesaikan pengajuan', 'Complete Request')}</h3><p>${uxText('Pastikan seluruh berkas sudah diperiksa. Persetujuan akan terlihat oleh mahasiswa.', 'Confirm all documents have been reviewed. The student will see your approval.')}</p>`;
+    } else if (action === 'reply') {
+        const rev = getRevisionInstructions(item);
+        html = `<h3>${uxText('Kirim perbaikan Anda', 'Send Your Corrections')}</h3>${rev.files.length ? `<fieldset class="revision-file-options"><legend>${uxText('Konfirmasi yang sudah Anda perbaiki', 'Confirm Your Corrections')}</legend>${rev.files.map(label => `<label class="check-row"><input type="checkbox" name="correction-complete"><span>${escapeHtml(label)}</span></label>`).join('')}</fieldset>` : ''}
+        <label for="case-reply-files">${uxText('Berkas perbaikan · maksimal 10 MB per berkas', 'Corrected files · maximum 10 MB per file')}</label><input type="file" id="case-reply-files" multiple accept="${item.jenis === 'Pendadaran' ? '.pdf,.zip,.rar' : '.pdf,.doc,.docx'}"><p class="field-helper">${uxText('Pilih hingga 5 berkas dengan total maksimal 20 MB. Berkas lama tetap ada dalam riwayat.', 'Choose up to 5 files, 20 MB total. Previous files remain in the history.')}</p><div id="case-reply-file-list"></div><label for="case-reply-note">${uxText('Jelaskan perbaikan Anda', 'Describe Your Corrections')}</label><textarea id="case-reply-note" rows="3"></textarea>`;
+    }
+    if (!html) return;
+    panel.innerHTML = `${html}<p id="case-action-feedback" class="field-error" role="status"></p><div class="button-row"><button type="button" class="btn-secondary" onclick="cancelCaseAction()">${uxText('Batal','Cancel')}</button><button type="button" id="btn-case-submit" class="btn-primary" onclick="submitCaseAction()">${action === 'revision' ? uxText('Kirim Instruksi Revisi','Send Correction Request') : action === 'reply' ? uxText('Kirim Perbaikan','Send Corrections') : uxText('Konfirmasi & Selesaikan','Confirm & Complete')}</button></div>`;
+    panel.hidden = false;
+    document.getElementById('case-detail-actions').hidden = true;
+    const reply = document.getElementById('case-reply-files');
+    if (reply) reply.addEventListener('change', () => {
+        document.getElementById('case-reply-file-list').innerHTML = [...reply.files].map(file => `<p>${escapeHtml(file.name)} · ${formatFileSize(file.size)}${fileProblem(file, reply.accept) ? `<span class="field-error">${escapeHtml(fileProblem(file, reply.accept))}</span>` : ''}</p>`).join('');
+    });
+    (panel.querySelector('textarea, select, input') || panel.querySelector('button')).focus();
+}
+function cancelCaseAction() {
+    if (activeUpdateIds.has(selectedCaseId) || isPreparingCorrection) return;
+    document.getElementById('case-action-panel').hidden = true;
+    document.getElementById('case-detail-actions').hidden = false;
+}
+let isPreparingCorrection = false;
+async function submitCaseAction() {
+    const item = currentCase();
+    if (!item || activeUpdateIds.has(item.id) || isPreparingCorrection) return;
+    const panel = document.getElementById('case-action-panel');
+    const action = panel.dataset.action;
+    const feedback = document.getElementById('case-action-feedback');
+    const fail = message => { feedback.textContent = message; return false; };
+    const status = String(item.status).toLowerCase();
+    if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
+    let note = '', newStatus = 'Accepted', files = [], dospem = null;
+    if (action === 'revision') {
+        const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
+        const instruction = document.getElementById('case-revision-note').value.trim();
+        if (!selected.length) return fail(uxText('Pilih minimal satu berkas atau isian yang perlu diperbaiki.', 'Select at least one file or field needing corrections.'));
+        if (!instruction) return fail(uxText('Tulis instruksi perbaikan untuk mahasiswa.', 'Write correction instructions for the student.'));
+        note = `Berkas yang perlu diperbaiki:\n${selected.map(label => '- ' + label).join('\n')}\n\nInstruksi:\n${instruction}`;
+        newStatus = 'Revision';
+    } else if (action === 'dospem') {
+        dospem = document.getElementById('case-supervisor').value;
+        if (!dospem) return fail(uxText('Pilih dosen pembimbing yang masih memiliki kuota.', 'Choose a supervisor with available capacity.'));
+        note = `Pengajuan disetujui. Dosen Pembimbing: ${dospem}. Silakan hubungi dosen untuk tahapan bimbingan berikutnya.`;
+    } else if (action === 'accept') note = 'Berkas telah disetujui dan terverifikasi.';
+    else if (action === 'reply') {
+        const input = document.getElementById('case-reply-files');
+        const chosen = [...input.files];
+        note = document.getElementById('case-reply-note').value.trim();
+        if ([...panel.querySelectorAll('[name="correction-complete"]')].some(input => !input.checked)) return fail(uxText('Konfirmasi semua poin perbaikan sebelum mengirim.', 'Confirm all requested corrections before sending.'));
+        if (!chosen.length || !note) return fail(uxText('Pilih berkas perbaikan dan jelaskan perubahan Anda.', 'Select corrected files and describe your changes.'));
+        if (chosen.length > 5 || chosen.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) return fail(uxText('Kirim maksimal 5 berkas dengan total ukuran hingga 20 MB.', 'Send up to 5 files with a total size of 20 MB.'));
+        const error = chosen.map(file => fileProblem(file, input.accept)).find(Boolean);
+        if (error) return fail(error);
+        newStatus = 'Resubmitted';
+        files = chosen;
+    } else return;
+    const button = document.getElementById('btn-case-submit');
+    button.disabled = true; button.textContent = uxText('Sedang menyimpan...', 'Saving...');
+    feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
+    isPreparingCorrection = true;
+    try {
+        const payloadFiles = await Promise.all(files.map(async file => ({fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
+        // Escape user text before it enters the existing rich-text note history.
+        const success = await sendUpdateRequest(item.id, newStatus, escapeHtml(note), payloadFiles, dospem);
+        if (success && selectedCaseId === String(item.id) && document.getElementById('modal-case-detail').style.display !== 'none') openCaseDetail(item.id);
+        else if (!success && document.getElementById('case-action-feedback')) fail(uxText('Penyimpanan belum dapat dipastikan. Isian Anda tetap tersedia. Segarkan status sebelum mencoba lagi.', 'Saving could not be confirmed. Your inputs remain available. Refresh the status before retrying.'));
+    } catch (error) { fail(error.message || uxText('Berkas belum dapat diproses. Coba kembali.', 'The file could not be processed. Try again.')); }
+    finally {
+        isPreparingCorrection = false;
+        if (button.isConnected) { button.disabled = false; button.textContent = uxText('Coba Simpan Lagi', 'Try Saving Again'); }
+    }
+}
+
 function toggleExamForm() {
+    editRegistration();
     const formContainer = document.getElementById('dynamic-exam-form');
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
     const groupJudul = document.getElementById('group-judul');
@@ -1057,6 +1316,7 @@ let lastSubmittedCaseId = '';
 async function submitForm(e) {
     e.preventDefault();
     if (isSubmittingRegistration) return;
+    if (document.getElementById('registration-review').hidden || !validateRegistration()) { editRegistration(); return; }
 
     if (isOffline) {
         showToast(currentLang === 'id' ? "Tidak dapat mengirim form saat offline. Periksa koneksi Anda." : "Cannot submit form while offline. Check your connection.", "error");
@@ -1071,6 +1331,7 @@ async function submitForm(e) {
     const submitButton = document.getElementById('btn-submit-registration');
     const submitStatus = document.getElementById('form-submit-status');
     isSubmittingRegistration = true;
+    document.getElementById('btn-edit-registration').disabled = true;
     submitButton.disabled = true;
     submitButton.textContent = 'Sedang mengirim...';
     if (submitStatus) submitStatus.textContent = 'Menyiapkan berkas. Jangan tutup halaman sampai ada konfirmasi.';
@@ -1146,7 +1407,11 @@ async function submitForm(e) {
             clearFormDraft();
             document.getElementById('reg-jenis-utama').value = "";
             document.querySelectorAll('.dz-file-name').forEach(el => el.innerText = "");
-            toggleExamForm(); e.target.reset(); await syncDatabase();
+            isSubmittingRegistration = false;
+            toggleExamForm(); document.getElementById('dynamic-exam-form').reset();
+            document.querySelectorAll('#registration-fields [id$="-badge"]').forEach(el => { el.textContent = ''; });
+            document.querySelectorAll('#registration-fields input, #registration-fields textarea').forEach(el => setFieldError(el.id, ''));
+            await syncDatabase();
         } else {
             throw new Error(result.message || (currentLang === 'id' ? "Gagal menyimpan berkas." : "Failed to save files."));
         }
@@ -1158,7 +1423,9 @@ async function submitForm(e) {
     } finally {
         isSubmittingRegistration = false;
         submitButton.disabled = false;
-        submitButton.textContent = 'Kirim Pendaftaran';
+        submitButton.textContent = uxText('Konfirmasi & Kirim', 'Confirm & Send');
+        const editButton = document.getElementById('btn-edit-registration');
+        if (editButton) editButton.disabled = false;
         hideLoader();
     }
 }
@@ -1170,7 +1437,7 @@ function showSubmissionReceipt(receipt) {
         <dt>Jenis</dt><dd>${escapeHtml(receipt.jenis)}</dd>
         <dt>Waktu kirim</dt><dd>${escapeHtml(formatDateTime(receipt.date).replace(/<[^>]*>/g, ' '))}</dd>
         <dt>Berkas</dt><dd>${receipt.files.map(f => escapeHtml(f.fileName)).join('<br>') || '-'}</dd>
-        <dt>Status awal</dt><dd>Sedang diverifikasi</dd></dl>`;
+        <dt>Status awal</dt><dd>Menunggu admin</dd></dl>`;
     const modal = document.getElementById('modal-submission-receipt');
     modal.style.display = 'flex';
     modal.style.opacity = '1';
@@ -1572,13 +1839,16 @@ function loadProgressData() {
 }
 
 function getStatusBadge(status) {
-    const safeStatus = String(status).trim().toLowerCase();
-
-    if (safeStatus === 'accepted') return `<span class="status-badge badge-accepted lang" data-id="Diterima" data-en="Accepted">${currentLang === 'id' ? 'Diterima' : 'Accepted'}</span>`;
-    if (safeStatus === 'revision') return `<span class="status-badge badge-revision lang" data-id="Perlu Revisi" data-en="Revision Required">${currentLang === 'id' ? 'Perlu Revisi' : 'Revision Required'}</span>`;
-    if (safeStatus === 'resubmitted') return `<span class="status-badge badge-resubmitted lang" data-id="Direvisi Mhs" data-en="Resubmitted">${currentLang === 'id' ? 'Direvisi Mhs' : 'Resubmitted'}</span>`;
-
-    return `<span class="status-badge badge-pending lang" data-id="Sedang Diverifikasi" data-en="Under Verification">${currentLang === 'id' ? 'Sedang Diverifikasi' : 'Under Verification'}</span>`;
+    const key = String(status || '').trim().toLowerCase();
+    const labels = {
+        accepted: ['Selesai', 'Completed'],
+        revision: currentUser.role === 'admin' ? ['Menunggu mahasiswa', 'Waiting for student'] : ['Perlu perbaikan Anda', 'Your corrections needed'],
+        resubmitted: ['Perbaikan menunggu admin', 'Corrections awaiting admin'],
+        pending: ['Menunggu admin', 'Waiting for admin']
+    };
+    const normalized = key in labels ? key : 'pending';
+    const [id,en] = labels[normalized];
+    return `<span class="status-badge badge-${normalized} lang" data-id="${id}" data-en="${en}">${uxText(id,en)}</span>`;
 }
 
 // ==========================================
@@ -1597,6 +1867,8 @@ function toggleLanguage() {
 
     if (currentUser.role === 'admin') { loadAdminData(); } else { loadStudentStatus(); }
     updateProgress();
+    renderTaskHome();
+    if (selectedCaseId && document.getElementById('modal-case-detail').style.display === 'flex' && document.getElementById('case-action-panel')?.hidden) openCaseDetail(selectedCaseId);
 }
 
 function applyDynamicLanguage() {
@@ -1626,16 +1898,16 @@ function getCaseEventTime(item) {
 
 function caseNextStep(item) {
     const status = String(item.status || '').trim().toLowerCase();
-    if (status === 'accepted') return 'Selesai diverifikasi. Simpan berkas dan lanjutkan tahapan akademik berikutnya.';
+    if (status === 'accepted') return item.dospem ? uxText('Hubungi dosen pembimbing: ', 'Contact your supervisor: ') + item.dospem : uxText('Selesai diverifikasi. Lanjutkan tahapan akademik berikutnya.', 'Verified. Continue to the next academic stage.');
     if (status === 'revision') return currentUser.role === 'admin'
-        ? 'Menunggu mahasiswa mengirim perbaikan.'
-        : 'Baca catatan admin, siapkan berkas perbaikan, lalu pilih Upload Perbaikan.';
+        ? uxText('Menunggu mahasiswa mengirim perbaikan.', 'Waiting for the student to submit corrections.')
+        : uxText('Baca instruksi admin dan kirim berkas perbaikan di pengajuan ini.', 'Read the admin instructions and submit corrected files in this request.');
     if (status === 'resubmitted') return currentUser.role === 'admin'
-        ? 'Perbaikan mahasiswa sudah masuk. Periksa berkas dan putuskan hasilnya.'
-        : 'Perbaikan sudah terkirim. Tunggu pemeriksaan admin.';
+        ? uxText('Perbaikan sudah masuk. Periksa berkas dan putuskan hasilnya.', 'Corrections received. Review the files and make a decision.')
+        : uxText('Perbaikan sudah terkirim. Tunggu pemeriksaan admin.', 'Corrections submitted. Awaiting admin review.');
     return currentUser.role === 'admin'
-        ? 'Pengajuan baru menunggu pemeriksaan admin.'
-        : 'Pengajuan sudah masuk. Tunggu pemeriksaan admin.';
+        ? uxText('Periksa kelengkapan berkas, lalu terima atau minta perbaikan.', 'Check the documents, then approve or request corrections.')
+        : uxText('Pengajuan sudah masuk. Tunggu pemeriksaan admin.', 'Request received. Awaiting admin review.');
 }
 
 function caseTimelineHtml(item) {
@@ -1646,7 +1918,7 @@ function caseTimelineHtml(item) {
     if (!Array.isArray(logs) || !logs.length) return '<p>Belum ada catatan.</p>';
     return logs.map(log => `<div class="case-timeline-item"><strong>${escapeHtml(log.sender || 'Sistem')}</strong>
         <small>${escapeHtml(formatDateTime(log.time || item.date).replace(/<[^>]*>/g, ' '))}</small>
-        <div>${sanitizeRichHtml(log.message || '')}</div></div>`).join('');
+        <div class="preserve-lines">${sanitizeRichHtml(log.message || '')}</div></div>`).join('');
 }
 
 function openCaseDetail(id) {
@@ -1658,9 +1930,9 @@ function openCaseDetail(id) {
     }
     selectedCaseId = String(item.id);
     const isAdmin = currentUser.role === 'admin';
-    const status = String(item.status || '').toLowerCase();
+    const status = String(item.status || '').trim().toLowerCase();
     let actions = '';
-    if (isAdmin && status !== 'accepted' && status !== 'revision') {
+    if (isAdmin && ['pending', 'resubmitted'].includes(status)) {
         if (item.jenis === 'Outline' || item.jenis === 'Pergantian Pembimbing') {
             actions += '<button type="button" class="btn-primary" onclick="caseDetailAction(\'dospem\')">Tunjuk Dosen & Terima</button>';
         } else actions += '<button type="button" class="btn-primary" onclick="caseDetailAction(\'accept\')">Terima Pengajuan</button>';
@@ -1669,28 +1941,25 @@ function openCaseDetail(id) {
         actions = '<button type="button" class="btn-primary" onclick="caseDetailAction(\'reply\')">Upload Perbaikan</button>';
     }
     const content = document.getElementById('case-detail-content');
-    content.innerHTML = `<div class="case-summary">
-        <div>${getStatusBadge(item.status)}<p class="case-next-step">${escapeHtml(caseNextStep(item))}</p></div>
-        <dl class="receipt-list"><dt>Jenis</dt><dd>${escapeHtml(item.jenis)}</dd>
-        <dt>Dikirim</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
-        ${isAdmin ? `<dt>Mahasiswa</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
-        <dt>Nomor</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
-        <h3>Detail</h3><div class="case-content-block">${sanitizeRichHtml(item.detail)}${item.dospem ? `<p><strong>Dosen Pembimbing:</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div>
-        <h3>Berkas</h3><div class="case-content-block">${item.link ? sanitizeRichHtml(item.link) : 'Belum ada berkas.'}</div>
-        <h3>Riwayat</h3><div class="case-timeline">${caseTimelineHtml(item)}</div>
-        <div class="case-detail-actions">${actions}</div>`;
+    content.innerHTML = `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
+        <div>${getStatusBadge(item.status)}</div>
+        <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(item.jenis)}</dd>
+        <dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
+        ${isAdmin ? `<dt>${uxText('Mahasiswa','Student')}</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
+        <dt>${uxText('Nomor','ID')}</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
+        <h3>${uxText('Detail','Details')}</h3><div class="case-content-block">${sanitizeRichHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div>
+        <h3>${uxText('Berkas','Documents')}</h3><div class="case-content-block">${caseFileListHtml(item)}</div>
+        <div id="case-file-preview" hidden><iframe title="Pratinjau berkas" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
+        <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
+        <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
+        <h3>${uxText('Tindakan','Actions')}</h3><p>${escapeHtml(caseNextStep(item))}</p>
+        <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
+        <div id="case-action-panel" hidden></div></aside></div>`;
+    content.querySelectorAll('[data-preview-index]').forEach(button => button.addEventListener('click', () => previewCaseFile(Number(button.dataset.previewIndex))));
     const modal = document.getElementById('modal-case-detail');
     modal.style.display = 'flex';
     modal.style.opacity = '1';
-}
-
-function caseDetailAction(action) {
-    const id = selectedCaseId;
-    closeModal('modal-case-detail');
-    if (action === 'accept') acceptSubmission(id);
-    else if (action === 'revision') openRevisionModal(id);
-    else if (action === 'dospem') openDospemModal(id);
-    else if (action === 'reply') openReplyModal(id);
+    modal.querySelector('.case-close').focus();
 }
 
 function caseMobileCard(item, isAdmin) {
@@ -1736,7 +2005,7 @@ function loadStudentStatus() {
 
             const statCheck = String(item.status).trim().toLowerCase();
             if (statCheck === 'revision' && item.note) {
-                let latestRevNote = "Silakan klik tombol Chat Timeline untuk melihat revisi.";
+                let latestRevNote = "Buka detail pengajuan untuk membaca instruksi perbaikan.";
                 try {
                     const parsedLogs = JSON.parse(item.note);
                     const lastAdminLog = parsedLogs.slice().reverse().find(l => l.role === 'admin');
@@ -1753,7 +2022,7 @@ function loadStudentStatus() {
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
                 <td style="vertical-align:top;"><b>${escapeHtml(item.jenis)}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${detailText}</td>
-                <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}</td>
+                <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p></td>
                 <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
             </tr>`;
         });
@@ -1767,6 +2036,7 @@ function loadStudentStatus() {
     const alertRev = document.getElementById('alert-revision-student');
     if (alertRev) alertRev.style.display = hasRevision ? 'block' : 'none';
 
+    renderTaskHome();
     applyDynamicLanguage();
 }
 
@@ -1829,6 +2099,7 @@ function filterAdminData() {
     });
 
     renderAdminTable();
+    renderTaskHome();
 }
 
 function setAdminQueueFilter(value) {
@@ -1849,6 +2120,8 @@ function renderAdminTable() {
             <span class="lang" data-id="Tidak ada data yang sesuai pencarian." data-en="No matching data found.">${currentLang === 'id' ? 'Tidak ada data yang sesuai pencarian.' : 'No matching data found.'}</span>
         </td></tr>`;
         document.getElementById('admin-page-info').innerText = `Halaman 1 / 1`;
+        document.getElementById('admin-btn-prev').disabled = true;
+        document.getElementById('admin-btn-next').disabled = true;
         const mobileList = document.getElementById('admin-mobile-list');
         if (mobileList) mobileList.innerHTML = '<div class="case-mobile-card">Tidak ada pengajuan yang sesuai.</div>';
         return;
@@ -1865,46 +2138,17 @@ function renderAdminTable() {
     if (mobileList) mobileList.innerHTML = paginatedItems.map(item => caseMobileCard(item, true)).join('');
 
     document.getElementById('admin-page-info').innerText = `Halaman ${currentAdminPage} / ${totalPages}`;
+    document.getElementById('admin-btn-prev').disabled = currentAdminPage <= 1;
+    document.getElementById('admin-btn-next').disabled = currentAdminPage >= totalPages;
 
     paginatedItems.forEach(item => {
-        let formattedLink = sanitizeRichHtml(item.link);
-        if (item.link && item.link.includes('href="')) {
-            const matchUrl = item.link.match(/href="([^"]+)"/);
-            if (matchUrl && matchUrl[1]) {
-                const previewUrl = safeUrl(matchUrl[1]);
-                if (previewUrl !== '#') formattedLink += `<br><button class="btn-preview-doc" onclick="openDocPreview(${escapeHtml(JSON.stringify(previewUrl))})">Preview File</button>`;
-            }
-        }
-
         tbody.innerHTML += `<tr>
-            <td style="font-size:13px; vertical-align:top;">${formatDateTime(getCaseEventTime(item))}</td>
-                <td style="vertical-align:top;">${escapeHtml(item.nim)}<br><b>${escapeHtml(item.nama)}</b></td>
-                <td style="vertical-align:top;"><b>${escapeHtml(item.jenis)}</b></td>
-                <td style="vertical-align:top;">${formattedLink}</td>
-            <td style="text-align:center; vertical-align:top;">
-                ${getStatusBadge(item.status)}<br>
-                <button type="button" class="btn-chat-log" data-case-id="${escapeHtml(item.id)}" style="margin-top:6px;">Buka Detail</button>
-            </td>
-                       <td style="min-width:130px; vertical-align:top;">
-                ${(() => {
-                const stat = String(item.status).trim().toLowerCase();
-                
-                // Jika statusnya Diterima ATAU Revisi, sembunyikan tombol menjadi "-"
-                if (stat === 'accepted' || stat === 'revision') return '-';
-
-                let buttons = '';
-                if (item.jenis === 'Outline') {
-                    buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem" data-en="Assign Dospem">Tunjuk Dospem</button>`;
-                } else if (item.jenis === 'Pergantian Pembimbing') {
-                    buttons += `<button class="action-btn lang" style="background: rgba(129, 145, 47, 0.15); color: var(--umy-green); border: 1px solid rgba(129, 145, 47, 0.3);" onclick="openDospemModal('${item.id}')" data-id="Tunjuk Dospem Baru" data-en="Assign New Dospem">Tunjuk Dospem Baru</button>`;
-                } else {
-                    buttons += `<button class="action-btn btn-acc lang" onclick="acceptSubmission('${item.id}')" data-id="Terima" data-en="Accept">${currentLang === 'id' ? 'Terima' : 'Accept'}</button>`;
-                }
-                buttons += `<button class="action-btn btn-rev lang" onclick="openRevisionModal('${item.id}')" data-id="Revisi" data-en="Revise">${currentLang === 'id' ? 'Revisi' : 'Revise'}</button>`;
-
-                return buttons;
-            })()}
-            </td>
+            <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
+            <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
+            <td><strong>${escapeHtml(item.jenis)}</strong></td>
+            <td class="queue-next-step">${escapeHtml(caseNextStep(item))}</td>
+            <td>${getStatusBadge(item.status)}</td>
+            <td><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${uxText('Buka Pengajuan','Open Request')}</button></td>
         </tr>`;
     });
     applyDynamicLanguage();
@@ -2063,10 +2307,10 @@ function openChatTimeline(id) {
 // ==========================================
 const activeUpdateIds = new Set();
 async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = null) {
-    if (activeUpdateIds.has(id)) return;
+    if (activeUpdateIds.has(id)) return false;
     if (isOffline) {
         showToast(currentLang === 'id' ? "Tidak dapat menyimpan saat offline." : "Cannot save while offline.", "error");
-        return;
+        return false;
     }
     activeUpdateIds.add(id);
     showLoader(currentLang === 'id' ? 'Sedang Memproses...' : 'Processing...');
@@ -2122,37 +2366,23 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
             
             showToast("Status berhasil diperbarui!", "success");
             await syncDatabase();
+            return true;
         } else {
             showToast("Gagal: " + (result.message || "Error tidak diketahui"), "error");
+            return false;
         }
     } catch (err) { 
         showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error"); 
+        return false;
     } finally { 
         activeUpdateIds.delete(id);
         hideLoader(); 
     }
 }
 
-function acceptSubmission(id) {
-    const msg = currentLang === 'id' ? "Apakah Anda yakin ingin memverifikasi/menyetujui berkas ini?" : "Are you sure you want to approve this file?";
-    if (confirm(msg)) sendUpdateRequest(id, 'Accepted', currentLang === 'id' ? 'Berkas telah disetujui dan terverifikasi.' : 'File approved and verified.');
-}
-
-function openRevisionModal(id) {
-    document.getElementById('hidden-rev-id').value = id; document.getElementById('input-rev-note').value = "";
-    const modal = document.getElementById('modal-revision'); modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
-}
-
-function openDospemModal(id) {
-    document.getElementById('hidden-dospem-id').value = id;
-    
-    // Auto-update dropdown dosen
-    populateDospemDropdown();
-
-    const modal = document.getElementById('modal-dospem');
-    modal.style.display = 'flex';
-    setTimeout(() => { modal.style.opacity = '1'; }, 10);
-}
+function acceptSubmission(id) { openCaseDetail(id); caseDetailAction('accept'); }
+function openRevisionModal(id) { openCaseDetail(id); caseDetailAction('revision'); }
+function openDospemModal(id) { openCaseDetail(id); caseDetailAction('dospem'); }
 
 function submitAdminDospem() {
     const id = document.getElementById('hidden-dospem-id').value;
@@ -2177,11 +2407,7 @@ function submitAdminRevision() {
     closeModal('modal-revision'); sendUpdateRequest(id, 'Revision', note);
 }
 
-function openReplyModal(id) {
-    document.getElementById('hidden-reply-id').value = id; document.getElementById('input-reply-note').value = "";
-    document.getElementById('input-reply-file').value = ""; document.getElementById('name-reply-file').innerText = "";
-    const modal = document.getElementById('modal-reply'); modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
-}
+function openReplyModal(id) { openCaseDetail(id); caseDetailAction('reply'); }
 
 async function submitStudentReply() {
     const id = document.getElementById('hidden-reply-id').value; const note = document.getElementById('input-reply-note').value.trim();
@@ -2194,9 +2420,11 @@ async function submitStudentReply() {
     } catch (err) { showToast(err.message, "error"); }
 }
 
-function closeModal(modalId) {
+function closeModal(modalId, force = false) {
+    if (!force && modalId === 'modal-case-detail' && (isPreparingCorrection || activeUpdateIds.has(selectedCaseId))) return;
     const modal = document.getElementById(modalId);
     if (!modal) return;
+    if (force) { modal.style.display = 'none'; modal.style.opacity = '0'; return; }
     if (modal.tagName && modal.tagName.toLowerCase() === 'dialog') {
         modal.close();
     } else {
@@ -2212,9 +2440,11 @@ function toggleDarkMode() {
 function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); }
 
 function switchTab(event, tabId) {
+    document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     if (event && event.currentTarget) event.currentTarget.classList.add('active');
+    else document.querySelectorAll('.nav-item').forEach(item => { if ((item.getAttribute('onclick') || '').includes("'" + tabId + "'")) item.classList.add('active'); });
     const target = document.getElementById(tabId);
     if (target) {
         target.classList.remove('active'); void target.offsetWidth; target.classList.add('active');
@@ -2302,7 +2532,7 @@ function renderDashboardCharts(records) {
 
     const ctxRatio = document.getElementById('ratioChart');
     const ctxType = document.getElementById('typeChart');
-    if (!ctxRatio || !ctxType) return;
+    if (!ctxRatio || !ctxType || typeof Chart === 'undefined') return;
 
     if (ratioChartInstance) ratioChartInstance.destroy();
     if (typeChartInstance) typeChartInstance.destroy();
@@ -2616,4 +2846,19 @@ document.querySelectorAll('.overlay').forEach(overlay => {
             closeModal(this.id);
         }
     });
+});
+
+const secondaryDashboard = document.querySelector('.dashboard-secondary');
+if (secondaryDashboard) secondaryDashboard.addEventListener('toggle', () => {
+    if (secondaryDashboard.open && typeof Chart !== 'undefined') {
+        secondaryDashboard.querySelectorAll('canvas').forEach(canvas => { const chart = Chart.getChart?.(canvas); if (chart) chart.resize(); });
+    }
+});
+document.addEventListener('keydown', event => {
+    const modal = document.getElementById('modal-case-detail');
+    if (event.key !== 'Tab' || modal.style.display !== 'flex') return;
+    const controls = [...modal.querySelectorAll('button, a[href], input, textarea, select')].filter(el => !el.disabled && el.getClientRects().length > 0);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 });

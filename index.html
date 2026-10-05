@@ -33,7 +33,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 
-<body>
+<body class="transaction-view">
 
     <!-- 9. Offline Indicator -->
     <div id="offline-indicator"
@@ -391,7 +391,7 @@
                 data-id="Status Pengajuanku" data-en="My Request Status">Status Pengajuanku</li>
 
             <li class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')"
-                data-id="Data Pendaftar" data-en="Registered Data">Data Pendaftar</li>
+                data-id="Antrean Pengajuan" data-en="Request Queue">Antrean Pengajuan</li>
             <li class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-id="Plotting Dosen" data-en="Lecturer Quota">Plotting Kuota Dosen</li>
             <li class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')"
                 data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li>
@@ -493,8 +493,10 @@
 
         <!-- 1. Dashboard Baru yang Lebih Ringkas -->
         <div id="dashboard" class="tab-content active">
-            <h1 class="lang" data-id="Dashboard Akademik" data-en="Academic Dashboard">Dashboard Akademik</h1>
+            <h1 class="lang" data-id="Beranda" data-en="Home">Beranda</h1>
+            <section id="task-home" aria-label="Tugas dan pengajuan Anda" aria-live="polite"></section>
 
+            <details class="dashboard-secondary"><summary>Ringkasan & layanan akademik</summary>
             <!-- ADMIN DASHBOARD -->
             <div class="bento-grid admin-only">
                 <!-- KOTAK BROADCAST SUDAH DIPERBAIKI: HANYA ADA SATU CLASS & TIDAK ADA INLINE STYLE -->
@@ -513,13 +515,13 @@
                     </div>
                     <div class="stat-cards-grid">
                         <div class="stat-card stat-pending"><span class="stat-num" id="stat-count-pending">0</span><span
-                                class="stat-label">Pending</span></div>
+                                class="stat-label">Menunggu admin</span></div>
                         <div class="stat-card stat-resubmitted"><span class="stat-num"
-                                id="stat-count-resubmitted">0</span><span class="stat-label">Resubmitted</span></div>
+                                id="stat-count-resubmitted">0</span><span class="stat-label">Perbaikan masuk</span></div>
                         <div class="stat-card stat-revision"><span class="stat-num"
-                                id="stat-count-revision">0</span><span class="stat-label">Revisi</span></div>
+                                id="stat-count-revision">0</span><span class="stat-label">Menunggu mahasiswa</span></div>
                         <div class="stat-card stat-accepted"><span class="stat-num"
-                                id="stat-count-accepted">0</span><span class="stat-label">Accepted</span></div>
+                                id="stat-count-accepted">0</span><span class="stat-label">Selesai</span></div>
                     </div>
                 </div>
 
@@ -618,6 +620,7 @@
                     </div>
                 </div>
             </div>
+            </details>
         </div>
 
         <!-- 7. Status Checklist Dokumen yang Jelas (Magang & Skripsi) -->
@@ -673,9 +676,10 @@
                     </select>
                 </div>
 
-                <form id="dynamic-exam-form" onsubmit="submitForm(event)"
+                <form id="dynamic-exam-form" onsubmit="reviewRegistration(event)" novalidate
                     style="display: none; margin-top: 25px; border-top: 1px solid var(--item-border); padding-top: 25px;">
                     <p id="form-submit-status" class="form-submit-status" role="status" aria-live="polite"></p>
+                    <div id="registration-fields">
                     <div class="form-group" id="group-judul">
                         <label for="reg-judul">Judul Skripsi / Tugas Akhir *</label>
                         <input type="text" id="reg-judul" placeholder="Masukkan judul..." required>
@@ -706,7 +710,7 @@
                     </div>
                     <div id="req-pendadaran" style="display:none;">
                         <div class="form-group">
-                            <label for="file-folder-pendadaran">Upload Berkas Pendadaran (PDF/ZIP, Max 10MB) *</label>
+                            <label for="file-folder-pendadaran">Upload Berkas Pendadaran (PDF/ZIP/RAR, Max 10MB) *</label>
                             <input type="file" id="file-folder-pendadaran" accept=".pdf,.zip,.rar"
                                 onchange="validateFile(this, 'name-pendadaran-badge')">
                             <div id="name-pendadaran-badge"></div>
@@ -747,8 +751,11 @@
                         </div>
                     </div>
 
-                    <button type="submit" id="btn-submit-registration" class="btn-primary"
-                        style="background-color: var(--umy-maroon); margin-top:30px;">Kirim Pendaftaran</button>
+                    </div>
+                    <div id="registration-review" hidden aria-live="polite"></div>
+                    <button type="submit" id="btn-review-registration" class="btn-primary" style="margin-top:20px;">Periksa Ringkasan</button>
+                    <button type="button" onclick="submitForm(event)" id="btn-submit-registration" hidden class="btn-primary"
+                        style="background-color: var(--umy-maroon); margin-top:20px;">Konfirmasi & Kirim</button>
                 </form>
             </div>
         </div>
@@ -775,27 +782,26 @@
         </div>
 
         <div id="admin-data" class="tab-content">
-            <h1>Data Pendaftaran Mahasiswa</h1>
+            <h1>Antrean Pengajuan Mahasiswa</h1>
             <div id="admin-queue-summary" class="admin-queue-summary" aria-label="Ringkasan antrean pengajuan"></div>
             <div class="card" style="padding: 16px;">
                 <div class="admin-table-controls">
                     <input type="text" id="admin-search-input" placeholder="Cari Nama / NIM..."
-                        onkeyup="debounceAdminSearch()">
+                        oninput="debounceAdminSearch()">
                     <select id="admin-status-filter" onchange="filterAdminData()">
                         <option value="ACTION_REQUIRED" selected>Perlu Ditinjau</option>
                         <option value="ALL">-- Semua Status --</option>
-                        <option value="Pending">Sedang Diverifikasi</option>
-                        <option value="Revision">Perlu Revisi</option>
-                        <option value="Resubmitted">Direvisi Mhs</option>
-                        <option value="Accepted">Diterima</option>
+                        <option value="Pending">Menunggu admin</option>
+                        <option value="Revision">Menunggu mahasiswa</option>
+                        <option value="Resubmitted">Perbaikan menunggu admin</option>
+                        <option value="Accepted">Selesai</option>
                     </select>
-                    <button class="btn-primary" onclick="exportAdminDataCSV()"
-                        style="background-color: var(--umy-green); width: auto;">Ekspor CSV</button>
-                    <!-- TOMBOL KOSONGKAN DATA -->
-                    <button class="btn-primary lang" onclick="deleteAllRegistrations()"
-                        style="background-color: var(--umy-maroon); width: auto;" data-id="Kosongkan Data"
-                        data-en="Clear All Data">Kosongkan Data</button>
                 </div>
+                <details class="data-management"><summary>Pengelolaan data</summary>
+                    <p>Unduh rekap atau kelola seluruh data pendaftaran.</p>
+                    <div class="button-row"><button type="button" class="btn-secondary" onclick="exportAdminDataCSV()">Ekspor CSV</button>
+                    <button type="button" class="btn-secondary danger-action" onclick="deleteAllRegistrations()">Kosongkan Data</button></div>
+                </details>
                 <div id="admin-mobile-list" class="case-mobile-list"></div>
                 <div class="responsive-table-wrapper case-desktop-table" style="max-height: 60vh;">
                     <table id="admin-table-main">
@@ -805,9 +811,9 @@
                                         id="admin-sort-icon"></span></th>
                                 <th class="sticky-th">Mahasiswa</th>
                                 <th class="sticky-th">Jenis Formulir</th>
-                                <th class="sticky-th">Link Berkas</th>
+                                <th class="sticky-th">Langkah Berikutnya</th>
                                 <th class="sticky-th">Status</th>
-                                <th class="sticky-th">Aksi</th>
+                                <th class="sticky-th">Detail</th>
                             </tr>
                         </thead>
                         <tbody id="table-admin-reg"></tbody>
