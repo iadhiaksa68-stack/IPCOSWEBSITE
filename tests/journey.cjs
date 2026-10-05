@@ -4,7 +4,7 @@ const path = require('node:path');
 const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nTEST ONLY')};
 (async () => {
     const browser = await chromium.launch();
-    const context = await browser.newContext({viewport:{width:1365,height:900}});
+    const context = await browser.newContext({reducedMotion:"reduce",viewport:{width:1365,height:900}});
     let records = [], contents = [], calls = [], errors = [], permit = true;
     await context.route('**/*', async route => {
         const url = route.request().url();

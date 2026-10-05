@@ -2,7 +2,7 @@ const {chromium}=require('./browser.cjs');
 const fs=require('node:fs');const reports=[];
 const record=(id,nim)=>({id,nim,nama:'Mahasiswa '+nim,jenis:'Proposal',status:'Accepted',date:new Date().toISOString(),detail:'Judul '+nim,link:'',note:'[]'});
 (async()=>{
-const browser=await chromium.launch({});const context=await browser.newContext();let calls=[],delayRead=false,failRead=false;let releaseRead;let holdCreates=false;let createReleases=[];
+const browser=await chromium.launch({});const context=await browser.newContext({reducedMotion:"reduce"});let calls=[],delayRead=false,failRead=false;let releaseRead;let holdCreates=false;let createReleases=[];
 await context.route('**/*',async route=>{
 const url=route.request().url();if(url.includes('script.google.com/macros/')){
 const data=route.request().postDataJSON();calls.push(data);let result;

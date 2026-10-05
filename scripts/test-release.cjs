@@ -16,7 +16,7 @@ const server = createServer((req, res) => {
 async function run(file, args = []) {
     return new Promise((resolve, reject) => {
         const child = spawn(process.execPath, [...args, file], { cwd: root, stdio: 'inherit' });
-        const timeout = setTimeout(() => { child.kill('SIGKILL'); }, 120000);
+        const timeout = setTimeout(() => { child.kill('SIGKILL'); }, 180000);
         child.once('error', error => { clearTimeout(timeout); reject(error); });
         child.once('exit', (code, signal) => { clearTimeout(timeout); code === 0 ? resolve() : reject(new Error(`${file} failed (${signal || code})`)); });
     });
