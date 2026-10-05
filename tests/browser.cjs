@@ -8,9 +8,12 @@ exports.chromium = { async launch() {
     if (process.platform === 'darwin' && fs.existsSync(local)) return playwright.launch({ executablePath: local, headless: true }).then(remember);
     if (process.platform === 'linux') {
         const { default: chromium } = await import('@sparticuz/chromium');
+        // Build machines have no GPU. These tests use ordinary HTML/2D canvas,
+        // so avoid a shared SwiftShader process that can stop frame updates.
+        chromium.setGraphicsMode = false;
         // Multiple role tabs need separate renderers; the Lambda single-process
         // optimization can freeze animation frames when opening a second page.
-        const args = chromium.args.filter(arg => arg !== '--single-process' && !arg.startsWith('--headless='));
+        const args = ['--disable-gpu', ...chromium.args.filter(arg => !['--single-process', '--in-process-gpu'].includes(arg) && !arg.startsWith('--headless='))];
         return playwright.launch({ args, executablePath: await chromium.executablePath(), headless: true }).then(remember);
     }
     throw new Error('Set IPCOS_TEST_BROWSER to a local Chrome/Chromium executable.');
