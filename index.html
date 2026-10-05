@@ -25,9 +25,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap"
         rel="stylesheet">
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Zz48cGF0aCBkPSJNMTAgNTAgTDIwIDEwIEw0NSAzNSBMNTUgMzUgTDgwIDEwIEw5MCA1MCBMOTAgMTAwIEwxMCAxMDAgWiIgZmlsbD0iI0Y0QjMyNCIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iNTUiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjU1IiByPSI4IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iMzAiIGN5PSI1NSIgcj0iNCIgZmlsbD0iIzFBMUExQSIvPjxjaXJjbGUgY3g9IjcwIiBjeT0iNTUiIHI9IjQiIGZpbGw9IiMxQTFBMUEiLz48cG9seWdvbiBwb2ludHM9IjQ1LDY4IDU1LDY4IDUwLDc0IiBmaWxsPSIjRkY4REExIi8+PHBhdGggZD0iTTUwIDc0IFE0MCA4NCAzMCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lidGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTUwIDc0IFE2MCA4NCA3MCA3MiIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIi8+PGxpbmUgeDE9IjI1IiB5MT0iNjUiIHgyPSI1IiB5Mj0iNjAiIHN0cm9rZT0iIzFBMUExQSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjUiIHkxPSI3MCIgeDI9IjUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9YjY1IiB4Mj0iOTUiIHkyPSI2MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI3NSIgeTE9IjcwIiB4Mj0iOTUiIHkyPSI3MCIgc3Ryb2tlPSIjMUExQTFBIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=">
+    <!-- Lightweight IPCOS mark, matching the sidebar identity. -->
+    <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg?v=2">
 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="ui.css">
@@ -362,12 +361,12 @@
     </div>
 
     <!-- Sidebar & Nav -->
-    <div class="mobile-nav-toggle" onclick="toggleSidebar()">
+    <button type="button" class="mobile-nav-toggle" onclick="toggleSidebar()" aria-label="Buka menu navigasi" aria-controls="main-sidebar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M3 12h18M3 6h18M3 18h18" />
         </svg>
         <span>Menu</span>
-    </div>
+    </button>
 
     <nav class="sidebar" id="main-sidebar" aria-label="Navigasi utama">
         <!-- 10. Penyegaran Identitas Visual dengan Logo Baru (Abstract Concept) -->
@@ -388,36 +387,36 @@
 
         <ul class="nav-tabs">
             <div class="nav-header lang" data-id="Akademik" data-en="Academics">Akademik</div>
-            <li tabindex="0" role="button" class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-id="Dashboard Utama"
+            <li tabindex="0" role="button" class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-nav-icon="dashboard" data-id="Dashboard Utama"
                 data-en="Main Dashboard">Dashboard Utama</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'magang')" data-id="Kewajiban Magang"
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'magang')" data-nav-icon="magang" data-id="Kewajiban Magang"
                 data-en="Internship Requirements">Kewajiban Magang</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-id="Kewajiban Skripsi"
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-nav-icon="skripsi" data-id="Kewajiban Skripsi"
                 data-en="Thesis Requirements">Kewajiban Skripsi</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-id="Sebaran Mata Kuliah"
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-nav-icon="kurikulum" data-id="Sebaran Mata Kuliah"
                 data-en="Course Curriculum">Sebaran Mata Kuliah</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-id="SOP Remidial"
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-nav-icon="remidial" data-id="SOP Remidial"
                 data-en="Remedial SOP">SOP Remidial</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kalender')" data-id="Kalender Akademik"
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kalender')" data-nav-icon="kalender" data-id="Kalender Akademik"
                 data-en="Academic Calendar">Kalender Akademik</li>
 
             <div class="nav-header lang" data-id="Layanan" data-en="Services">Layanan</div>
-            <li tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-id="Pusat Pendaftaran"
+            <li tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-nav-icon="pendaftaran" data-id="Pusat Pendaftaran"
                 data-en="Registration Center">Pusat Pendaftaran</li>
-            <li tabindex="0" role="button" class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')"
+            <li tabindex="0" role="button" class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-nav-icon="student-status"
                 data-id="Status Pengajuanku" data-en="My Request Status">Status Pengajuanku</li>
 
-            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')"
+            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-nav-icon="admin-data"
                 data-id="Antrean Pengajuan" data-en="Request Queue">Antrean Pengajuan</li>
-            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-id="Plotting Dosen" data-en="Lecturer Quota">Plotting Kuota Dosen</li>
-            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')"
+            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-nav-icon="admin-dosen" data-id="Plotting Dosen" data-en="Lecturer Quota">Plotting Kuota Dosen</li>
+            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
                 data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li>
 
             <div class="nav-header lang" data-id="Pusat Bantuan" data-en="Help Center">Pusat Bantuan</div>
             <!-- 8. Menu Template Download & FAQ -->
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-id="Template & FAQ"
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-nav-icon="templates-faq" data-id="Template & FAQ"
                 data-en="Templates & FAQ">Template & FAQ</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'feedback')" data-id="Kontak Kami" data-en="Contact Us">
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'feedback')" data-nav-icon="feedback" data-id="Kontak Kami" data-en="Contact Us">
                 Kontak Kami</li>
         </ul>
 
@@ -454,8 +453,8 @@
 
                 <!-- 4. Dynamic Notification Center -->
                 <div style="position: relative; cursor: pointer;" id="notif-wrapper">
-                    <div style="background: var(--item-bg); border: 1px solid var(--item-border); padding: 10px; border-radius: 50%; position: relative;"
-                        onclick="toggleNotifDropdown(event)" aria-label="Buka Pusat Notifikasi">
+                    <button type="button" class="notification-toggle" style="background: var(--item-bg); border: 1px solid var(--item-border); padding: 10px; border-radius: 50%; position: relative;"
+                        onclick="toggleNotifDropdown(event)" aria-label="Buka Pusat Notifikasi" aria-controls="notif-dropdown">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -463,7 +462,7 @@
                         </svg>
                         <span id="notif-badge"
                             style="display: none; position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; background: var(--umy-maroon); color: white; border-radius: 50%; font-size: 10px; font-weight: 800; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-color);">0</span>
-                    </div>
+                    </button>
                     <div id="notif-dropdown"
                         style="display: none; position: absolute; top: 110%; right: 0; background: var(--card-bg); width: 320px; border: 1px solid var(--card-border); border-radius: 14px; box-shadow: var(--shadow-floating); z-index: 1500; overflow: hidden;">
                         <div
