@@ -5,7 +5,8 @@
   "engines": { "node": "24.x" },
   "scripts": {
     "test": "node scripts/test-release.cjs",
-    "build": "npm test && node scripts/build-static.cjs"
+    "build": "npm test && node scripts/build-static.cjs",
+    "build:deploy": "node scripts/verify-ci.cjs && node scripts/build-static.cjs"
   },
   "devDependencies": {
     "@sparticuz/chromium": "153.0.0",

@@ -1,0 +1,13 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {releaseDecision,verifyCommit}=require('../scripts/verify-ci.cjs');
+const sha='a'.repeat(40);
+const good={head_sha:sha,path:'.github/workflows/release-checks.yml',head_repository:{full_name:'iadhiaksa68-stack/IPCOSWEBSITE'},status:'completed',conclusion:'success',html_url:'https://github.com/iadhiaksa68-stack/IPCOSWEBSITE/actions/runs/1'};
+test('accepts successful role tests for the exact source commit',()=>assert.equal(releaseDecision([good],sha).state,'passed'));
+test('does not accept tests for another commit',()=>assert.equal(releaseDecision([{...good,head_sha:'b'.repeat(40)}],sha).state,'waiting'));
+test('does not accept another repository or workflow',()=>{assert.equal(releaseDecision([{...good,head_repository:{full_name:'other/repo'}}],sha).state,'waiting');assert.equal(releaseDecision([{...good,path:'.github/workflows/other.yml'}],sha).state,'waiting');});
+test('failed, cancelled and timed-out checks block release',async()=>{for(const conclusion of ['failure','cancelled','timed_out'])await assert.rejects(verifyCommit(sha,{fetchRuns:async()=>[{...good,conclusion}]}),/failed/);});
+test('queued latest rerun takes precedence over older success',()=>assert.equal(releaseDecision([{...good,status:'queued'},good],sha).state,'waiting'));
+test('waits until the correct commit finishes successfully',async()=>{let calls=0;const result=await verifyCommit(sha,{fetchRuns:async()=>++calls===1?[{...good,status:'in_progress'}]:[good],pause:async()=>{},attempts:2});assert.equal(calls,2);assert.equal(result.state,'passed');});
+test('missing success and invalid commit fail closed',async()=>{await assert.rejects(verifyCommit(sha,{fetchRuns:async()=>[],pause:async()=>{},attempts:1}),/blocked/);await assert.rejects(verifyCommit('main'),/SHA/);});
+test('network failure cannot bypass the gate',async()=>assert.rejects(verifyCommit(sha,{fetchRuns:async()=>{throw Error('Network failed');}}),/Network failed/));

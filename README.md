@@ -16,6 +16,8 @@ Six browser suites verify transactions, regressions, workflow continuity, privat
 
 On macOS the tests use installed Google Chrome; on Linux they use the pinned bundled headless Chromium. For other environments set `IPCOS_TEST_BROWSER` to an installed Chrome/Chromium executable.
 
-GitHub Actions checks pushes to main and pull requests. Vercel also runs the full test gate during each build: a failing test returns a nonzero exit and prevents publication. Build output contains only the nine website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
+GitHub Actions runs all six browser suites and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
+
+Vercel installs no browser dependencies. Build output contains only the nine website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
 
 Tests cover the supported scenarios, not a guarantee against every possible bug. Backend releases must also run their own Apps Script checks because the backend is deployed separately.

@@ -23,6 +23,7 @@ async function run(file, args = []) {
 }
 (async () => {
     for (const file of assets.filter(name => name.endsWith('.js'))) await run(file, ['--check']);
+    await run('tests/release-gate.cjs', ['--test']);
     mkdirSync(path.join(root, 'test-results'), { recursive: true });
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(8766, '127.0.0.1', resolve); });
     for (const suite of suites) await run(`tests/${suite}.cjs`);
