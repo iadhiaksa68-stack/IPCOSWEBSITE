@@ -210,8 +210,8 @@ function renderSearchResults(query) {
     }
 
     const q = query.toLowerCase();
-    const results = searchDatabase.filter(item =>
-        item.title.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q)
+    const results = searchDatabase.filter(item => canAccessTab(item.tab) && (
+        item.title.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q))
     );
 
     if (results.length === 0) {
@@ -397,7 +397,13 @@ function animateDoodles() {
 // ==========================================
 let DB_MAHASISWA = {};
 let currentUser = { nim: '', nama: '', role: '', token: '' };
-let isDbLoaded = false; 
+let sessionEpoch = 0;
+let readVersion = 0;
+let loginAttempt = 0;
+let loginBusy = false;
+const apiRequestContexts = new WeakMap();
+const modalCloseTimers = new Map();
+let isDbLoaded = false;
 
 function getSessionToken() {
     if (currentUser.token) return currentUser.token;
@@ -405,29 +411,54 @@ function getSessionToken() {
     catch (_) { sessionStorage.removeItem('ipcos_session'); return ''; }
 }
 
+function staleRequestError() { const error = new Error('Permintaan dari sesi lama diabaikan.'); error.staleSession = true; return error; }
+function readStoredJSON(storage, key, fallback) {
+    try {
+        const value = JSON.parse(storage.getItem(key) || JSON.stringify(fallback));
+        if (Array.isArray(fallback) ? !Array.isArray(value) : !value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid cache');
+        return value;
+    } catch (_) { storage.removeItem(key); return fallback; }
+}
 function apiPost(url, options) {
     const payload = JSON.parse(options.body || '{}');
-    payload.token = getSessionToken();
-    return fetch(url, { ...options, body: JSON.stringify(payload) });
+    const context = { token: getSessionToken(), epoch: sessionEpoch, action: payload.action };
+    payload.token = context.token;
+    return fetch(url, { ...options, body: JSON.stringify(payload) }).then(response => { apiRequestContexts.set(response, context); return response; });
 }
-
-async function apiPostSuccess(url, options) {
-    const response = await apiPost(url, options);
+async function readApiResult(response) {
     const result = await response.json();
+    const context = apiRequestContexts.get(response);
+    if (context && !['student_login', 'admin_login', 'logout'].includes(context.action)) {
+        if (context.epoch !== sessionEpoch || context.token !== getSessionToken()) throw staleRequestError();
+        if (result.status === 'error' && /sesi|session|token/i.test(result.message || '')) expireSession();
+    }
+    return result;
+}
+async function apiPostSuccess(url, options) {
+    const result = await readApiResult(await apiPost(url, options));
     if (result.status !== 'success') throw new Error(result.message || 'Permintaan gagal.');
     return result;
 }
-
-function apiRead() {
-    return apiPost(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'get_data' }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    }).then(async response => {
-        const data = await response.json();
-        if (data.status === 'error') throw new Error(data.message || 'Akses data ditolak.');
-        return data;
-    });
+async function apiRead() {
+    const version = ++readVersion;
+    const data = await readApiResult(await apiPost(GAS_URL, {
+        method: 'POST', body: JSON.stringify({ action: 'get_data' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    }));
+    if (version !== readVersion) throw staleRequestError();
+    if (data.status === 'error') throw new Error(data.message || 'Akses data ditolak.');
+    return data;
+}
+function expireSession() {
+    sessionStorage.removeItem('ipcos_session');
+    currentUser = { nim: '', nama: '', role: '', token: '' };
+    loginAttempt++; loginBusy = false;
+    clearPrivateCache();
+    document.getElementById('student-header').style.display = 'none';
+    switchTab(null, 'dashboard');
+    document.getElementById('welcome-modal').style.display = 'flex';
+    document.getElementById('welcome-modal').style.opacity = '1';
+    resetLoginButtons();
+    showToast(uxText('Sesi berakhir. Silakan masuk lagi.', 'Session expired. Please log in again.'), 'error');
 }
 
 // ==========================================
@@ -453,7 +484,7 @@ function normalizeData(registrations) {
 
         if (r.status) r.status = String(r.status).trim();
         const safeStatus = String(r.status || '').trim().toLowerCase();
-        
+
         const isExplicitDecision = safeStatus === 'revision' || safeStatus === 'resubmitted';
         if (r.dospem && String(r.dospem).trim() !== '' && safeStatus !== 'accepted' && !isExplicitDecision) {
             r.status = 'Accepted';
@@ -488,13 +519,40 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
-    ['ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft', 'ipcos_pending_submission'].forEach(key => sessionStorage.removeItem(key));
+    sessionEpoch++; readVersion++;
+    ['ipcos_students', 'ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft', 'ipcos_pending_submission'].forEach(key => sessionStorage.removeItem(key));
+    DB_MAHASISWA = {}; isDbLoaded = false; selectedCaseId = ''; lastSubmittedCaseId = '';
+    currentAdminPage = 1; adminFilteredData = []; currentNotificationIds = [];
+    isSubmittingRegistration = false; isPreparingCorrection = false; activeUpdateIds.clear(); postingAnnouncement = false; hideLoader();
+    ['btn-submit-registration', 'btn-edit-registration'].forEach(id => { const button = document.getElementById(id); if (button) button.disabled = false; });
+    document.getElementById('btn-submit-registration').textContent = uxText('Konfirmasi & Kirim', 'Confirm & Send');
+    document.getElementById('dynamic-exam-form').reset();
+    document.getElementById('reg-jenis-utama').value = ''; document.getElementById('reg-jenis-utama').disabled = false;
+    document.getElementById('dynamic-exam-form').style.display = 'none';
+    document.getElementById('registration-fields').hidden = false; document.getElementById('registration-review').hidden = true;
+    document.getElementById('btn-review-registration').hidden = false; document.getElementById('btn-submit-registration').hidden = true;
+    document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; });
+    document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); });
+    document.querySelectorAll('.overlay').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
+    ['table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    document.querySelectorAll('.admin-only, .student-only').forEach(el => { el.style.display = 'none'; });
+    document.querySelectorAll('.chk-magang, .chk-skripsi').forEach(el => { el.checked = false; });
+    document.getElementById('admin-search-input').value = ''; document.getElementById('admin-status-filter').value = 'ACTION_REQUIRED';
+    ['input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama','input-rev-note','input-reply-note','input-reply-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    editorTempData = [];
+}
+function renderCachedTransactions() {
+    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
+    if (currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(records); renderDosenTable(); renderMasterMahasiswa(readStoredJSON(sessionStorage, 'ipcos_students', [])); }
+    else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(records); }
+    renderNotifications();
 }
 
 function syncDatabase() {
     if (!getSessionToken()) return Promise.resolve();
     if (isOffline) {
-        const cachedRegs = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+        const cachedRegs = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
         if (currentUser.role === 'admin') { loadAdminData(); renderDashboardCharts(cachedRegs); }
         else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(cachedRegs); }
         renderNotifications();
@@ -511,12 +569,23 @@ function syncDatabase() {
     return apiRead()
         .then(data => {
 
+            applyDatabaseSnapshot(data);
+        })
+        .catch(error => {
+            if (error.staleSession || !getSessionToken()) return;
+            renderCachedTransactions();
+            showToast(uxText('Gagal menyegarkan data. Data terakhir tetap ditampilkan.', 'Refresh failed. Showing the last available data.'), 'error');
+        });
+}
+
+function applyDatabaseSnapshot(data) {
+            if (!Array.isArray(data.registrations || [])) throw new Error('Data pengajuan belum dapat dibaca.');
             data.registrations = normalizeData(data.registrations);
 
             sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
             sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
             renderNotifications();
-            
+
             if (data.dosens) {
                 sessionStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
                 if (currentUser.role === 'admin') {
@@ -527,6 +596,7 @@ function syncDatabase() {
 
             DB_MAHASISWA = {};
             if (data.students) {
+                sessionStorage.setItem('ipcos_students', JSON.stringify(data.students));
                 data.students.forEach(m => { DB_MAHASISWA[String(m.NIM)] = m.Nama; });
                 if (currentUser.role === 'admin') renderMasterMahasiswa(data.students);
             }
@@ -551,6 +621,7 @@ function syncDatabase() {
                         document.getElementById('important-announcement-text').innerText = latest.Pesan || latest.message;
                         const modal = document.getElementById('modal-important-announcement');
                         if (modal) {
+                            document.getElementById('chk-dont-show-announcement').checked = false;
                             modal.setAttribute('data-current-ann-id', annId);
                             modal.style.display = 'flex';
                             setTimeout(() => { modal.style.opacity = '1'; }, 10);
@@ -576,26 +647,10 @@ function syncDatabase() {
                 loadStudentStatus();
                 renderActivityTimeline(data.registrations || []);
             }
-        })
-        .catch(error => {
-            console.error("Gagal sync data:", error);
-            if (String(error.message).includes('Sesi')) {
-                sessionStorage.removeItem('ipcos_session');
-                clearPrivateCache();
-                closeModal('modal-case-detail', true);
-                selectedCaseId = '';
-                currentUser = { nim: '', nama: '', role: '', token: '' };
-                renderTaskHome();
-                document.getElementById('welcome-modal').style.display = 'flex';
-                document.getElementById('welcome-modal').style.opacity = '1';
-                showToast('Sesi berakhir. Silakan masuk lagi.', 'error');
-            }
-            isDbLoaded = true; 
-        })
-        .finally(() => { hideLoader(); });
 }
 
 function switchLoginMode(role) {
+    loginAttempt++; loginBusy = false; resetLoginButtons();
     document.getElementById('error-msg-mhs').style.display = 'none';
     document.getElementById('error-msg-admin').style.display = 'none';
 
@@ -612,77 +667,53 @@ function switchLoginMode(role) {
     }
 }
 
-async function loginMhs() {
-    const nimInput = document.getElementById('input-nim').value.trim();
-    const errorMsg = document.getElementById('error-msg-mhs');
-    if (nimInput === "") {
-        errorMsg.innerText = currentLang === 'id' ? "Mohon masukkan NIM Anda." : "Please enter your NIM.";
+function resetLoginButtons() {
+    const student = document.querySelector('#form-mhs button'); const admin = document.querySelector('#form-admin button');
+    student.disabled = false; student.textContent = uxText('Masuk Portal', 'Enter Portal');
+    admin.disabled = false; admin.textContent = uxText('Masuk sebagai Admin', 'Login as Admin');
+}
+async function performLogin(role) {
+    if (loginBusy) return;
+    const student = role === 'mhs';
+    const errorMsg = document.getElementById(student ? 'error-msg-mhs' : 'error-msg-admin');
+    const nim = document.getElementById('input-nim').value.trim();
+    const username = document.getElementById('input-admin-user').value.trim();
+    const password = document.getElementById('input-admin-pass').value.trim();
+    if (student ? !nim : !username || !password) {
+        errorMsg.textContent = student ? uxText('Mohon masukkan NIM Anda.', 'Please enter your student ID.') : uxText('Username dan password wajib diisi.', 'Username and password are required.');
         errorMsg.style.display = 'block'; return;
     }
-
+    if (isOffline) { errorMsg.textContent = uxText('Login membutuhkan koneksi internet.', 'Login requires an internet connection.'); errorMsg.style.display = 'block'; return; }
+    loginBusy = true; const attempt = ++loginAttempt;
+    const button = document.querySelector(student ? '#form-mhs button' : '#form-admin button');
+    button.disabled = true; button.textContent = uxText('Sedang masuk...', 'Logging in...'); errorMsg.style.display = 'none';
     try {
-        const response = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'student_login', nim: nimInput }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
-        const result = await response.json();
-        if (result.status !== 'success' || !result.token) throw new Error(result.message || 'NIM tidak terdaftar.');
-        const student = { nim: nimInput, nama: result.nama, role: 'mhs', token: result.token };
-        sessionStorage.setItem('ipcos_session', JSON.stringify(student));
-        finalizeLogin(student.nama, student.nim, student.role, student.token);
-        showToast(currentLang === 'id' ? `Selamat datang, ${student.nama}!` : `Welcome, ${student.nama}!`);
+        const result = await readApiResult(await apiPost(GAS_URL, { method:'POST', body:JSON.stringify(student ? { action:'student_login', nim } : { action:'admin_login', username, password }), headers:{'Content-Type':'text/plain;charset=utf-8'} }));
+        if (attempt !== loginAttempt) return;
+        if (result.status !== 'success' || !result.token) throw new Error(result.message || uxText('Login gagal. Coba kembali.', 'Login failed. Try again.'));
+        const user = { nim:student ? nim : 'ADMINISTRATOR', nama:student ? result.nama : 'Administrator IPCOS', role, token:result.token };
+        clearPrivateCache();
+        sessionStorage.setItem('ipcos_session', JSON.stringify(user));
+        finalizeLogin(user.nama, user.nim, user.role, user.token);
+        showToast(student ? uxText(`Selamat datang, ${user.nama}!`, `Welcome, ${user.nama}!`) : uxText('Berhasil login sebagai admin.', 'Logged in as admin.'), 'success');
     } catch (error) {
-        errorMsg.innerText = error.message || 'Gagal masuk. Coba lagi.';
-        errorMsg.style.display = 'block';
-    }
+        if (attempt !== loginAttempt) return;
+        errorMsg.textContent = error.message || uxText('Terjadi kesalahan jaringan. Coba kembali.', 'Network error. Try again.'); errorMsg.style.display = 'block';
+    } finally { if (attempt === loginAttempt) { loginBusy = false; resetLoginButtons(); } }
 }
-
-async function loginAdmin() {
-    const userInput = document.getElementById('input-admin-user').value.trim();
-    const passInput = document.getElementById('input-admin-pass').value.trim();
-    const errorMsg = document.getElementById('error-msg-admin');
-    const btnSubmit = document.querySelector('#form-admin button');
-
-    if (!userInput || !passInput) {
-        errorMsg.innerText = currentLang === 'id' ? "Username dan Password wajib diisi!" : "Username and Password are required!";
-        errorMsg.style.display = 'block';
-        return;
-    }
-
-    if (isOffline) {
-        errorMsg.innerText = currentLang === 'id' ? "Anda sedang offline. Login Admin butuh koneksi." : "You are offline. Admin login requires connection.";
-        errorMsg.style.display = 'block';
-        return;
-    }
-
-    const originalText = btnSubmit.innerText;
-    btnSubmit.innerText = currentLang === 'id' ? "Mengecek..." : "Checking...";
-    btnSubmit.disabled = true;
-
-    try {
-        const payload = { action: 'admin_login', username: userInput, password: passInput };
-        const response = await apiPost(GAS_URL, {
-            method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        const result = await response.json();
-
-        if (result.status === "success" && result.token) {
-            const adminData = { nim: 'ADMINISTRATOR', nama: 'Administrator IPCOS', role: 'admin', token: result.token };
-            sessionStorage.setItem('ipcos_session', JSON.stringify(adminData));
-            finalizeLogin(adminData.nama, adminData.nim, adminData.role, adminData.token);
-            showToast(currentLang === 'id' ? "Berhasil login sebagai Admin." : "Logged in as Admin.", "success");
-        } else {
-            errorMsg.innerText = result.message;
-            errorMsg.style.display = 'block';
-        }
-    } catch (error) {
-        errorMsg.innerText = currentLang === 'id' ? "Terjadi kesalahan jaringan." : "Network error occurred.";
-        errorMsg.style.display = 'block';
-    } finally {
-        btnSubmit.innerText = originalText;
-        btnSubmit.disabled = false;
-    }
-}
+function loginMhs() { return performLogin('mhs'); }
+function loginAdmin() { return performLogin('admin'); }
+document.querySelectorAll('#form-mhs input, #form-admin input').forEach(input => input.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    if (!loginBusy) input.form.requestSubmit();
+}));
 
 function finalizeLogin(displayName, displayNim, role, token) {
+    sessionEpoch++;
     currentUser = { nim: displayNim, nama: displayName, role: role, token: token };
+    switchTab(null, 'dashboard');
+    const loginEpoch = sessionEpoch;
     const firstName = displayName.split(' ')[0];
 
     const greetings = ["Hello", "Hey", "Hai", "Halo", "Greetings", "Welcome"];
@@ -720,7 +751,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
         if (document.getElementById('header-subtext')) document.getElementById('header-subtext').innerText = "Role: Administrator";
 
         loadAdminData();
-        const cachedRecords = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+        const cachedRecords = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
         renderDashboardCharts(cachedRecords);
 
     } else {
@@ -743,6 +774,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
     }
 
     setTimeout(() => {
+        if (loginEpoch !== sessionEpoch || getSessionToken() !== token) return;
         document.getElementById('welcome-modal').style.display = 'none';
         scheduleCat();
         syncDatabase();
@@ -753,6 +785,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
 function logoutUser() {
     const msg = currentLang === 'id' ? "Apakah Anda yakin ingin keluar?" : "Are you sure you want to log out?";
     if (confirm(msg)) {
+        loginAttempt++; loginBusy = false; resetLoginButtons();
         sessionStorage.removeItem('ipcos_session');
         apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(() => {});
         currentUser = { nim: '', nama: '', role: '', token: '' };
@@ -779,7 +812,7 @@ function renderNotifications() {
     if (!listContainer) return;
 
     const notifs = [];
-    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     records.forEach(rec => {
         const status = String(rec.status || '').toLowerCase();
         const isStudent = currentUser.role === 'mhs';
@@ -798,7 +831,7 @@ function renderNotifications() {
         });
     });
 
-    const announcements = JSON.parse(sessionStorage.getItem('ipcos_announcements') || '[]');
+    const announcements = readStoredJSON(sessionStorage, 'ipcos_announcements', []);
     announcements.slice(-5).reverse().forEach(ann => {
         notifs.push({
             key: notificationHash(`announcement:${ann.Id || ann.date || ann.Tanggal || ann.Pesan || ann.message}`),
@@ -894,10 +927,10 @@ function renderActivityTimeline(records) {
     }
 
     let html = '';
-    myRecords.reverse().slice(0, 5).forEach(r => {
+    myRecords.sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0, 5).forEach(r => {
         let text = '';
         const stat = String(r.status).trim().toLowerCase();
-        
+
         if (stat === 'accepted') text = `Pendaftaran <b>${r.jenis}</b> Anda telah diverifikasi dan <b>Diterima</b>.`;
         else if (stat === 'revision') text = `Pendaftaran <b>${r.jenis}</b> Anda perlu <b>Revisi</b>. Silakan cek catatan admin.`;
         else if (stat === 'resubmitted') text = `Anda telah mengunggah perbaikan untuk <b>${r.jenis}</b>.`;
@@ -910,7 +943,7 @@ function renderActivityTimeline(records) {
         html += `
             <div style="position: relative;">
                 <span style="position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; background: ${bulletColor}; border-radius: 50%;"></span>
-                <div style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 2px;">${timeAgo(r.date)}</div>
+                <div style="font-size: 11px; color: var(--text-muted); font-weight: bold; margin-bottom: 2px;">${timeAgo(getCaseEventTime(r))}</div>
                 <div style="font-size: 13.5px; line-height: 1.4; color: var(--text-color);">${sanitizeRichHtml(text)}</div>
             </div>
         `;
@@ -957,14 +990,14 @@ function validateFile(input, labelId) {
 
         if (isOverSize) {
             showToast(fileProblem(file, input.accept), 'error');
-            
+
             // KOSONGKAN FILE SECARA HARD-RESET
-            input.value = ""; 
+            input.value = "";
             try {
                 // Untuk browser modern, gunakan DataTransfer untuk benar-benar mengosongkan antrean file
-                input.files = new DataTransfer().files; 
+                input.files = new DataTransfer().files;
             } catch(e) {}
-            
+
             labelEl.innerHTML = `<div class="dz-file-badge error">${escapeHtml(document.getElementById(input.id + '-error')?.textContent || 'Berkas tidak valid.')}</div>`;
         } else {
             labelEl.innerHTML = `
@@ -999,7 +1032,7 @@ function fileToBase64(file) {
 // ==========================================
 function saveFormDraft() {
     const fields = ['reg-jenis-utama', 'reg-judul', 'reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'];
-    const draft = { savedAt: new Date().toISOString() };
+    const draft = { ownerNim: currentUser.nim, savedAt: new Date().toISOString() };
     fields.forEach(id => { draft[id] = document.getElementById(id)?.value || ''; });
     sessionStorage.setItem('ipcos_form_draft', JSON.stringify(draft));
     const indicator = document.getElementById('form-draft-status');
@@ -1011,6 +1044,7 @@ function loadFormDraft() {
     if (!saved) return;
     try {
         const draft = JSON.parse(saved);
+        if (draft.ownerNim && draft.ownerNim !== currentUser.nim) { clearFormDraft(); return; }
         const jenisEl = document.getElementById('reg-jenis-utama');
         const judulEl = document.getElementById('reg-judul');
         const jenis = draft['reg-jenis-utama'] || draft.jenis;
@@ -1146,7 +1180,7 @@ function renderTaskHome() {
     const home = document.getElementById('task-home');
     if (!home) return;
     if (!['admin','mhs'].includes(currentUser.role)) { home.innerHTML = ''; return; }
-    const all = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const all = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const admin = currentUser.role === 'admin';
     const records = admin ? all : all.filter(item => String(item.nim) === String(currentUser.nim));
     const priority = item => { const status = String(item.status).toLowerCase(); return admin ? ({resubmitted:0,pending:1,revision:2,accepted:3}[status] ?? 4) : ({revision:0,resubmitted:1,pending:2,accepted:3}[status] ?? 4); };
@@ -1169,7 +1203,7 @@ function caseFileListHtml(item) {
     return files.length ? files.map((file,index) => `<div class="case-file-row"><strong>${escapeHtml(file.label)}</strong><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${index}">${uxText('Pratinjau', 'Preview')}</button><a href="${escapeHtml(file.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a></div></div>`).join('') : uxText('Belum ada berkas.', 'No files available.');
 }
 function previewCaseFile(index) {
-    const item = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]').find(item => String(item.id) === selectedCaseId);
+    const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
     const file = item && getCaseFiles(item)[index];
     if (!file) return;
     const preview = document.getElementById('case-file-preview');
@@ -1180,14 +1214,14 @@ function previewCaseFile(index) {
     preview.querySelector('p').textContent = uxText('Jika pratinjau tidak muncul, gunakan Buka Berkas di atas.', 'If the preview does not load, use Open File above.');
 }
 function supervisorOptions() {
-    const dosens = JSON.parse(sessionStorage.getItem('ipcos_dosens') || '[]');
+    const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
     return `<option value="">${uxText('-- Pilih dosen --','-- Select supervisor --')}</option>` + dosens.slice().sort((a,b) => String(a.Nama).localeCompare(String(b.Nama))).map(d => {
         const remaining = Number(d.Maksimal) - Number(d.Terpakai);
         return `<option value="${escapeHtml(d.Nama)}" ${remaining > 0 ? '' : 'disabled'}>${escapeHtml(d.Nama)} · ${remaining > 0 ? uxText('Sisa kuota: ', 'Available: ') + remaining : uxText('Penuh','Full')}</option>`;
     }).join('');
 }
 function currentCase() {
-    const item = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]').find(item => String(item.id) === selectedCaseId);
+    const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
     if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) return null;
     return item;
 }
@@ -1266,16 +1300,19 @@ async function submitCaseAction() {
     button.disabled = true; button.textContent = uxText('Sedang menyimpan...', 'Saving...');
     feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
     isPreparingCorrection = true;
+    const requestEpoch = sessionEpoch;
     try {
         const payloadFiles = await Promise.all(files.map(async file => ({fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
+        if (requestEpoch !== sessionEpoch) return;
         // Escape user text before it enters the existing rich-text note history.
         const success = await sendUpdateRequest(item.id, newStatus, escapeHtml(note), payloadFiles, dospem);
+        if (requestEpoch !== sessionEpoch) return;
         if (success && selectedCaseId === String(item.id) && document.getElementById('modal-case-detail').style.display !== 'none') openCaseDetail(item.id);
         else if (!success && document.getElementById('case-action-feedback')) fail(uxText('Penyimpanan belum dapat dipastikan. Isian Anda tetap tersedia. Segarkan status sebelum mencoba lagi.', 'Saving could not be confirmed. Your inputs remain available. Refresh the status before retrying.'));
-    } catch (error) { fail(error.message || uxText('Berkas belum dapat diproses. Coba kembali.', 'The file could not be processed. Try again.')); }
+    } catch (error) { if (requestEpoch !== sessionEpoch) return; fail(error.message || uxText('Berkas belum dapat diproses. Coba kembali.', 'The file could not be processed. Try again.')); }
     finally {
-        isPreparingCorrection = false;
-        if (button.isConnected) { button.disabled = false; button.textContent = uxText('Coba Simpan Lagi', 'Try Saving Again'); }
+        if (requestEpoch === sessionEpoch) isPreparingCorrection = false;
+        if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = uxText('Coba Simpan Lagi', 'Try Saving Again'); }
     }
 }
 
@@ -1297,18 +1334,29 @@ function toggleExamForm() {
 
     // Logika Khusus untuk Pergantian Pembimbing (Sembunyikan Judul)
     if (jenisUjian === "Pergantian Pembimbing") {
-        groupJudul.style.display = 'none';           
-        inputJudul.removeAttribute('required');      
+        groupJudul.style.display = 'none';
+        inputJudul.removeAttribute('required');
         document.getElementById('req-ganti-dosen').style.display = 'block';
     } else {
-        groupJudul.style.display = 'block';          
-        inputJudul.setAttribute('required', 'true'); 
-        
+        groupJudul.style.display = 'block';
+        inputJudul.setAttribute('required', 'true');
+
         if (jenisUjian === "Outline") document.getElementById('req-outline-only').style.display = 'block';
         else if (jenisUjian === "Proposal") document.getElementById('req-sempro-only').style.display = 'block';
         else if (jenisUjian === "Pendadaran") document.getElementById('req-pendadaran').style.display = 'block';
         else if (jenisUjian === "Skripsi Jurnal") document.getElementById('req-jurnal-only').style.display = 'block';
     }
+}
+
+async function submissionSignature(jenis, detail, files) {
+    async function digest(text) {
+        if (!window.crypto?.subtle) return notificationHash(text);
+        const hash = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+        return [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2,'0')).join('');
+    }
+    const fingerprints = [];
+    for (const file of files) fingerprints.push([file.fileName, await digest(file.base64)]);
+    return digest(JSON.stringify({jenis,detail,files:fingerprints}));
 }
 
 let isSubmittingRegistration = false;
@@ -1324,6 +1372,7 @@ async function submitForm(e) {
     }
 
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
+    const requestEpoch = sessionEpoch;
     if (!jenisUjian) return;
     const dateStr = new Date().toISOString();
     let filesToUpload = [];
@@ -1379,7 +1428,8 @@ async function submitForm(e) {
 
         showLoader(currentLang === 'id' ? 'Mengunggah Data ke Server...' : 'Uploading to Server...');
 
-        const signature = notificationHash(JSON.stringify({ jenisUjian, finalDetail, files: filesToUpload.map(f => [f.fileName, f.base64.length]) }));
+        const signature = await submissionSignature(jenisUjian, finalDetail, filesToUpload);
+        if (requestEpoch !== sessionEpoch) return;
         let pendingRequest = {};
         try { pendingRequest = JSON.parse(sessionStorage.getItem('ipcos_pending_submission') || '{}'); } catch (_) {}
         const requestId = pendingRequest.signature === signature && pendingRequest.id
@@ -1396,7 +1446,7 @@ async function submitForm(e) {
             method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
 
-        const result = await response.json();
+        const result = await readApiResult(response);
 
         if (result.status === "success") {
             showToast(currentLang === 'id' ? "Pendaftaran & Berkas berhasil dikirim!" : "Registration & Files submitted successfully!", "success");
@@ -1416,17 +1466,20 @@ async function submitForm(e) {
             throw new Error(result.message || (currentLang === 'id' ? "Gagal menyimpan berkas." : "Failed to save files."));
         }
     } catch (err) {
+        if (err.staleSession || requestEpoch !== sessionEpoch) return;
         showToast(err.message, "error");
         if (submitStatus) submitStatus.textContent = requestStarted
             ? `Pengiriman belum dapat dipastikan: ${err.message}. Periksa Status Pengajuanku sebelum mencoba lagi agar tidak mengirim dua kali.`
             : `Periksa formulir: ${err.message}`;
     } finally {
+        if (requestEpoch === sessionEpoch) {
         isSubmittingRegistration = false;
         submitButton.disabled = false;
         submitButton.textContent = uxText('Konfirmasi & Kirim', 'Confirm & Send');
         const editButton = document.getElementById('btn-edit-registration');
         if (editButton) editButton.disabled = false;
         hideLoader();
+        }
     }
 }
 
@@ -1533,15 +1586,15 @@ const defaultFaq = [
 function getChecklistData(type) {
     const localData = localStorage.getItem(`ipcos_content_${type}`);
     if (localData) {
-        try { return JSON.parse(localData); } catch (e) { console.error(e); }
+        try { const groups = JSON.parse(localData); if (!Array.isArray(groups) || groups.some(group => !group || !Array.isArray(group.items))) throw new Error('Invalid content'); return groups; } catch (_) { localStorage.removeItem(`ipcos_content_${type}`); }
     }
     if (type === 'magang') return defaultMagang;
     if (type === 'skripsi') return defaultSkripsi;
     if (type === 'kurikulum') return defaultKurikulum;
     if (type === 'remidial') return defaultRemedial;
     if (type === 'kalender') return defaultKalender;
-    if (type === 'template_berkas') return defaultTemplate; 
-    if (type === 'faq') return defaultFaq; 
+    if (type === 'template_berkas') return defaultTemplate;
+    if (type === 'faq') return defaultFaq;
     return [];
 }
 
@@ -1659,11 +1712,11 @@ function openContentEditor(type) {
     editorCurrentType = type;
     editorTempData = JSON.parse(JSON.stringify(getChecklistData(type)));
 
-    const titles = { 
-        'magang': 'Edit Konten Magang', 
-        'skripsi': 'Edit Konten Skripsi', 
-        'kurikulum': 'Edit Konten Kurikulum', 
-        'remidial': 'Edit SOP Remidial', 
+    const titles = {
+        'magang': 'Edit Konten Magang',
+        'skripsi': 'Edit Konten Skripsi',
+        'kurikulum': 'Edit Konten Kurikulum',
+        'remidial': 'Edit SOP Remidial',
         'kalender': 'Edit Kalender TA',
         'template_berkas': 'Edit Template & Link Download',
         'faq': 'Edit Pertanyaan & Jawaban FAQ'
@@ -1726,7 +1779,7 @@ async function saveContentChanges() {
     try {
         const payload = { action: 'update_content', type: editorCurrentType, content: jsonString };
         const res = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
-        const result = await res.json();
+        const result = await readApiResult(res);
 
         if (result.status === "success") {
             localStorage.setItem(`ipcos_content_${editorCurrentType}`, jsonString);
@@ -1830,11 +1883,8 @@ function updateChecklistReminder(unMagang, unSkripsi) {
 }
 
 function loadProgressData() {
-    const savedState = localStorage.getItem(`progress_${currentUser.nim}`);
-    if (savedState) {
-        const state = JSON.parse(savedState);
-        Object.keys(state).forEach(id => { const el = document.getElementById(id); if (el) el.checked = state[id]; });
-    } else { document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false); }
+    const state = readStoredJSON(localStorage, `progress_${currentUser.nim}`, {});
+    document.querySelectorAll('.chk-magang, .chk-skripsi').forEach(el => { el.checked = state[el.id] === true; });
     updateProgress();
 }
 
@@ -1922,7 +1972,7 @@ function caseTimelineHtml(item) {
 }
 
 function openCaseDetail(id) {
-    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const item = records.find(record => String(record.id) === String(id));
     if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) {
         showToast('Pengajuan belum tersedia. Coba segarkan data.', 'error');
@@ -1957,6 +2007,7 @@ function openCaseDetail(id) {
         <div id="case-action-panel" hidden></div></aside></div>`;
     content.querySelectorAll('[data-preview-index]').forEach(button => button.addEventListener('click', () => previewCaseFile(Number(button.dataset.previewIndex))));
     const modal = document.getElementById('modal-case-detail');
+    clearTimeout(modalCloseTimers.get(modal.id));
     modal.style.display = 'flex';
     modal.style.opacity = '1';
     modal.querySelector('.case-close').focus();
@@ -1976,7 +2027,7 @@ document.addEventListener('click', event => {
 
 function loadStudentStatus() {
     const tbody = document.getElementById('table-my-status');
-    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
 
     let hasRevision = false;
@@ -2065,7 +2116,7 @@ function filterAdminData() {
     const tbody = document.getElementById('table-admin-reg');
     if (!tbody) return;
 
-    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const searchVal = (document.getElementById('admin-search-input')?.value || '').toLowerCase().trim();
     const filterVal = document.getElementById('admin-status-filter')?.value || 'ALL';
     const counts = { pending: 0, resubmitted: 0, revision: 0, accepted: 0 };
@@ -2091,10 +2142,10 @@ function filterAdminData() {
         }
         const safeDateA = getCaseEventTime(a).replace(' ', 'T');
         const safeDateB = getCaseEventTime(b).replace(' ', 'T');
-        
+
         const dateA = safeDateA ? (new Date(safeDateA).getTime() || 0) : 0;
         const dateB = safeDateB ? (new Date(safeDateB).getTime() || 0) : 0;
-        
+
         return isAdminSortDesc ? (dateB - dateA) : (dateA - dateB);
     });
 
@@ -2163,16 +2214,15 @@ function changeAdminPage(direction) {
 }
 
 function exportAdminDataCSV() {
-    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
-    if (records.length === 0) { showToast("Belum ada data untuk diekspor.", "error"); return; }
-    let csvContent = "data:text/csv;charset=utf-8,ID,Tanggal,NIM,Nama,Jenis,Status\n";
-    records.forEach(r => { const cleanName = `"${r.nama.replace(/"/g, '""')}"`; csvContent += `${r.id},${r.date},${r.nim},${cleanName},${r.jenis},${r.status}\n`; });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Rekap_IPCOS_UMY_${Date.now()}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    showToast("Data CSV berhasil diunduh!", "success");
+    if (currentUser.role !== 'admin') return;
+    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
+    if (!records.length) { showToast('Belum ada data untuk diekspor.', 'error'); return; }
+    const cell = value => { let text = String(value ?? ''); if (/^[=+@\-\t\r]/.test(text)) text = "'" + text; return '"' + text.replace(/"/g,'""') + '"'; };
+    const rows = [['ID','Tanggal','NIM','Nama','Jenis','Status'], ...records.map(r => [r.id,r.date,r.nim,r.nama,r.jenis,r.status])];
+    const blob = new Blob(['\ufeff' + rows.map(row => row.map(cell).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = `Rekap_IPCOS_UMY_${Date.now()}.csv`;
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Data CSV berhasil diunduh!', 'success');
 }
 
 function deleteAllRegistrations() {
@@ -2198,7 +2248,7 @@ function deleteAllRegistrations() {
     showLoader(currentLang === 'id' ? 'Menghapus Seluruh Data...' : 'Deleting All Data...');
 
     apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'delete_all_registrations' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } })
-        .then(res => res.json())
+        .then(res => readApiResult(res))
         .then(result => {
             if (result.status === "success") {
                 showToast(currentLang === 'id' ? "Seluruh data pendaftar berhasil dikosongkan!" : "All registration data cleared successfully!", "success");
@@ -2254,7 +2304,7 @@ function startCountdownWidget() {
 }
 
 function openChatTimeline(id) {
-    const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const target = records.find(r => r.id === id);
     const container = document.getElementById('chat-timeline-container');
     container.innerHTML = '';
@@ -2313,13 +2363,14 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
         return false;
     }
     activeUpdateIds.add(id);
+    const requestEpoch = sessionEpoch;
     showLoader(currentLang === 'id' ? 'Sedang Memproses...' : 'Processing...');
     try {
-        const records = JSON.parse(sessionStorage.getItem('ipcos_registrations') || '[]');
+        const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
         const targetIndex = records.findIndex(r => r.id === id);
         const target = targetIndex !== -1 ? records[targetIndex] : null;
         const existingNote = target ? target.note : '';
-        
+
         let logs = [];
         if (existingNote && existingNote.trim() !== '') {
             try {
@@ -2328,7 +2379,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
                 logs = [{ sender: 'Sistem', role: 'system', time: target ? target.date : new Date().toISOString(), message: existingNote }];
             }
         }
-        
+
         if (noteText && noteText.trim() !== '') {
             logs.push({
                 sender: currentUser.nama,
@@ -2337,13 +2388,13 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
                 message: noteText
             });
         }
-        
+
         const finalNoteJSON = JSON.stringify(logs);
 
         const payload = { action: 'update', id: id, status: newStatus, noteText: noteText, files: files, dospem: dospem };
         const res = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
-        const result = await res.json();
-        
+        const result = await readApiResult(res);
+
         if (result.status === "success") {
             // --- UPDATE LOKAL INSTAN ---
             if (targetIndex !== -1) {
@@ -2363,7 +2414,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
                 loadStudentStatus();
                 renderActivityTimeline(records);
             }
-            
+
             showToast("Status berhasil diperbarui!", "success");
             await syncDatabase();
             return true;
@@ -2371,12 +2422,12 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
             showToast("Gagal: " + (result.message || "Error tidak diketahui"), "error");
             return false;
         }
-    } catch (err) { 
-        showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error"); 
+    } catch (err) {
+        if (err.staleSession || requestEpoch !== sessionEpoch) return false;
+        showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error");
         return false;
-    } finally { 
-        activeUpdateIds.delete(id);
-        hideLoader(); 
+    } finally {
+        if (requestEpoch === sessionEpoch) { activeUpdateIds.delete(id); hideLoader(); }
     }
 }
 
@@ -2424,12 +2475,13 @@ function closeModal(modalId, force = false) {
     if (!force && modalId === 'modal-case-detail' && (isPreparingCorrection || activeUpdateIds.has(selectedCaseId))) return;
     const modal = document.getElementById(modalId);
     if (!modal) return;
+    clearTimeout(modalCloseTimers.get(modalId));
     if (force) { modal.style.display = 'none'; modal.style.opacity = '0'; return; }
     if (modal.tagName && modal.tagName.toLowerCase() === 'dialog') {
         modal.close();
     } else {
         modal.style.opacity = '0';
-        setTimeout(() => { modal.style.display = 'none'; }, 300);
+        modalCloseTimers.set(modalId, setTimeout(() => { modal.style.display = 'none'; modalCloseTimers.delete(modalId); }, 300));
     }
 }
 function toggleDarkMode() {
@@ -2439,7 +2491,13 @@ function toggleDarkMode() {
 }
 function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); }
 
+function canAccessTab(tabId) {
+    if (['pendaftaran','student-status'].includes(tabId)) return currentUser.role === 'mhs';
+    if (['admin-data','admin-dosen','admin-master'].includes(tabId)) return currentUser.role === 'admin';
+    return true;
+}
 function switchTab(event, tabId) {
+    if (!canAccessTab(tabId)) return;
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -2468,26 +2526,8 @@ function showCat() { catEl.classList.add('peek'); setTimeout(() => { if (catEl.c
 function hideCat() { catEl.classList.remove('peek'); clearTimeout(catTimer); scheduleCat(); }
 
 function silentSyncDatabase() {
-    if (document.hidden || isOffline) return;
-    if (currentUser && currentUser.nim !== '') {
-        apiRead().then(data => {
-
-            data.registrations = normalizeData(data.registrations);
-
-            const oldDataStr = sessionStorage.getItem('ipcos_registrations');
-            const newDataStr = JSON.stringify(data.registrations || []);
-
-            sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
-            renderNotifications();
-
-            if (oldDataStr !== newDataStr) {
-                sessionStorage.setItem('ipcos_registrations', newDataStr);
-                renderNotifications();
-                if (currentUser.role === 'admin') { filterAdminData(); renderDashboardCharts(data.registrations || []); }
-                else { loadStudentStatus(); renderActivityTimeline(data.registrations || []); }
-            }
-        }).catch(error => console.log("Silent Sync terhambat..."));
-    }
+    if (document.hidden || isOffline || !getSessionToken()) return;
+    return apiRead().then(applyDatabaseSnapshot).catch(error => { if (!error.staleSession && getSessionToken()) console.log('Sinkronisasi latar belakang tertunda.'); });
 }
 setInterval(silentSyncDatabase, 180000);
 
@@ -2609,11 +2649,13 @@ function postAnnouncementFromDashboard() {
     const msg = input ? input.value.trim() : '';
     if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return; }
 
-    postAnnouncement(msg, 'info').then(() => { if (input) input.value = ''; });
+    return postAnnouncement(msg, 'info').then(success => { if (success && input) input.value = ''; });
 }
 
+let postingAnnouncement = false;
 async function postAnnouncement(customMsg = null, customType = null) {
-    if (isOffline) { showToast("Tidak dapat mengirim broadcast saat offline.", "error"); return; }
+    if (postingAnnouncement) return false;
+    if (isOffline) { showToast("Tidak dapat mengirim broadcast saat offline.", "error"); return false; }
 
     const masterInput = document.getElementById('input-broadcast');
     const checkImportant = document.getElementById('check-important-broadcast');
@@ -2622,6 +2664,8 @@ async function postAnnouncement(customMsg = null, customType = null) {
 
     if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return; }
 
+    postingAnnouncement = true;
+    const requestEpoch = sessionEpoch;
     const annType = customType !== null ? customType : (checkImportant && checkImportant.checked ? 'important' : 'info');
 
     showLoader();
@@ -2637,11 +2681,13 @@ async function postAnnouncement(customMsg = null, customType = null) {
         if (!customMsg && masterInput) masterInput.value = '';
         if (!customType && checkImportant) checkImportant.checked = false;
 
-        syncDatabase();
+        await syncDatabase();
+        return true;
     } catch (e) {
-        showToast("Gagal mengirim pengumuman", "error");
+        if (!e.staleSession && requestEpoch === sessionEpoch) showToast("Gagal mengirim pengumuman. Pesan Anda tetap tersedia.", "error");
+        return false;
     } finally {
-        hideLoader();
+        if (requestEpoch === sessionEpoch) { postingAnnouncement = false; hideLoader(); }
     }
 }
 
@@ -2707,9 +2753,9 @@ function renderDosenTable() {
     const tbody = document.getElementById('table-admin-dosen');
     if (!tbody) return;
     tbody.innerHTML = '';
-    
-    const dosens = JSON.parse(sessionStorage.getItem('ipcos_dosens') || '[]');
-    
+
+    const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
+
     dosens.sort((a, b) => {
         const sisaA = parseInt(a.Maksimal) - parseInt(a.Terpakai);
         const sisaB = parseInt(b.Maksimal) - parseInt(b.Terpakai);
@@ -2721,7 +2767,7 @@ function renderDosenTable() {
         const terpakai = parseInt(d.Terpakai) || 0;
         const maksimal = parseInt(d.Maksimal) || 0;
         const sisa = maksimal - terpakai;
-        
+
         let statusBadge = `<span class="status-badge badge-accepted">Tersedia (${sisa})</span>`;
         if (sisa <= 0) statusBadge = `<span class="status-badge badge-revision">Penuh</span>`;
         else if (sisa <= 2) statusBadge = `<span class="status-badge badge-pending">Hampir Penuh</span>`;
@@ -2744,10 +2790,10 @@ function renderDosenTable() {
 function populateDospemDropdown() {
     const select = document.getElementById('input-dospem-select');
     if (!select) return;
-    
-    const dosens = JSON.parse(sessionStorage.getItem('ipcos_dosens') || '[]');
+
+    const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
     let html = '<option value="">-- Pilih Dosen Pembimbing --</option>';
-    
+
     dosens.sort((a, b) => a.Nama.localeCompare(b.Nama));
 
     dosens.forEach(d => {
@@ -2756,7 +2802,7 @@ function populateDospemDropdown() {
         const warn = sisa <= 0 ? '(PENUH)' : `(Sisa Kuota: ${sisa})`;
         html += `<option value="${escapeHtml(d.Nama)}" ${disabled}>${escapeHtml(d.Nama)} ${warn}</option>`;
     });
-    
+
     select.innerHTML = html;
 }
 
@@ -2765,24 +2811,27 @@ function openEditDosen(nama, terpakai, maksimal) {
     document.getElementById('edit-dosen-name-display').innerText = nama;
     document.getElementById('edit-dosen-terpakai').value = terpakai;
     document.getElementById('edit-dosen-maksimal').value = maksimal;
-    
+
     const modal = document.getElementById('modal-edit-dosen');
     modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
 }
 
+function validQuota(used, max) { return String(used).trim() !== '' && String(max).trim() !== '' && Number.isInteger(Number(used)) && Number.isInteger(Number(max)) && Number(used) >= 0 && Number(max) > 0 && Number(used) <= Number(max); }
+
 async function saveDosenQuota() {
     if (isOffline) { showToast("Sedang offline.", "error"); return; }
-    
+
     const nama = document.getElementById('hidden-dosen-nama').value;
     const terpakai = document.getElementById('edit-dosen-terpakai').value;
     const maksimal = document.getElementById('edit-dosen-maksimal').value;
-    
+    if (!validQuota(terpakai, maksimal)) { showToast('Kuota harus bilangan bulat positif, dan beban terpakai tidak boleh negatif atau melebihi kuota.', 'error'); return; }
+
     showLoader();
     try {
         await apiPostSuccess(GAS_URL, {
-            method: 'POST', 
-            body: JSON.stringify({ action: 'manage_dosen', method: 'update', nama: nama, terpakai: terpakai, maksimal: maksimal }), 
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+            method: 'POST',
+            body: JSON.stringify({ action: 'manage_dosen', method: 'update', nama: nama, terpakai: terpakai, maksimal: maksimal }),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         showToast("Kuota dosen diperbarui!", "success");
         closeModal('modal-edit-dosen');
@@ -2792,18 +2841,19 @@ async function saveDosenQuota() {
 
 async function addDosenQuota() {
     if (isOffline) { showToast("Sedang offline.", "error"); return; }
-    
+
     const nama = document.getElementById('add-dosen-nama').value.trim();
     const max = document.getElementById('add-dosen-max').value;
-    
+
     if (!nama) { showToast("Nama tidak boleh kosong!", "error"); return; }
-    
+    if (!validQuota(0, max)) { showToast('Kuota maksimal harus bilangan bulat positif.', 'error'); return; }
+
     showLoader();
     try {
         await apiPostSuccess(GAS_URL, {
-            method: 'POST', 
-            body: JSON.stringify({ action: 'manage_dosen', method: 'add', nama: nama, maksimal: max }), 
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+            method: 'POST',
+            body: JSON.stringify({ action: 'manage_dosen', method: 'add', nama: nama, maksimal: max }),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         showToast("Dosen ditambahkan!", "success");
         document.getElementById('add-dosen-nama').value = '';
@@ -2816,9 +2866,9 @@ async function deleteDosen(nama) {
     showLoader();
     try {
         await apiPostSuccess(GAS_URL, {
-            method: 'POST', 
-            body: JSON.stringify({ action: 'manage_dosen', method: 'delete', nama: nama }), 
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+            method: 'POST',
+            body: JSON.stringify({ action: 'manage_dosen', method: 'delete', nama: nama }),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         showToast("Dosen dihapus!", "success");
         syncDatabase();
@@ -2828,7 +2878,7 @@ async function deleteDosen(nama) {
 document.addEventListener('click', function(event) {
     const sidebar = document.getElementById('main-sidebar');
     const toggleBtn = document.querySelector('.mobile-nav-toggle');
-    
+
     // Cek apakah mode mobile sedang aktif (lebar <= 850px)
     if (window.innerWidth <= 850) {
         // Jika sidebar aktif dan target klik BUKAN sidebar dan BUKAN tombol toggle
