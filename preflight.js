@@ -11,7 +11,7 @@ function inspectDocument(file) {
             const bytes = await file.arrayBuffer();
             result.error = documentStructureIssue(new Uint8Array(bytes),file.name);
             if (!result.error && crypto.subtle) result.hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(value=>value.toString(16).padStart(2,'0')).join('');
-        } catch (_) { result.error = uxText('Berkas tidak dapat dibaca. Pilih kembali dari perangkat Anda.', 'The file could not be read. Select it again from your device.'); }
+        } catch (_) { result.error = 'Berkas tidak dapat dibaca. Pilih kembali dari perangkat Anda.'; }
         finally { result.pending = false; }
         return result;
     })();

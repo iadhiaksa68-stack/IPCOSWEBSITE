@@ -42,7 +42,7 @@ function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerText = message;
+    toast.innerText = systemText(message);
     container.appendChild(toast);
     while (container.children.length > 2) container.firstElementChild.remove();
 
@@ -59,7 +59,7 @@ function showLoader(loadingText = null) {
     const textEl = document.getElementById('loader-text');
     if (textEl) {
         if (loadingText) {
-            textEl.innerText = loadingText;
+            textEl.innerText = systemText(loadingText);
         } else {
             textEl.innerText = currentLang === 'id' ? 'Memuat data...' : 'Loading data...';
         }
@@ -212,11 +212,11 @@ function renderSearchResults(query) {
 
     const q = query.toLowerCase();
     const results = searchDatabase.filter(item => canAccessTab(item.tab) && (
-        item.title.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q))
+        item.title.toLowerCase().includes(q) || systemText(item.title).toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q) || (searchEnglishKeywords[item.tab] || '').includes(q))
     );
 
     if (results.length === 0) {
-        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">Tidak ditemukan hasil untuk "<b>${escapeHtml(query)}</b>"</p>`;
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 20px 0;">${uxText('Tidak ditemukan hasil untuk', 'No results for')} "<b>${escapeHtml(query)}</b>"</p>`;
         return;
     }
 
@@ -224,7 +224,7 @@ function renderSearchResults(query) {
     results.forEach(item => {
         html += `
             <div onclick="executeSearchNavigation('${item.tab}')" style="padding: 12px 16px; background: var(--item-bg); border: 1px solid var(--item-border); border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
-                <span style="font-weight: 600; font-size: 14px; color: var(--heading-color);">${item.title}</span>
+                <span style="font-weight: 600; font-size: 14px; color: var(--heading-color);">${escapeHtml(systemText(item.title))}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </div>
         `;
@@ -503,7 +503,8 @@ window.onload = function () {
         document.body.classList.add('dark-mode');
     }
 
-    syncThemeControl();
+    initInterfaceLanguage();
+    applyDynamicLanguage();
     startCountdownWidget();
     renderDynamicContent();
     initDoodleCanvas();
@@ -525,6 +526,8 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    activeReceipt = null; latestBackup = null;
+    languageBlocks.clear();
     resetAcademicJourney();
     documentInspections = new WeakMap(); preflightBusy = false;
     resetWorkflowSession();
@@ -726,7 +729,7 @@ async function performLogin(role) {
         showToast(student ? uxText(`Selamat datang, ${user.nama}!`, `Welcome, ${user.nama}!`) : uxText('Berhasil login sebagai admin.', 'Logged in as admin.'), 'success');
     } catch (error) {
         if (attempt !== loginAttempt) return;
-        errorMsg.textContent = error.message || uxText('Terjadi kesalahan jaringan. Coba kembali.', 'Network error. Try again.'); errorMsg.style.display = 'block';
+        errorMsg.textContent = systemText(error.message) || uxText('Terjadi kesalahan jaringan. Coba kembali.', 'Network error. Try again.'); errorMsg.style.display = 'block';
     } finally { if (attempt === loginAttempt) { loginBusy = false; resetLoginButtons(); } }
 }
 function loginMhs() { return performLogin('mhs'); }
@@ -744,7 +747,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
     const loginEpoch = sessionEpoch;
     const firstName = displayName.split(' ')[0];
 
-    const greetings = ["Hello", "Hey", "Hai", "Halo", "Greetings", "Welcome"];
+    const greetings = currentLang === 'en' ? ['Hello', 'Welcome'] : ['Halo', 'Hai'];
     const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
     const elGreeting = document.getElementById('display-greeting');
     if (elGreeting) elGreeting.innerText = `${randomGreeting}, ${firstName}!`;
@@ -852,8 +855,8 @@ function renderNotifications() {
         notifs.push({
             key: notificationHash(`${rec.id}:${status}:${date}`), caseId: String(rec.id), date,
             type: status,
-            title: isStudent ? (status === 'revision' ? `Perlu Revisi: ${rec.jenis}` : `Disetujui: ${rec.jenis}`)
-                : (status === 'resubmitted' ? `Perbaikan Masuk: ${rec.jenis}` : `Pengajuan Baru: ${rec.jenis}`),
+            title: isStudent ? (status === 'revision' ? `${uxText('Perlu Revisi','Corrections needed')}: ${systemText(rec.jenis)}` : `${uxText('Disetujui','Approved')}: ${systemText(rec.jenis)}`)
+                : (status === 'resubmitted' ? `${uxText('Perbaikan Masuk','Corrections received')}: ${systemText(rec.jenis)}` : `${uxText('Pengajuan Baru','New request')}: ${systemText(rec.jenis)}`),
             text: isStudent ? caseNextStep(rec) : `${rec.nama} — ${caseNextStep(rec)}`,
             tab: isStudent ? 'student-status' : 'admin-data'
         });
@@ -864,8 +867,8 @@ function renderNotifications() {
         notifs.push({
             key: notificationHash(`announcement:${ann.Id || ann.date || ann.Tanggal || ann.Pesan || ann.message}`),
             type: 'broadcast',
-            title: `📢 Pengumuman Akademik`,
-            text: ann.Pesan || ann.message || 'Pengumuman baru dari Administrator IPCOS',
+            title: uxText('Pengumuman Akademik','Academic announcement'),
+            text: ann.Pesan || ann.message || uxText('Pengumuman baru dari Administrator IPCOS','New announcement from IPCOS admin'),
             date: ann.date || ann.Tanggal || new Date().toISOString(),
             tab: 'dashboard'
         });
@@ -950,7 +953,7 @@ function renderActivityTimeline(records) {
 
     const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
     if (myRecords.length === 0) {
-        container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 20px;">Belum ada aktivitas terekam.</div>`;
+        container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 20px;">${uxText('Belum ada aktivitas terekam.', 'No activity recorded yet.')}</div>`;
         return;
     }
 
@@ -959,10 +962,11 @@ function renderActivityTimeline(records) {
         let text = '';
         const stat = String(r.status).trim().toLowerCase();
 
-        if (stat === 'accepted') text = `Pendaftaran <b>${r.jenis}</b> Anda telah diverifikasi dan <b>Diterima</b>.`;
-        else if (stat === 'revision') text = `Pendaftaran <b>${r.jenis}</b> Anda perlu <b>Revisi</b>. Silakan cek catatan admin.`;
-        else if (stat === 'resubmitted') text = `Anda telah mengunggah perbaikan untuk <b>${r.jenis}</b>.`;
-        else text = `Anda berhasil mendaftar <b>${r.jenis}</b>. Berkas sedang direview.`;
+        const service = escapeHtml(systemText(r.jenis));
+        if (stat === 'accepted') text = `${uxText('Pengajuan','Your request for')} <b>${service}</b> ${uxText('sudah diverifikasi dan disetujui.', 'has been verified and approved.')}`;
+        else if (stat === 'revision') text = `<b>${service}</b>: ${uxText('Perlu perbaikan. Baca instruksi admin.', 'Corrections needed. Read the admin instructions.')}`;
+        else if (stat === 'resubmitted') text = `${uxText('Perbaikan sudah dikirim untuk', 'Corrections submitted for')} <b>${service}</b>.`;
+        else text = `<b>${service}</b>: ${uxText('Pengajuan diterima dan menunggu pemeriksaan admin.', 'Request received and awaiting admin review.')}`;
 
         let bulletColor = 'var(--umy-gold)';
         if (stat === 'accepted') bulletColor = 'var(--umy-green)';
@@ -1031,7 +1035,7 @@ function validateFile(input, labelId) {
             labelEl.innerHTML = `
                 <div class="dz-file-badge success">
                     📄 <span>${escapeHtml(file.name)}</span> <span style="opacity:0.8;">(${formattedSize})</span>
-                    <button type="button" class="dz-remove-btn" onclick="clearSelectedFile('${input.id}', '${labelId}')">Hapus File</button>
+                    <button type="button" class="dz-remove-btn" onclick="clearSelectedFile('${input.id}', '${labelId}')">${uxText('Hapus File','Remove file')}</button>
                 </div>`;
         }
     } else {
@@ -1065,7 +1069,7 @@ function saveFormDraft() {
     fields.forEach(id => { draft[id] = document.getElementById(id)?.value || ''; });
     sessionStorage.setItem('ipcos_form_draft', JSON.stringify(draft));
     const indicator = document.getElementById('form-draft-status');
-    if (indicator) indicator.textContent = 'Draf isian tersimpan di tab ini.';
+    if (indicator) indicator.textContent = systemText('Draf isian tersimpan di tab ini.');
 }
 
 function loadFormDraft() {
@@ -1085,7 +1089,7 @@ function loadFormDraft() {
         });
         const indicator = document.getElementById('form-draft-status');
         registrationDirty = true;
-        if (indicator) indicator.textContent = 'Draf isian dipulihkan. Pilih ulang berkas sebelum mengirim.';
+        if (indicator) indicator.textContent = systemText('Draf isian dipulihkan. Pilih ulang berkas sebelum mengirim.');
         renderRegistrationReadiness();
     } catch (e) { }
 }
@@ -1121,7 +1125,7 @@ function fileProblem(file, accept) {
     if (extensions.length && !extensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
         return uxText('Format berkas yang diizinkan: ', 'Allowed file formats: ') + extensions.join(', ');
     }
-    return documentInspections.get(file)?.error || '';
+    return systemText(documentInspections.get(file)?.error || '');
 }
 function setFieldError(id, message) {
     const input = document.getElementById(id);
@@ -1170,18 +1174,7 @@ async function reviewRegistration(event) {
         document.getElementById('form-submit-status').textContent = uxText('Lengkapi isian yang ditandai sebelum melanjutkan.', 'Complete the marked fields to continue.');
         return;
     }
-    const jenis = document.getElementById('reg-jenis-utama').value;
-    const detail = jenis === 'Pergantian Pembimbing'
-        ? [['Dosen sekarang', 'reg-dosen-lama'], ['Usulan dosen', 'reg-dosen-baru'], ['Alasan', 'reg-alasan-ganti']]
-        : [['Judul', 'reg-judul']];
-    document.getElementById('registration-review').innerHTML = `<h3 tabindex="-1" id="review-heading">${uxText('Periksa sebelum mengirim', 'Review before sending')}</h3>
-        <dl class="receipt-list"><dt>${uxText('Jenis pengajuan', 'Request type')}</dt><dd>${escapeHtml(jenis)}</dd>
-        ${detail.map(([label,id]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(document.getElementById(id).value.trim())}</dd>`).join('')}</dl>
-        <h4>${uxText('Berkas siap dikirim', 'Files ready to send')}</h4><ul class="review-files">${registrationSpecs(jenis).map(([id,label]) => {
-            const f = document.getElementById(id).files[0];
-            return `<li><strong>${escapeHtml(label)}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span></li>`;
-        }).join('')}</ul>${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p>${uxText('Format dasar berkas sudah diperiksa. Isi, tanda tangan, dan kelayakan akademik tetap diverifikasi admin.', 'Basic file formats have been checked. Admin will verify the contents, signatures and academic eligibility.')}</p><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
-        <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration()">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
+    renderRegistrationReview();
     document.getElementById('registration-fields').hidden = true;
     document.getElementById('reg-jenis-utama').disabled = true;
     document.getElementById('registration-review').hidden = false;
@@ -1190,6 +1183,21 @@ async function reviewRegistration(event) {
     document.getElementById('form-submit-status').textContent = '';
     document.getElementById('review-heading').focus();
 }
+function renderRegistrationReview() {
+    const jenis = document.getElementById('reg-jenis-utama').value;
+    const detail = jenis === 'Pergantian Pembimbing'
+        ? [['Dosen sekarang', 'reg-dosen-lama'], ['Usulan dosen', 'reg-dosen-baru'], ['Alasan', 'reg-alasan-ganti']]
+        : [['Judul', 'reg-judul']];
+    document.getElementById('registration-review').innerHTML = `<h3 tabindex="-1" id="review-heading">${uxText('Periksa sebelum mengirim', 'Review before sending')}</h3>
+        <dl class="receipt-list"><dt>${uxText('Jenis pengajuan', 'Request type')}</dt><dd>${escapeHtml(systemText(jenis))}</dd>
+        ${detail.map(([label,id]) => `<dt>${escapeHtml(systemText(label))}</dt><dd>${escapeHtml(document.getElementById(id).value.trim())}</dd>`).join('')}</dl>
+        <h4>${uxText('Berkas siap dikirim', 'Files ready to send')}</h4><ul class="review-files">${registrationSpecs(jenis).map(([id,label]) => {
+            const f = document.getElementById(id).files[0];
+            return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span></li>`;
+        }).join('')}</ul>${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p>${uxText('Format dasar berkas sudah diperiksa. Isi, tanda tangan, dan kelayakan akademik tetap diverifikasi admin.', 'Basic file formats have been checked. Admin will verify the contents, signatures and academic eligibility.')}</p><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
+        <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration()">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
+}
+
 function editRegistration() {
     if (isSubmittingRegistration) return;
     document.getElementById('registration-fields').hidden = false;
@@ -1217,7 +1225,7 @@ function revisionInstructionsHtml(item) {
     if (!rev.instruction && !rev.files.length) return '';
     const heading = String(item.status).toLowerCase() === 'resubmitted' ? uxText('Instruksi revisi sebelumnya', 'Previous correction instructions') : currentUser.role === 'admin' ? uxText('Instruksi untuk mahasiswa', 'Instructions for the student') : uxText('Yang perlu Anda perbaiki', 'Corrections requested');
     return `<section class="revision-instructions"><h3>${heading}</h3>
-        ${rev.files.length ? `<ul>${rev.files.map(label => `<li>${escapeHtml(label)}</li>`).join('')}</ul>` : ''}
+        ${rev.files.length ? `<ul>${rev.files.map(label => `<li>${escapeHtml(systemText(label))}</li>`).join('')}</ul>` : ''}
         <p class="preserve-lines">${escapeHtml(rev.instruction)}</p></section>`;
 }
 function renderTaskHome() {
@@ -1234,14 +1242,14 @@ function renderTaskHome() {
     const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0,1);
     const revisions = records.filter(item => String(item.status).toLowerCase() === 'revision').length;
     const title = admin ? uxText('Antrean kerja Anda', 'Your review queue') : uxText('Pengajuan Anda', 'Your requests');
-    const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Perbaikan masuk ditampilkan lebih dulu.', 'requests need review. Resubmissions appear first.')}`
-        : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
+    const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Perbaikan masuk ditampilkan lebih dulu.', actionable.length === 1 ? 'request needs review. Resubmissions appear first.' : 'requests need review. Resubmissions appear first.')}`
+        : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', revisions === 1 ? 'request needs your corrections.' : 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
     home.innerHTML = `<div class="task-home-header"><div><h2>${title}</h2><p>${subtitle}</p></div>
         <button type="button" class="btn-primary" onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : "switchTab(null, 'pendaftaran')"}">${admin ? uxText('Buka Antrean', 'Open Queue') : uxText('Buat Pengajuan', 'New Request')}</button></div>
-        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div>${getStatusBadge(item.status)}<h3>${escapeHtml(item.jenis)}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}<p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</div>
+        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div>${getStatusBadge(item.status)}<h3>${escapeHtml(systemText(item.jenis))}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}<p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</div>
         <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
         : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
-        <button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>${admin ? '' : `<button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Buka Perjalanan Akademik', 'Open Academic Journey')}</button>`}`;
+        <div class="task-home-footer"><button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>${admin ? '' : `<button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Buka Perjalanan Akademik', 'Open Academic Journey')}</button>`}</div>`;
 }
 function caseFileListHtml(item) {
     const files = getCaseFiles(item);
@@ -1249,11 +1257,11 @@ function caseFileListHtml(item) {
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
     const rows=files.map((file,index)=>{const doc=metadata.find(doc=>doc.url===file.url); return {...file,index,document:doc};});
     const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
-    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(row.document?.label || row.label)}</strong>${row.document?`<small class="document-version">Versi ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">Unduh Berkas</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div></div>`;
+    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(systemText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div></div>`;
     const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
     const old=rows.filter(row=>!current.includes(row));
-    if(!current.length) return files.length?'<p class="field-helper">Berkas lama belum memiliki penanda versi. Periksa tanggal dan nama berkas sebelum meninjau.</p>'+rows.map(html).join(''):uxText('Belum ada berkas.','No files available.');
-    return '<h4>Versi terbaru</h4>'+current.map(html).join('')+(old.length?'<details class="case-history"><summary>Versi sebelumnya dan berkas lama ('+old.length+')</summary>'+old.map(html).join('')+'</details>':'');
+    if(!current.length) return files.length?`<p class="field-helper">${systemText('Berkas lama belum memiliki penanda versi. Periksa tanggal dan nama berkas sebelum meninjau.')}</p>`+rows.map(html).join(''):uxText('Belum ada berkas.','No files available.');
+    return `<h4>${systemText('Versi terbaru')}</h4>`+current.map(html).join('')+(old.length?`<details class="case-history"><summary>${uxText('Versi sebelumnya dan berkas lama','Previous versions & older files')} (${old.length})</summary>`+old.map(html).join('')+'</details>':'');
 }
 
 function previewCaseFile(index) {
@@ -1290,7 +1298,7 @@ function caseDetailAction(action) {
     let html = '';
     if (action === 'revision') {
         const files = caseDocumentOptions(item);
-        html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(label)}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label></fieldset>
+        html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label></fieldset>
         ${revisionTemplateHtml()}<label for="case-revision-note">${uxText('Apa yang harus diperbaiki?','What needs correcting?')}</label><textarea id="case-revision-note" rows="4" placeholder="${uxText('Contoh: Unggah transkrip yang sudah disahkan.','Example: Upload an officially certified transcript.')}"></textarea>`;
     } else if (action === 'dospem') {
         html = `<h3>${uxText('Tunjuk dosen & selesaikan', 'Assign Supervisor & Complete')}</h3><label for="case-supervisor">${uxText('Dosen pembimbing', 'Supervisor')}</label><select id="case-supervisor">${supervisorOptions()}</select><p>${uxText('Dosen terpilih akan dicatat saat pengajuan disetujui.','The selected supervisor will be recorded when this request is approved.')}</p>`;
@@ -1298,11 +1306,12 @@ function caseDetailAction(action) {
         html = `<h3>${uxText('Selesaikan pengajuan', 'Complete Request')}</h3><p>${uxText('Pastikan seluruh berkas sudah diperiksa. Persetujuan akan terlihat oleh mahasiswa.', 'Confirm all documents have been reviewed. The student will see your approval.')}</p>`;
     } else if (action === 'reply') {
         const rev = getRevisionInstructions(item);
-        html = `<h3>${uxText('Kirim perbaikan Anda', 'Send Your Corrections')}</h3>${rev.files.length ? `<fieldset class="revision-file-options"><legend>${uxText('Konfirmasi yang sudah Anda perbaiki', 'Confirm Your Corrections')}</legend>${rev.files.map(label => `<label class="check-row"><input type="checkbox" name="correction-complete"><span>${escapeHtml(label)}</span></label>`).join('')}</fieldset>` : ''}
+        html = `<h3>${uxText('Kirim perbaikan Anda', 'Send Your Corrections')}</h3>${rev.files.length ? `<fieldset class="revision-file-options"><legend>${uxText('Konfirmasi yang sudah Anda perbaiki', 'Confirm Your Corrections')}</legend>${rev.files.map(label => `<label class="check-row"><input type="checkbox" name="correction-complete"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}</fieldset>` : ''}
         <label for="case-reply-files">${uxText('Berkas perbaikan · maksimal 10 MB per berkas', 'Corrected files · maximum 10 MB per file')}</label><input type="file" id="case-reply-files" multiple accept="${item.jenis === 'Pendadaran' ? '.pdf,.zip,.rar' : '.pdf,.doc,.docx'}"><p class="field-helper">${uxText('Pilih hingga 5 berkas dengan total maksimal 20 MB. Berkas lama tetap ada dalam riwayat.', 'Choose up to 5 files, 20 MB total. Previous files remain in the history.')}</p><div id="case-reply-file-list"></div><label for="case-reply-note">${uxText('Jelaskan perbaikan Anda', 'Describe Your Corrections')}</label><textarea id="case-reply-note" rows="3"></textarea>`;
     }
     if (!html) return;
     panel.innerHTML = `${html}<p id="case-action-feedback" class="field-error" role="status"></p><div class="button-row"><button type="button" class="btn-secondary" onclick="cancelCaseAction()">${uxText('Batal','Cancel')}</button><button type="button" id="btn-case-submit" class="btn-primary" onclick="submitCaseAction()">${action === 'revision' ? uxText('Kirim Instruksi Revisi','Send Correction Request') : action === 'reply' ? uxText('Kirim Perbaikan','Send Corrections') : uxText('Konfirmasi & Selesaikan','Confirm & Complete')}</button></div>`;
+    bindLanguageBlock(panel);
     panel.hidden = false;
     document.getElementById('case-detail-actions').hidden = true;
     const reply = document.getElementById('case-reply-files');
@@ -1325,7 +1334,7 @@ async function submitCaseAction() {
     const panel = document.getElementById('case-action-panel');
     const action = panel.dataset.action;
     const feedback = document.getElementById('case-action-feedback');
-    const fail = message => { feedback.textContent = message; return false; };
+    const fail = message => { feedback.textContent = systemText(message); return false; };
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
     let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [];
@@ -1352,7 +1361,7 @@ async function submitCaseAction() {
         if (error) return fail(error);
         newStatus = 'Resubmitted';
         files = chosen;
-        try { correctionLabels = revisionFileLabels(files,item); } catch (error) { return fail(error.message); }
+        try { correctionLabels = revisionFileLabels(files,item); } catch (error) { return fail(systemText(error.message)); }
     } else return;
     const button = document.getElementById('btn-case-submit');
     button.disabled = true; button.textContent = uxText('Sedang menyimpan...', 'Saving...');
@@ -1365,7 +1374,7 @@ async function submitCaseAction() {
             const inspections = await Promise.all(files.map(inspectDocument));
             if (requestEpoch !== sessionEpoch) return;
             const problem = inspections.find(result=>result.error);
-            if (problem) { fail(problem.error); return; }
+            if (problem) { fail(systemText(problem.error)); return; }
         }
         const labels = correctionLabels;
         const payloadFiles = await Promise.all(files.map(async (file,index) => ({label:labels[index],fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
@@ -1432,6 +1441,7 @@ async function submissionSignature(jenis, detail, files) {
 
 let isSubmittingRegistration = false;
 let lastSubmittedCaseId = '';
+let activeReceipt = null;
 async function submitForm(e) {
     e.preventDefault();
     if (isSubmittingRegistration || preflightBusy) return;
@@ -1453,9 +1463,9 @@ async function submitForm(e) {
     isSubmittingRegistration = true;
     document.getElementById('btn-edit-registration').disabled = true;
     submitButton.disabled = true;
-    submitButton.textContent = 'Sedang mengirim...';
+    submitButton.textContent = systemText('Sedang mengirim...');
     setSubmissionStage('form-submit-status','preparing');
-    if (submitStatus) submitStatus.textContent = 'Menyiapkan berkas. Jangan tutup halaman sampai ada konfirmasi.';
+    if (submitStatus) submitStatus.textContent = systemText('Menyiapkan berkas. Jangan tutup halaman sampai ada konfirmasi.');
 
     let finalDetail = `<b>Judul:</b> ${document.getElementById('reg-judul').value}`;
 
@@ -1527,7 +1537,7 @@ async function submitForm(e) {
             lastSubmittedCaseId = result.id || '';
             sessionStorage.removeItem('ipcos_pending_submission');
             showSubmissionReceipt({ id: lastSubmittedCaseId, date: result.date || dateStr, jenis: jenisUjian, files: filesToUpload });
-            if (submitStatus) submitStatus.textContent = 'Pengajuan berhasil dikirim dan tercatat.';
+            if (submitStatus) submitStatus.textContent = systemText('Pengajuan berhasil dikirim dan tercatat.');
             clearFormDraft();
             document.getElementById('reg-jenis-utama').value = "";
             document.querySelectorAll('.dz-file-name').forEach(el => el.innerText = "");
@@ -1550,8 +1560,8 @@ async function submitForm(e) {
         setSubmissionStage('form-submit-status',requestStarted?'uncertain':'error');
         showToast(err.message, "error");
         if (submitStatus) submitStatus.textContent = requestStarted
-            ? `Pengiriman belum dapat dipastikan: ${err.message}. Periksa Status Pengajuanku sebelum mencoba lagi agar tidak mengirim dua kali.`
-            : `Periksa formulir: ${err.message}`;
+            ? `${uxText('Pengiriman belum dapat dipastikan: ', 'Submission could not be confirmed: ')}${systemText(err.message)}. ${uxText('Periksa Status Pengajuan Saya sebelum mencoba lagi agar tidak mengirim dua kali.', 'Check My Requests before retrying to avoid submitting twice.')}`
+            : `${uxText('Periksa formulir: ', 'Check the form: ')}${systemText(err.message)}`;
     } finally {
         if (requestEpoch === sessionEpoch) {
         isSubmittingRegistration = false;
@@ -1565,13 +1575,14 @@ async function submitForm(e) {
 }
 
 function showSubmissionReceipt(receipt) {
+    activeReceipt = receipt;
     const content = document.getElementById('submission-receipt-content');
-    content.innerHTML = `<p>Data dan berkas sudah diterima sistem. Simpan ringkasan ini untuk pengecekan.</p>
-        <dl class="receipt-list"><dt>Nomor pengajuan</dt><dd>${escapeHtml(receipt.id)}</dd>
-        <dt>Jenis</dt><dd>${escapeHtml(receipt.jenis)}</dd>
-        <dt>Waktu kirim</dt><dd>${escapeHtml(formatDateTime(receipt.date).replace(/<[^>]*>/g, ' '))}</dd>
-        <dt>Berkas</dt><dd>${receipt.files.map(f => escapeHtml(f.fileName)).join('<br>') || '-'}</dd>
-        <dt>Status awal</dt><dd>Menunggu admin</dd></dl><button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(receipt.id)}">Unduh Bukti PDF</button>`;
+    content.innerHTML = `<p>${uxText('Data dan berkas sudah diterima sistem. Simpan ringkasan ini untuk pengecekan.', 'Your data and files have been received. Keep this summary for reference.')}</p>
+        <dl class="receipt-list"><dt>${systemText('Nomor pengajuan')}</dt><dd>${escapeHtml(receipt.id)}</dd>
+        <dt>${systemText('Jenis')}</dt><dd>${escapeHtml(systemText(receipt.jenis))}</dd>
+        <dt>${systemText('Waktu kirim')}</dt><dd>${escapeHtml(formatDateTime(receipt.date).replace(/<[^>]*>/g, ' '))}</dd>
+        <dt>${systemText('Berkas')}</dt><dd>${receipt.files.map(f => escapeHtml(f.fileName)).join('<br>') || '-'}</dd>
+        <dt>${systemText('Status awal')}</dt><dd>${systemText('Menunggu admin')}</dd></dl><button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(receipt.id)}">${systemText('Unduh Bukti PDF')}</button>`;
     const modal = document.getElementById('modal-submission-receipt');
     modal.style.display = 'flex';
     modal.style.opacity = '1';
@@ -1586,34 +1597,36 @@ function goToSubmittedCase() {
 // ==========================================
 // 7. GENERATOR GOOGLE CALENDAR (.ics)
 // ==========================================
+function academicCalendarDate(value) {
+    const text = String(value).trim();
+    const months = {jan:0,feb:1,mar:2,apr:3,mei:4,may:4,jun:5,jul:6,agu:7,ags:7,aug:7,sep:8,okt:9,oct:9,nov:10,des:11,dec:11};
+    const localized = text.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
+    let year,month,day;
+    if (localized) { day=Number(localized[1]);month=months[localized[2].slice(0,3).toLowerCase()];year=Number(localized[3]); }
+    else if (iso) { year=Number(iso[1]);month=Number(iso[2])-1;day=Number(iso[3]); }
+    else return null;
+    if (month === undefined || year < 1900 || year > 2200) return null;
+    const date = new Date(Date.UTC(year,month,day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day ? date : null;
+}
 function downloadICS(title, dateStr) {
-    const dateObj = new Date(dateStr);
-
-    if (isNaN(dateObj)) {
-        showToast(currentLang === 'id' ? "Format tanggal tidak valid untuk diekspor" : "Invalid date format for export", "error");
-        return;
-    }
-
-    const startDate = dateObj.toISOString().replace(/-|:|\.\d+/g, '').substring(0, 8) + 'T000000Z';
-    const endDate = dateObj.toISOString().replace(/-|:|\.\d+/g, '').substring(0, 8) + 'T235959Z';
-
-    let icsMSG = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//IPCOS UMY//ID\nBEGIN:VEVENT\n" +
-        "UID:" + Date.now() + "@ipcos.umy.ac.id\n" +
-        "DTSTAMP:" + new Date().toISOString().replace(/-|:|\.\d+/g, '').substring(0, 15) + "Z\n" +
-        "DTSTART:" + startDate + "\n" +
-        "DTEND:" + endDate + "\n" +
-        "SUMMARY:Batas Pendaftaran Yudisium - " + title + "\n" +
-        "DESCRIPTION:Pengingat otomatis batas pendaftaran Yudisium / Wisuda IPCOS UMY. Pastikan seluruh berkas telah dikumpulkan di portal sebelum tanggal ini.\n" +
-        "END:VEVENT\nEND:VCALENDAR";
-
-    const blob = new Blob([icsMSG], { type: 'text/calendar;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.download = `Kalender_Yudisium_${title.replace(/\s+/g, '_')}.ics`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast(currentLang === 'id' ? "Berkas Kalender berhasil diunduh!" : "Calendar file downloaded!", "success");
+    const date = academicCalendarDate(dateStr);
+    if (!date) { showToast(uxText('Format tanggal tidak valid untuk diekspor', 'Invalid date format for export'), 'error'); return; }
+    const compact = date => date.toISOString().slice(0,10).replaceAll('-','');
+    const nextDay = new Date(date.getTime()+86400000);
+    const escapeCalendar = value => String(value).replaceAll('\\','\\\\').replace(/\r?\n/g,'\\n').replaceAll(';','\\;').replaceAll(',','\\,');
+    const event = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//IPCOS UMY//Academic Calendar//EN','BEGIN:VEVENT',
+        'UID:'+Date.now()+'@ipcos.umy.ac.id',
+        'DTSTAMP:'+new Date().toISOString().replace(/-|:|\.\d+/g,'').slice(0,15)+'Z',
+        'DTSTART;VALUE=DATE:'+compact(date),'DTEND;VALUE=DATE:'+compact(nextDay),
+        'SUMMARY:'+escapeCalendar(uxText('Batas Pendaftaran Yudisium - ', 'Graduation clearance deadline - ')+contentText(title)),
+        'DESCRIPTION:'+escapeCalendar(uxText('Pengingat batas pendaftaran Yudisium IPCOS UMY. Pastikan seluruh berkas dikumpulkan sesuai ketentuan program studi.', 'IPCOS UMY graduation clearance reminder. Submit the required documents according to study program rules.')),
+        'END:VEVENT','END:VCALENDAR',''].join('\r\n');
+    const url = URL.createObjectURL(new Blob([event],{type:'text/calendar;charset=utf-8'}));
+    const link = document.createElement('a');link.href=url;link.download='IPCOS-calendar-'+compact(date)+'.ics';
+    document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+    showToast(uxText('Berkas Kalender berhasil diunduh!', 'Calendar file downloaded!'),'success');
 }
 
 // ==========================================
@@ -1687,13 +1700,13 @@ function renderDynamicContent() {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        const data = getChecklistData(type).map(group => ({
+        const data = displayChecklistData(type).map(group => ({
             title: escapeHtml(group.title),
-            rawTitle: String(group.title ?? ''),
+            rawTitle: String(getChecklistData(type).find(original => original.items?.[0]?.id === group.items?.[0]?.id)?.title ?? group.title ?? ''),
             items: (group.items || []).map(item => ({
                 id: String(item.id ?? '').replace(/[^a-zA-Z0-9_-]/g, ''),
                 text: escapeHtml(item.text),
-                rawText: String(item.text ?? ''),
+                rawText: String(getChecklistData(type).flatMap(group=>group.items || []).find(original=>original.id===item.id)?.text ?? item.text ?? ''),
                 sub: type === 'template_berkas' ? escapeHtml(safeUrl(item.sub)) : escapeHtml(item.sub)
             }))
         }));
@@ -1743,11 +1756,11 @@ function renderDynamicContent() {
                             <h4>${group.title}</h4>
                             <div class="cal-info-group">
                                 <div class="cal-info-row">
-                                    <span class="cal-info-label">Batas Yudisium</span>
+                                    <span class="cal-info-label">${systemText('Batas Yudisium')}</span>
                                     <span class="deadline-tag">${item.text}</span>
                                 </div>
                                 <div class="cal-info-row">
-                                    <span class="cal-info-label">Daftar Wisuda</span>
+                                    <span class="cal-info-label">${systemText('Daftar Wisuda')}</span>
                                     <span class="cal-info-value">${item.sub}</span>
                                 </div>
                             </div>
@@ -1803,7 +1816,7 @@ function openContentEditor(type) {
         'template_berkas': 'Edit Template & Link Download',
         'faq': 'Edit Pertanyaan & Jawaban FAQ'
     };
-    document.getElementById('editor-modal-title').innerText = titles[type];
+    document.getElementById('editor-modal-title').innerText = systemText(titles[type]);
     renderEditorUI();
 
     const modal = document.getElementById('modal-edit-content');
@@ -1817,32 +1830,34 @@ function renderEditorUI() {
     editorTempData.forEach((group, gIdx) => {
         html += `<div class="card" style="padding: 15px; margin-bottom: 15px; box-shadow:none; border:1px solid var(--item-border);">
             <div style="display:flex; justify-content:space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <input type="text" value="${escapeHtml(group.title)}" onchange="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="Judul Kategori Utama">
-                <button class="action-btn btn-rev" onclick="removeContentGroup(${gIdx})">Hapus Kategori</button>
+                <input type="text" value="${escapeHtml(group.title)}" onchange="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="${uxText('Judul Kategori Utama','Category title')}">
+                <button class="action-btn btn-rev" onclick="removeContentGroup(${gIdx})">${uxText('Hapus Kategori','Delete category')}</button>
             </div>
+            <label class="editor-translation-label">${uxText('Judul kategori dalam English (opsional)', 'Category title in English (optional)')}<input type="text" value="${escapeHtml(group.titleEn || '')}" onchange="editorTempData[${gIdx}].titleEn = this.value"></label>
             <div style="margin-left: 10px; border-left: 2px solid var(--item-border); padding-left: 10px;">`;
 
         group.items.forEach((item, iIdx) => {
             html += `<div style="display:flex; gap:8px; margin-bottom: 10px; align-items:center;">
                 <div style="flex-grow:1;">
-                    <input type="text" value="${escapeHtml(item.text)}" placeholder="Data Utama" onchange="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
-                    <input type="text" value="${escapeHtml(item.sub)}" placeholder="Deskripsi/Detail" onchange="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
+                    <input type="text" value="${escapeHtml(item.text)}" placeholder="${uxText('Data Utama','Main text')}" onchange="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
+                    <input type="text" value="${escapeHtml(item.sub)}" placeholder="${uxText('Deskripsi/Detail','Description / Details')}" onchange="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
                 </div>
                 <button class="action-btn btn-rev" onclick="removeContentItem(${gIdx}, ${iIdx})" style="height: 40px; padding: 0 12px;">X</button>
-            </div>`;
+            </div><details class="editor-translations"><summary>${uxText('English untuk mahasiswa internasional (opsional)', 'English for international students (optional)')}</summary><div class="details-content"><label>${uxText('Teks English','English text')}<input type="text" value="${escapeHtml(item.textEn || '')}" onchange="editorTempData[${gIdx}].items[${iIdx}].textEn = this.value"></label>${editorCurrentType !== 'template_berkas' ? `<label>${uxText('Detail English','English details')}<textarea rows="2" onchange="editorTempData[${gIdx}].items[${iIdx}].subEn = this.value">${escapeHtml(item.subEn || '')}</textarea></label>` : ''}</div></details>`;
         });
 
-        html += `<button class="action-btn btn-acc" onclick="addContentItem(${gIdx})" style="width:auto; margin-top:5px;">+ Tambah Item</button>
+        html += `<button class="action-btn btn-acc" onclick="addContentItem(${gIdx})" style="width:auto; margin-top:5px;">${uxText('+ Tambah Item','+ Add item')}</button>
             </div></div>`;
     });
 
-    html += `<button class="btn-secondary" style="background:var(--umy-gold); color:black; width:100%; margin-top: 10px;" onclick="addContentGroup()">+ Tambah Kategori Baru</button>`;
+    html += `<button class="btn-secondary" style="background:var(--umy-gold); color:black; width:100%; margin-top: 10px;" onclick="addContentGroup()">${uxText('+ Tambah Kategori Baru','+ Add category')}</button>`;
 
     container.innerHTML = html;
+    bindLanguageBlock(container);
 }
 
 function addContentGroup() { editorTempData.push({ title: "Kategori Baru", items: [] }); renderEditorUI(); }
-function removeContentGroup(gIdx) { if (confirm("Hapus kategori ini beserta item di dalamnya?")) { editorTempData.splice(gIdx, 1); renderEditorUI(); } }
+function removeContentGroup(gIdx) { if (confirm(uxText('Hapus kategori ini beserta item di dalamnya?', 'Delete this category and all its items?'))) { editorTempData.splice(gIdx, 1); renderEditorUI(); } }
 function addContentItem(gIdx) { editorTempData[gIdx].items.push({ id: Date.now().toString(36), text: "", sub: "" }); renderEditorUI(); }
 function removeContentItem(gIdx, iIdx) { editorTempData[gIdx].items.splice(iIdx, 1); renderEditorUI(); }
 
@@ -1957,7 +1972,7 @@ function updateChecklistReminder(unMagang, unSkripsi) {
     if (!reminderBox || !reminderText) return;
 
     if (unMagang === 0 && unSkripsi === 0) {
-        reminderText.innerHTML = currentLang === 'id' ? '<b>Luar biasa!</b> Seluruh kewajiban Magang dan Skripsi Anda telah selesai 100%.' : '<b>Awesome!</b> All your Internship and Thesis tasks are 100% complete.';
+        reminderText.innerHTML = currentLang === 'id' ? 'Seluruh persiapan Magang dan Skripsi sudah Anda tandai lengkap. Status resmi ada di Perjalanan Akademik.' : 'You have marked all internship and thesis preparation complete. See Academic Journey for official status.';
         if (reminderBox.getAttribute('data-complete') !== 'true') { triggerConfetti(); reminderBox.setAttribute('data-complete', 'true'); }
     } else {
         reminderText.innerHTML = currentLang === 'id' ? `Masih ada <b>${unMagang}</b> tugas Magang & <b>${unSkripsi}</b> tahapan Skripsi yang belum dicentang.` : `You still have <b>${unMagang}</b> Internship & <b>${unSkripsi}</b> Thesis tasks unchecked.`;
@@ -1976,9 +1991,9 @@ function getStatusBadge(status) {
     const key = String(status || '').trim().toLowerCase();
     const labels = {
         accepted: ['Selesai', 'Completed'],
-        revision: currentUser.role === 'admin' ? ['Menunggu mahasiswa', 'Waiting for student'] : ['Perlu perbaikan Anda', 'Your corrections needed'],
-        resubmitted: ['Perbaikan menunggu admin', 'Corrections awaiting admin'],
-        pending: ['Menunggu admin', 'Waiting for admin']
+        revision: currentUser.role === 'admin' ? ['Menunggu mahasiswa', 'Awaiting student corrections'] : ['Perlu perbaikan Anda', 'Corrections needed'],
+        resubmitted: ['Perbaikan menunggu admin', 'Corrections awaiting review'],
+        pending: ['Menunggu admin', 'Awaiting admin review']
     };
     const normalized = key in labels ? key : 'pending';
     const [id,en] = labels[normalized];
@@ -1988,25 +2003,37 @@ function getStatusBadge(status) {
 // ==========================================
 // 10. SISTEM PENERJEMAH BAHASA DYNAMIS
 // ==========================================
-let currentLang = 'id';
+let currentLang = (() => { try { return localStorage.getItem('ipcos_language') === 'en' ? 'en' : 'id'; } catch (_) { return 'id'; } })();
 
 function toggleLanguage() {
+    if (loginBusy || isSubmittingRegistration || isPreparingCorrection || activeUpdateIds.size) {
+        showToast(uxText('Tunggu proses selesai sebelum mengganti bahasa.', 'Wait for the current operation to finish before changing language.'), 'error');
+        return;
+    }
     currentLang = currentLang === 'id' ? 'en' : 'id';
-    const langBtn = document.getElementById('lang-btn');
-    if (langBtn) { langBtn.innerText = currentLang === 'id' ? 'Switch to English' : 'Ganti ke Indonesia'; }
+    try { localStorage.setItem('ipcos_language', currentLang); } catch (_) {}
+    renderDynamicContent();
     applyDynamicLanguage();
-
-    const nimInput = document.getElementById('input-nim');
-    if (nimInput) { nimInput.placeholder = currentLang === 'id' ? 'Masukkan NIM / Student ID' : 'Enter NIM / Student ID'; }
-
-    if (currentUser.role === 'admin') { loadAdminData(); } else { loadStudentStatus(); }
-    updateProgress();
+    applyLanguageBlocks();
+    refreshServiceAvailability();
+    document.querySelectorAll('#registration-fields .dz-remove-btn').forEach(button=>button.textContent=uxText('Hapus File','Remove file'));
+    const draftStatus = document.getElementById('form-draft-status');
+    if (draftStatus.textContent) draftStatus.textContent = systemText('Draf isian tersimpan di tab ini.');
+    if (currentUser.role === 'admin') { loadAdminData(); renderServiceSettings(); renderDashboardCharts(readStoredJSON(sessionStorage,'ipcos_registrations',[])); renderDosenTable(); renderMasterMahasiswa(readStoredJSON(sessionStorage,'ipcos_students',[])); if (latestBackup) renderBackupStatus(latestBackup); }
+    else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(readStoredJSON(sessionStorage,'ipcos_registrations',[])); }
+    renderNotifications();
     renderTaskHome();
-    if (selectedCaseId && document.getElementById('modal-case-detail').style.display === 'flex' && document.getElementById('case-action-panel')?.hidden) openCaseDetail(selectedCaseId);
+    if (!document.getElementById('registration-review').hidden) renderRegistrationReview();
+    document.querySelectorAll('#registration-fields [aria-invalid="true"]').forEach(input => setFieldError(input.id,input.type === 'file' ? fileProblem(input.files[0],input.accept) : registrationTextIssue(input.id)));
+    if (activeReceipt && document.getElementById('modal-submission-receipt').style.display === 'flex') showSubmissionReceipt(activeReceipt);
+    if (selectedCaseId && document.getElementById('modal-case-detail').style.display === 'flex') openCaseDetail(selectedCaseId,true);
+    if (document.getElementById('modal-global-search').style.display === 'flex') renderSearchResults(document.getElementById('global-search-input').value);
 }
 
 function applyDynamicLanguage() {
+    applyStaticLanguage();
     syncThemeControl();
+    if (currentUser.role) document.getElementById('display-greeting').textContent = uxText('Halo','Hello') + ', ' + currentUser.nama.split(' ')[0] + '!';
     renderSyncStatus();
     renderAcademicStages();
     renderRegistrationReadiness();
@@ -2053,15 +2080,17 @@ function caseTimelineHtml(item) {
     try { logs = JSON.parse(item.note || '[]'); } catch (_) {
         if (item.note) logs = [{ sender: 'Sistem', time: item.date, message: item.note }];
     }
-    if (!Array.isArray(logs) || !logs.length) return '<p>Belum ada catatan.</p>';
-    return logs.map(log => `<div class="case-timeline-item"><strong>${escapeHtml(log.sender || 'Sistem')}</strong>
+    if (!Array.isArray(logs) || !logs.length) return `<p>${uxText('Belum ada catatan.', 'No notes yet.')}</p>`;
+    return logs.map(log => `<div class="case-timeline-item"><strong>${escapeHtml(log.sender === 'Sistem' || !log.sender ? uxText('Sistem','System') : log.sender)}</strong>
         <small>${escapeHtml(formatDateTime(log.time || item.date).replace(/<[^>]*>/g, ' '))}</small>
-        <div class="preserve-lines">${sanitizeRichHtml(log.message || '')}</div></div>`).join('');
+        <div class="preserve-lines">${localizedSystemNote(log.message || '')}</div></div>`).join('');
 }
 
-function openCaseDetail(id) {
-    if ((String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return;
-    clearCaseBlobUrls();
+function openCaseDetail(id, languageRefresh = false) {
+    if (!languageRefresh && (String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return;
+    const savedPanel = languageRefresh && document.getElementById('case-action-panel');
+    const savedPreview = languageRefresh && document.getElementById('case-file-preview');
+    if (!languageRefresh) clearCaseBlobUrls();
     const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const item = records.find(record => String(record.id) === String(id));
     if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) {
@@ -2074,42 +2103,44 @@ function openCaseDetail(id) {
     let actions = '';
     if (isAdmin && ['pending', 'resubmitted'].includes(status)) {
         if (item.jenis === 'Outline' || item.jenis === 'Pergantian Pembimbing') {
-            actions += '<button type="button" class="btn-primary" onclick="caseDetailAction(\'dospem\')">Tunjuk Dosen & Terima</button>';
-        } else actions += '<button type="button" class="btn-primary" onclick="caseDetailAction(\'accept\')">Terima Pengajuan</button>';
-        actions += '<button type="button" class="btn-secondary" onclick="caseDetailAction(\'revision\')">Minta Revisi</button>';
+            actions += `<button type="button" class="btn-primary" onclick="caseDetailAction('dospem')">${systemText('Tunjuk Dosen & Terima')}</button>`;
+        } else actions += `<button type="button" class="btn-primary" onclick="caseDetailAction('accept')">${systemText('Terima Pengajuan')}</button>`;
+        actions += `<button type="button" class="btn-secondary" onclick="caseDetailAction('revision')">${systemText('Minta Revisi')}</button>`;
     } else if (!isAdmin && status === 'revision') {
-        actions = '<button type="button" class="btn-primary" onclick="caseDetailAction(\'reply\')">Upload Perbaikan</button>';
+        actions = `<button type="button" class="btn-primary" onclick="caseDetailAction('reply')">${systemText('Upload Perbaikan')}</button>`;
     }
     const content = document.getElementById('case-detail-content');
     content.innerHTML = `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
         <div>${getStatusBadge(item.status)}${waitingHtml(item)}</div>
-        <button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(item.id)}">Unduh Bukti PDF</button>
-        <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(item.jenis)}</dd>
+        <button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
+        <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(systemText(item.jenis))}</dd>
         <dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
         ${isAdmin ? `<dt>${uxText('Mahasiswa','Student')}</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
         <dt>${uxText('Nomor','ID')}</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
-        <h3>${uxText('Detail','Details')}</h3><div class="case-content-block">${sanitizeRichHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div>
+        <h3>${uxText('Detail','Details')}</h3><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div>
         <h3>${uxText('Berkas','Documents')}</h3><div class="case-content-block">${caseFileListHtml(item)}</div>
-        <div id="case-file-preview" hidden><iframe title="Pratinjau berkas" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
+        <div id="case-file-preview" hidden><iframe title="${uxText('Pratinjau berkas','Document preview')}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
         <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
         <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
         <h3>${uxText('Tindakan','Actions')}</h3><p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
         <div id="case-action-panel" hidden></div></aside></div>`;
+    if (savedPanel) { content.querySelector('#case-action-panel').replaceWith(savedPanel); content.querySelector('#case-detail-actions').hidden = !savedPanel.hidden; }
+    if (savedPreview) content.querySelector('#case-file-preview').replaceWith(savedPreview);
     content.querySelectorAll('[data-preview-index]').forEach(button => button.addEventListener('click', () => previewCaseFile(Number(button.dataset.previewIndex))));
     const modal = document.getElementById('modal-case-detail');
     clearTimeout(modalCloseTimers.get(modal.id));
     modal.style.display = 'flex';
     modal.style.opacity = '1';
-    modal.querySelector('.case-close').focus();
+    if (!languageRefresh) modal.querySelector('.case-close').focus();
 }
 
 function caseMobileCard(item, isAdmin) {
     return `<article class="case-mobile-card"><div class="case-mobile-top">${getStatusBadge(item.status)}<small>${escapeHtml(formatDate(isAdmin ? getCaseEventTime(item) : item.date))}</small></div>
-        <strong>${escapeHtml(item.jenis)}</strong>${isAdmin ? `<p>${escapeHtml(item.nama)}<br><small>${escapeHtml(item.nim)}</small></p>` : ''}
+        <strong>${escapeHtml(systemText(item.jenis))}</strong>${isAdmin ? `<p>${escapeHtml(item.nama)}<br><small>${escapeHtml(item.nim)}</small></p>` : ''}
         <p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}
-        <button type="button" class="btn-primary" data-case-id="${escapeHtml(item.id)}">Buka Detail & Tindakan</button></article>`;
+        <button type="button" class="btn-primary" data-case-id="${escapeHtml(item.id)}">${systemText('Buka Detail & Tindakan')}</button></article>`;
 }
 
 document.addEventListener('click', event => {
@@ -2136,19 +2167,19 @@ function loadStudentStatus() {
             const stat = String(item.status).trim().toLowerCase();
             if (stat === 'revision') hasRevision = true;
 
-            let actionButtons = `<button type="button" class="btn-chat-log" data-case-id="${escapeHtml(item.id)}">Lihat Detail & Riwayat</button>`;
+            let actionButtons = `<button type="button" class="btn-chat-log" data-case-id="${escapeHtml(item.id)}">${systemText('Lihat Detail & Riwayat')}</button>`;
             if (stat === 'revision') {
                 actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
             }
 
-            let detailText = sanitizeRichHtml(item.detail);
+            let detailText = localizedDetailHtml(item.detail);
             if (item.dospem) {
-                detailText += `<br><br><b style="color:var(--umy-maroon);">Dosen Pembimbing:</b><br>${escapeHtml(item.dospem)}`;
+                detailText += `<br><br><b style="color:var(--umy-maroon);">${uxText('Dosen Pembimbing:', 'Supervisor:')}</b><br>${escapeHtml(item.dospem)}`;
             }
 
             const statCheck = String(item.status).trim().toLowerCase();
             if (statCheck === 'revision' && item.note) {
-                let latestRevNote = "Buka detail pengajuan untuk membaca instruksi perbaikan.";
+                let latestRevNote = uxText('Buka detail pengajuan untuk membaca instruksi perbaikan.', 'Open the request details to read the correction instructions.');
                 try {
                     const parsedLogs = JSON.parse(item.note);
                     const lastAdminLog = parsedLogs.slice().reverse().find(l => l.role === 'admin');
@@ -2158,12 +2189,12 @@ function loadStudentStatus() {
                 } catch(e) {
                     latestRevNote = item.note;
                 }
-                detailText += `<br><br><b style="color:var(--umy-maroon);">Catatan Revisi Admin:</b><br><span style="color:var(--text-muted);">${escapeHtml(latestRevNote)}</span>`;
+                detailText += `<br><br><b style="color:var(--umy-maroon);">${uxText('Catatan Revisi Admin:', 'Admin correction notes:')}</b><br><span style="color:var(--text-muted);">${escapeHtml(latestRevNote)}</span>`;
             }
 
             tbody.innerHTML += `<tr>
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
-                <td style="vertical-align:top;"><b>${escapeHtml(item.jenis)}</b></td>
+                <td style="vertical-align:top;"><b>${escapeHtml(systemText(item.jenis))}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${detailText}</td>
                 <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</td>
                 <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
@@ -2266,11 +2297,11 @@ function renderAdminTable() {
             <div style="font-size: 30px; opacity: 0.5; margin-bottom: 10px;">-</div>
             <span class="lang" data-id="Tidak ada data yang sesuai pencarian." data-en="No matching data found.">${currentLang === 'id' ? 'Tidak ada data yang sesuai pencarian.' : 'No matching data found.'}</span>
         </td></tr>`;
-        document.getElementById('admin-page-info').innerText = `Halaman 1 / 1`;
+        document.getElementById('admin-page-info').innerText = systemText('Halaman 1 / 1');
         document.getElementById('admin-btn-prev').disabled = true;
         document.getElementById('admin-btn-next').disabled = true;
         const mobileList = document.getElementById('admin-mobile-list');
-        if (mobileList) mobileList.innerHTML = '<div class="case-mobile-card">Tidak ada pengajuan yang sesuai.</div>';
+        if (mobileList) mobileList.innerHTML = `<div class="case-mobile-card">${uxText('Tidak ada pengajuan yang sesuai.', 'No matching requests.')}</div>`;
         return;
     }
 
@@ -2284,7 +2315,7 @@ function renderAdminTable() {
     const mobileList = document.getElementById('admin-mobile-list');
     if (mobileList) mobileList.innerHTML = paginatedItems.map(item => caseMobileCard(item, true)).join('');
 
-    document.getElementById('admin-page-info').innerText = `Halaman ${currentAdminPage} / ${totalPages}`;
+    document.getElementById('admin-page-info').innerText = `${uxText('Halaman','Page')} ${currentAdminPage} / ${totalPages}`;
     document.getElementById('admin-btn-prev').disabled = currentAdminPage <= 1;
     document.getElementById('admin-btn-next').disabled = currentAdminPage >= totalPages;
 
@@ -2292,7 +2323,7 @@ function renderAdminTable() {
         tbody.innerHTML += `<tr>
             <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
             <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
-            <td><strong>${escapeHtml(item.jenis)}</strong></td>
+            <td><strong>${escapeHtml(systemText(item.jenis))}</strong></td>
             <td class="queue-next-step">${escapeHtml(caseNextStep(item))}${waitingHtml(item)}</td>
             <td>${getStatusBadge(item.status)}</td>
             <td><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${uxText('Buka Pengajuan','Open Request')}</button></td>
@@ -2391,7 +2422,7 @@ function startCountdownWidget() {
         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
         const textDisplay = (distance < 0)
-            ? "DITUTUP"
+            ? systemText('DITUTUP')
             : `${days}d : ${hours}h : ${minutes}m : ${seconds}s`;
 
         document.querySelectorAll('.countdown-timer-display, #countdown-timer-display').forEach(el => {
@@ -2512,11 +2543,11 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
                 renderActivityTimeline(records);
             }
 
-            showToast("Status berhasil diperbarui!", "success");
+            showToast(uxText('Status berhasil diperbarui!', 'Status updated successfully!'), "success");
             await syncDatabase();
             return true;
         } else {
-            showToast("Gagal: " + (result.message || "Error tidak diketahui"), "error");
+            showToast(uxText('Gagal: ', 'Failed: ') + systemText(result.message || uxText('Error tidak diketahui','Unknown error')), "error");
             return false;
         }
     } catch (err) {
@@ -2592,7 +2623,7 @@ function syncThemeControl() {
     const dark = document.body.classList.contains('dark-mode');
     button.setAttribute('aria-pressed', String(dark));
     button.setAttribute('aria-label', uxText('Mode gelap','Dark mode'));
-    document.getElementById('login-theme-label').textContent = uxText('Tema: ','Theme: ') + (dark ? uxText('gelap','dark') : uxText('terang','light'));
+    button.title = dark ? uxText('Ganti ke mode terang','Switch to light mode') : uxText('Ganti ke mode gelap','Switch to dark mode');
 }
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
@@ -2731,7 +2762,7 @@ function renderDashboardCharts(records) {
     ratioChartInstance = new Chart(ctxRatio.getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: ['Pending', 'Accepted', 'Revisi', 'Resubmitted'],
+            labels: [uxText('Menunggu admin','Awaiting review'),uxText('Selesai','Completed'),uxText('Menunggu mahasiswa','Awaiting corrections'),uxText('Perbaikan masuk','Resubmitted')],
             datasets: [{
                 data: [pendingCount, acceptedCount, revisionCount, resubmittedCount],
                 backgroundColor: ['#F8C463', '#81912F', '#E03F4F', '#A3968C'],
@@ -2760,9 +2791,9 @@ function renderDashboardCharts(records) {
     typeChartInstance = new Chart(ctxType.getContext('2d'), {
         type: 'bar',
         data: {
-            labels: ['Outline', 'Proposal', 'Pendadaran', 'Jurnal', 'Ganti Dosen'],
+            labels: SERVICE_TYPES.map(systemText),
             datasets: [{
-                label: 'Jumlah Pengajuan',
+                label: uxText('Jumlah Pengajuan','Requests'),
                 data: [outlineCount, proposalCount, pendadaranCount, jurnalCount, gantiDosenCount],
                 backgroundColor: '#E03F4F',
                 borderRadius: 8,
@@ -2848,7 +2879,7 @@ function renderMasterMahasiswa(students) {
     students.reverse().forEach(s => {
         const statusMhs = s.Status || s.status || "Aktif"; let badgeClass = "badge-accepted";
         if (statusMhs.toLowerCase() === "tidak aktif") badgeClass = "badge-revision"; else if (statusMhs.toLowerCase() === "lulus") badgeClass = "badge-resubmitted";
-        tbody.innerHTML += `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(statusMhs)}</span></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">Hapus</button></td></tr>`;
+        tbody.innerHTML += `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(systemText(statusMhs))}</span></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">${uxText('Hapus','Delete')}</button></td></tr>`;
     });
 }
 
@@ -2862,7 +2893,7 @@ async function addStudent() {
 
 async function deleteStudent(nim) {
     if (isOffline) { showToast("Tidak dapat menghapus saat offline.", "error"); return; }
-    if (!confirm(`Apakah Anda yakin ingin menghapus akses untuk NIM: ${nim}?`)) return;
+    if (!confirm(`${uxText('Hapus akses mahasiswa untuk NIM:', 'Remove student access for ID:')} ${nim}?`)) return;
     showLoader();
     try { await apiPostSuccess(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'delete', nim: nim }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Akses Mahasiswa berhasil dihapus!", "success"); syncDatabase(); } catch (e) { showToast("Gagal menghapus data", "error"); } finally { hideLoader(); }
 }
@@ -2916,9 +2947,9 @@ function renderDosenTable() {
         const maksimal = parseInt(d.Maksimal) || 0;
         const sisa = maksimal - terpakai;
 
-        let statusBadge = `<span class="status-badge badge-accepted">Tersedia (${sisa})</span>`;
-        if (sisa <= 0) statusBadge = `<span class="status-badge badge-revision">Penuh</span>`;
-        else if (sisa <= 2) statusBadge = `<span class="status-badge badge-pending">Hampir Penuh</span>`;
+        let statusBadge = `<span class="status-badge badge-accepted">${uxText('Tersedia', 'Available')} (${sisa})</span>`;
+        if (sisa <= 0) statusBadge = `<span class="status-badge badge-revision">${uxText('Penuh','Full')}</span>`;
+        else if (sisa <= 2) statusBadge = `<span class="status-badge badge-pending">${uxText('Hampir Penuh','Nearly full')}</span>`;
 
         tbody.innerHTML += `
             <tr>
@@ -2928,7 +2959,7 @@ function renderDosenTable() {
                 <td style="text-align: center;">${statusBadge}</td>
                 <td>
                     <button class="action-btn" style="background: var(--item-hover); border: 1px solid var(--item-border);" onclick="openEditDosen(${escapeHtml(JSON.stringify(nama))}, ${terpakai}, ${maksimal})">Edit</button>
-                    <button class="action-btn btn-rev" onclick="deleteDosen(${escapeHtml(JSON.stringify(nama))})">Hapus</button>
+                    <button class="action-btn btn-rev" onclick="deleteDosen(${escapeHtml(JSON.stringify(nama))})">${uxText('Hapus','Delete')}</button>
                 </td>
             </tr>
         `;

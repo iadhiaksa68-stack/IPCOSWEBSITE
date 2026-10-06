@@ -1,6 +1,7 @@
 // Small-service transaction tools, with authorization enforced again by the API.
 let serviceSettings = [];
 let serviceSettingsEditing = false;
+let latestBackup = null;
 const SERVICE_TYPES = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'];
 function serviceSetting(type) {
     return serviceSettings.find(s => s.type === type) || {type, enabled:true, open:'', close:'', adminDays:3, studentDays:7};
@@ -8,9 +9,9 @@ function serviceSetting(type) {
 function serviceAvailability(type) {
     const setting = serviceSetting(type);
     const today = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    if (!setting.enabled) return 'Layanan sedang ditutup oleh admin.';
-    if (setting.open && today < setting.open) return `Pendaftaran dibuka ${setting.open}.`;
-    if (setting.close && today > setting.close) return `Periode pendaftaran berakhir ${setting.close}.`;
+    if (!setting.enabled) return uxText('Layanan sedang ditutup oleh admin.', 'This service is currently closed by admin.');
+    if (setting.open && today < setting.open) return `${uxText('Pendaftaran dibuka','Registration opens')} ${setting.open} (WIB, UTC+7).`;
+    if (setting.close && today > setting.close) return `${uxText('Periode pendaftaran berakhir','Registration closed on')} ${setting.close} (WIB, UTC+7).`;
     return '';
 }
 function activeSameType(type) {
@@ -23,9 +24,9 @@ function refreshServiceAvailability() {
     const existing = currentUser.role === 'mhs' && type && activeSameType(type);
     const reason = type ? serviceAvailability(type) : '';
     banner.hidden = !type;
-    banner.innerHTML = existing ? `<strong>Pengajuan ${escapeHtml(type)} Anda masih berjalan.</strong><p>Lanjutkan pengajuan tersebut agar dokumen dan riwayat tetap dalam satu tempat.</p><button type="button" class="btn-primary" data-case-id="${escapeHtml(existing.id)}">Lanjutkan Pengajuan</button>`
-        : reason ? `<strong>${escapeHtml(reason)}</strong><p>Revisi pengajuan yang sudah masuk tetap dapat dilanjutkan.</p>`
-        : `<strong>Pendaftaran dibuka</strong>${serviceSetting(type).close ? `<p>Batas pengiriman: ${escapeHtml(serviceSetting(type).close)} pukul 23.59 WIB.</p>` : ''}`;
+    banner.innerHTML = existing ? `<strong>${uxText('Pengajuan Anda masih berjalan:', 'Your request is still active:')} ${escapeHtml(systemText(type))}.</strong><p>${uxText('Lanjutkan pengajuan tersebut agar dokumen dan riwayat tetap dalam satu tempat.', 'Continue the existing request to keep documents and history in one place.')}</p><button type="button" class="btn-primary" data-case-id="${escapeHtml(existing.id)}">${uxText('Lanjutkan Pengajuan','Continue request')}</button>`
+        : reason ? `<strong>${escapeHtml(reason)}</strong><p>${uxText('Revisi pengajuan yang sudah masuk tetap dapat dilanjutkan.', 'You can still submit corrections for existing requests.')}</p>`
+        : `<strong>${uxText('Pendaftaran dibuka','Registration is open')}</strong>${serviceSetting(type).close ? `<p>${uxText('Batas pengiriman:', 'Submission deadline:')} ${escapeHtml(serviceSetting(type).close)} 23:59 WIB (UTC+7).</p>` : ''}`;
     const review = document.getElementById('btn-review-registration');
     if (review && !isSubmittingRegistration) review.disabled = !!(existing || reason);
     renderAcademicStages();
@@ -51,7 +52,7 @@ function caseWaiting(item) {
 }
 function waitingHtml(item) {
     const wait=caseWaiting(item);
-    return wait ? `<p class="waiting-badge ${wait.overdue?'waiting-overdue':''}">Menunggu ${wait.role}: ${wait.days} hari · target internal ${wait.target} hari${wait.overdue?' · Perlu perhatian':''}</p>` : '';
+    return wait ? `<p class="waiting-badge ${wait.overdue?'waiting-overdue':''}">${uxText('Menunggu','Waiting for')} ${wait.role === 'mahasiswa' ? uxText('mahasiswa','student') : 'admin'}: ${wait.days} ${uxText('hari',wait.days === 1 ? 'day' : 'days')} · ${uxText('target internal','internal target')} ${wait.target} ${uxText('hari','days')}${wait.overdue ? uxText(' · Perlu perhatian',' · Needs attention') : ''}</p>` : '';
 }
 function caseDocumentOptions(item) { return registrationSpecs(item.jenis).map(([,label])=>label); }
 function renderRevisionAssociations() {
@@ -61,20 +62,23 @@ function renderRevisionAssociations() {
     if (!box) { box=document.createElement('div'); box.id='revision-associations'; input.insertAdjacentElement('afterend',box); }
     const options=caseDocumentOptions(item);
     const requested=getRevisionInstructions(item).files.filter(label=>options.includes(label));
-    box.innerHTML=[...input.files].map((file,index)=>`<label class="revision-association">${escapeHtml(file.name)}<select id="revision-label-${index}" required aria-label="Jenis dokumen untuk ${escapeHtml(file.name)}"><option value="">Pilih dokumen yang diperbaiki</option>${options.map(label=>`<option value="${escapeHtml(label)}" ${((requested.length===1 && input.files.length===1 && requested[0]===label) || (options.length===1 && options[0]===label))?'selected':''}>${escapeHtml(label)}</option>`).join('')}</select></label>`).join('');
+    box.innerHTML=[...input.files].map((file,index)=>`<label class="revision-association">${escapeHtml(file.name)}<select id="revision-label-${index}" required aria-label="${uxText('Jenis dokumen untuk','Document type for')} ${escapeHtml(file.name)}"><option value="">${systemText('Pilih dokumen yang diperbaiki')}</option>${options.map(label=>`<option value="${escapeHtml(label)}" ${((requested.length===1 && input.files.length===1 && requested[0]===label) || (options.length===1 && options[0]===label))?'selected':''}>${escapeHtml(systemText(label))}</option>`).join('')}</select></label>`).join('');
+    bindLanguageBlock(box);
 }
+
 function revisionFileLabels(files,item) {
     const labels=files.map((file,index)=>document.getElementById('revision-label-'+index)?.value || '');
     const allowed=caseDocumentOptions(item);
-    if (labels.some(label=>!allowed.includes(label)) || new Set(labels).size!==labels.length) throw new Error('Pilih jenis dokumen yang berbeda untuk setiap berkas perbaikan.');
+    if (labels.some(label=>!allowed.includes(label)) || new Set(labels).size!==labels.length) throw new Error(systemText('Pilih jenis dokumen yang berbeda untuk setiap berkas perbaikan.'));
     const requested=getRevisionInstructions(item).files.filter(label=>allowed.includes(label));
-    if (requested.some(label=>!labels.includes(label))) throw new Error('Unggah setiap dokumen yang diminta admin.');
+    if (requested.some(label=>!labels.includes(label))) throw new Error(systemText('Unggah setiap dokumen yang diminta admin.'));
     return labels;
 }
 function renderServiceSettings() {
     const container=document.getElementById('service-settings');
     if (!container || currentUser.role!=='admin' || serviceSettingsEditing) return;
-    container.innerHTML=SERVICE_TYPES.map((type,index)=>{ const s=serviceSetting(type); return `<fieldset class="service-setting"><legend>${escapeHtml(type)}</legend><label class="service-enabled"><input type="checkbox" id="service-enabled-${index}" ${s.enabled?'checked':''}> Aktif</label><div class="service-setting-fields"><label>Dibuka (WIB)<input type="date" id="service-open-${index}" value="${escapeHtml(s.open)}"></label><label>Ditutup (WIB)<input type="date" id="service-close-${index}" value="${escapeHtml(s.close)}"></label><label>Target admin (hari)<input type="number" min="1" max="365" id="service-admin-${index}" value="${Number(s.adminDays)}"></label><label>Target revisi (hari)<input type="number" min="1" max="365" id="service-student-${index}" value="${Number(s.studentDays)}"></label></div></fieldset>`; }).join('');
+    container.innerHTML=SERVICE_TYPES.map((type,index)=>{ const s=serviceSetting(type); return `<fieldset class="service-setting"><legend>${escapeHtml(systemText(type))}</legend><label class="service-enabled"><input type="checkbox" id="service-enabled-${index}" ${s.enabled?'checked':''}> ${systemText('Aktif')}</label><div class="service-setting-fields"><label>${systemText('Dibuka (WIB)')}<input type="date" id="service-open-${index}" value="${escapeHtml(s.open)}"></label><label>${systemText('Ditutup (WIB)')}<input type="date" id="service-close-${index}" value="${escapeHtml(s.close)}"></label><label>${systemText('Target admin (hari)')}<input type="number" min="1" max="365" id="service-admin-${index}" value="${Number(s.adminDays)}"></label><label>${systemText('Target revisi (hari)')}<input type="number" min="1" max="365" id="service-student-${index}" value="${Number(s.studentDays)}"></label></div></fieldset>`; }).join('');
+    bindLanguageBlock(container);
     container.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{serviceSettingsEditing=true;}));
 }
 async function saveServiceSettings(event) {
@@ -90,8 +94,9 @@ async function saveServiceSettings(event) {
 }
 function renderBackupStatus(backup) {
     const el=document.getElementById('backup-status'); if(!el || currentUser.role!=='admin') return;
-    const labels={success:'Cadangan lengkap',partial:'Cadangan sebagian — ada berkas yang belum tersalin',failed:'Cadangan gagal — periksa log backend',running:'Cadangan sedang diproses'};
-    el.textContent=`${backup.scheduled?'Jadwal harian aktif (sekitar 04.00 WIB)':'Jadwal belum aktif'}. ${labels[backup.state] || 'Belum ada cadangan'}${backup.time?' · '+new Date(backup.time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}):''}${Number.isInteger(backup.files)?' · '+backup.files+' berkas':''}${backup.running && Number.isInteger(backup.copied)?' · '+backup.copied+' berkas sudah diproses':''}.`;
+    latestBackup = backup;
+    const labels={success:uxText('Cadangan lengkap','Backup complete'),partial:uxText('Cadangan sebagian — ada berkas yang belum tersalin','Partial backup — some files were not copied'),failed:uxText('Cadangan gagal — periksa log backend','Backup failed — check the backend log'),running:uxText('Cadangan sedang diproses','Backup in progress')};
+    el.textContent=`${backup.scheduled ? uxText('Jadwal harian aktif (sekitar 04.00 WIB)','Daily schedule active (around 04:00 WIB, UTC+7)') : uxText('Jadwal belum aktif','Schedule is not active')}. ${labels[backup.state] || uxText('Belum ada cadangan','No backup yet')}${backup.time?' · '+new Date(backup.time).toLocaleString(currentLang === 'id' ? 'id-ID' : 'en-GB',{timeZone:'Asia/Jakarta'}):''}${Number.isInteger(backup.files)?' · '+backup.files+' '+uxText('berkas','files'):''}${backup.running && Number.isInteger(backup.copied)?' · '+backup.copied+' '+uxText('berkas sudah diproses','files processed'):''}.`;
     const link=document.getElementById('backup-folder');
     link.hidden=!backup.folderId;
     if(backup.folderId) link.href='https://drive.google.com/drive/folders/'+encodeURIComponent(backup.folderId);
@@ -149,7 +154,7 @@ async function accessCaseDocument(index,preview=false,button=null) {
         const url=URL.createObjectURL(new Blob([bytes],{type:mime})); caseBlobUrls.add(url);
         const name=String(result.fileName || 'dokumen').replace(/[\\/\x00-\x1f]/g,'_');
         if(preview && ['application/pdf','image/png','image/jpeg'].includes(mime)) {
-            panel.querySelector('iframe').src=url; panel.querySelector('iframe').title='Pratinjau: '+name;
+            panel.querySelector('iframe').src=url; panel.querySelector('iframe').title=uxText('Pratinjau: ','Preview: ')+name;
             panel.querySelector('p').textContent='Pratinjau berkas privat. Gunakan Unduh Berkas jika pratinjau tidak tersedia.';
         } else {
             const link=document.createElement('a'); link.href=url; link.download=name; document.body.appendChild(link);link.click();link.remove();

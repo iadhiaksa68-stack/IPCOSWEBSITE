@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const assets = require('./assets.cjs');
-const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud'];
+const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud', 'language-layout'];
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 // Whitelisted files and mocked API routes make these tests independent of live data.
 const server = createServer((req, res) => {
