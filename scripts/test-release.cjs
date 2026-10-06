@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const assets = require('./assets.cjs');
-const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey'];
+const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud'];
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 // Whitelisted files and mocked API routes make these tests independent of live data.
 const server = createServer((req, res) => {
@@ -24,6 +24,11 @@ async function run(file, args = []) {
 (async () => {
     for (const file of assets.filter(name => name.endsWith('.js'))) await run(file, ['--check']);
     await run('tests/release-gate.cjs', ['--test']);
+    await run('tests/document-checks.cjs', ['--test']);
+    await run('tests/backend-journey.cjs', ['--test']);
+    mkdirSync(path.join(root, 'test-results'), { recursive: true });
+    await run('tests/backend-transactions.cjs');
+    await run('tests/backups.cjs');
     mkdirSync(path.join(root, 'test-results'), { recursive: true });
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(8766, '127.0.0.1', resolve); });
     for (const suite of suites) await run(`tests/${suite}.cjs`);

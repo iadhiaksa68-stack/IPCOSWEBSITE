@@ -99,6 +99,6 @@ function workflowDirtyInput(event) {
     if(panel && event.target.matches('input,textarea,select')) panel.dataset.dirty='true';
 }
 window.addEventListener('beforeunload',event=>{
-    if (!getSessionToken() || !(registrationDirty || caseEditorDirty() || isSubmittingRegistration || isPreparingCorrection || activeUpdateIds.size)) return;
+    if (!getSessionToken() || !(registrationDirty || caseEditorDirty() || isSubmittingRegistration || isPreparingCorrection || activeUpdateIds.size || Object.keys(journeyCloud.pending).length)) return;
     event.preventDefault();event.returnValue='';
 });

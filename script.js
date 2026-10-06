@@ -160,6 +160,7 @@ window.addEventListener('offline', () => {
 // 2. GLOBAL SEARCH (CTRL + K)
 // ==========================================
 const searchDatabase = [
+    { title: "Perjalanan Akademik", keywords: "perjalanan progres tahapan riwayat skripsi", tab: "academic-journey" },
     { title: "Dashboard Akademik", keywords: "beranda utama awal dashboard", tab: "dashboard" },
     { title: "Kewajiban Magang", keywords: "magang kerja praktik logbook", tab: "magang" },
     { title: "Kewajiban Skripsi", keywords: "skripsi tugas akhir ta outline pendadaran", tab: "skripsi" },
@@ -524,6 +525,8 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    resetAcademicJourney();
+    documentInspections = new WeakMap(); preflightBusy = false;
     resetWorkflowSession();
     clearCaseBlobUrls();
     ratioChartInstance?.destroy(); typeChartInstance?.destroy();
@@ -598,6 +601,7 @@ function syncDatabase() {
 }
 
 function applyDatabaseSnapshot(data) {
+            applyJourneySnapshot(data);
             serviceSettings = Array.isArray(data.services) ? data.services : [];
             renderServiceSettings();
             if (data.backup && currentUser.role === 'admin') renderBackupStatus(data.backup);
@@ -1117,7 +1121,7 @@ function fileProblem(file, accept) {
     if (extensions.length && !extensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
         return uxText('Format berkas yang diizinkan: ', 'Allowed file formats: ') + extensions.join(', ');
     }
-    return '';
+    return documentInspections.get(file)?.error || '';
 }
 function setFieldError(id, message) {
     const input = document.getElementById(id);
@@ -1137,7 +1141,7 @@ function validateRegistration() {
     const ids = registrationTextSpecs(jenis).map(([id]) => id);
     let firstError = '';
     ids.forEach(id => {
-        const error = document.getElementById(id).value.trim() ? '' : uxText('Isian ini wajib diisi.', 'This field is required.');
+        const error = registrationTextIssue(id);
         setFieldError(id, error); if (error && !firstError) firstError = id;
     });
     if (jenis === 'Pergantian Pembimbing') {
@@ -1147,15 +1151,21 @@ function validateRegistration() {
     }
     registrationSpecs(jenis).forEach(([id]) => {
         const input = document.getElementById(id);
-        const error = fileProblem(input.files[0], input.accept);
+        const file = input.files[0];
+        const error = fileProblem(file, input.accept) || (documentInspections.get(file)?.pending !== false ? uxText('Tunggu pemeriksaan format atau pilih Periksa Ringkasan kembali.', 'Wait for the format check or select Review Summary again.') : '');
         setFieldError(id, error); if (error && !firstError) firstError = id;
     });
     if (firstError) { document.getElementById(firstError).focus(); return false; }
     return !!jenis;
 }
-function reviewRegistration(event) {
+async function reviewRegistration(event) {
     event.preventDefault();
-    if (isSubmittingRegistration || document.getElementById('registration-fields').hidden) return;
+    if (isSubmittingRegistration || preflightBusy || document.getElementById('registration-fields').hidden) return;
+    const epoch = sessionEpoch, type = document.getElementById('reg-jenis-utama').value;
+    preflightBusy = true;
+    document.getElementById('form-submit-status').textContent = uxText('Memeriksa format berkas...', 'Checking document formats...');
+    try { await inspectRegistrationDocuments(); } finally { if (epoch === sessionEpoch) preflightBusy = false; }
+    if (epoch !== sessionEpoch || type !== document.getElementById('reg-jenis-utama').value) return;
     if (!validateRegistration()) {
         document.getElementById('form-submit-status').textContent = uxText('Lengkapi isian yang ditandai sebelum melanjutkan.', 'Complete the marked fields to continue.');
         return;
@@ -1170,7 +1180,7 @@ function reviewRegistration(event) {
         <h4>${uxText('Berkas siap dikirim', 'Files ready to send')}</h4><ul class="review-files">${registrationSpecs(jenis).map(([id,label]) => {
             const f = document.getElementById(id).files[0];
             return `<li><strong>${escapeHtml(label)}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span></li>`;
-        }).join('')}</ul><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
+        }).join('')}</ul>${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p>${uxText('Format dasar berkas sudah diperiksa. Isi, tanda tangan, dan kelayakan akademik tetap diverifikasi admin.', 'Basic file formats have been checked. Admin will verify the contents, signatures and academic eligibility.')}</p><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
         <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration()">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
     document.getElementById('registration-fields').hidden = true;
     document.getElementById('reg-jenis-utama').disabled = true;
@@ -1211,6 +1221,7 @@ function revisionInstructionsHtml(item) {
         <p class="preserve-lines">${escapeHtml(rev.instruction)}</p></section>`;
 }
 function renderTaskHome() {
+    renderAcademicJourney();
     const home = document.getElementById('task-home');
     if (!home) return;
     if (!['admin','mhs'].includes(currentUser.role)) { home.innerHTML = ''; return; }
@@ -1230,7 +1241,7 @@ function renderTaskHome() {
         <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div>${getStatusBadge(item.status)}<h3>${escapeHtml(item.jenis)}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}<p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</div>
         <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
         : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
-        <button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>`;
+        <button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>${admin ? '' : `<button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Buka Perjalanan Akademik', 'Open Academic Journey')}</button>`}`;
 }
 function caseFileListHtml(item) {
     const files = getCaseFiles(item);
@@ -1317,7 +1328,7 @@ async function submitCaseAction() {
     const fail = message => { feedback.textContent = message; return false; };
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
-    let note = '', newStatus = 'Accepted', files = [], dospem = null;
+    let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [];
     if (action === 'revision') {
         const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
         const instruction = document.getElementById('case-revision-note').value.trim();
@@ -1341,6 +1352,7 @@ async function submitCaseAction() {
         if (error) return fail(error);
         newStatus = 'Resubmitted';
         files = chosen;
+        try { correctionLabels = revisionFileLabels(files,item); } catch (error) { return fail(error.message); }
     } else return;
     const button = document.getElementById('btn-case-submit');
     button.disabled = true; button.textContent = uxText('Sedang menyimpan...', 'Saving...');
@@ -1349,7 +1361,13 @@ async function submitCaseAction() {
     isPreparingCorrection = true;
     const requestEpoch = sessionEpoch;
     try {
-        const labels = action === 'reply' ? revisionFileLabels(files,item) : [];
+        if (action === 'reply') {
+            const inspections = await Promise.all(files.map(inspectDocument));
+            if (requestEpoch !== sessionEpoch) return;
+            const problem = inspections.find(result=>result.error);
+            if (problem) { fail(problem.error); return; }
+        }
+        const labels = correctionLabels;
         const payloadFiles = await Promise.all(files.map(async (file,index) => ({label:labels[index],fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
         if (requestEpoch !== sessionEpoch) return;
         // Escape user text before it enters the existing rich-text note history.
@@ -1416,7 +1434,7 @@ let isSubmittingRegistration = false;
 let lastSubmittedCaseId = '';
 async function submitForm(e) {
     e.preventDefault();
-    if (isSubmittingRegistration) return;
+    if (isSubmittingRegistration || preflightBusy) return;
     if (document.getElementById('registration-review').hidden || !validateRegistration()) { editRegistration(); return; }
 
     if (isOffline) {
@@ -1686,7 +1704,7 @@ function renderDynamicContent() {
                 html += `<section class="checklist-group academic-stage" data-stage-type="${type}"><div class="stage-heading"><h3 class="checklist-title">${group.title}</h3><span class="stage-progress"></span></div><p class="stage-next"></p>`;
                 group.items.forEach(item => {
                     html += `<div class="checklist-item" onclick="toggleCheckFromRow(event, '${item.id}')">
-                        <input type="checkbox" class="chk-${type} custom-checkbox" id="${item.id}" onchange="updateProgress()">
+                        <input type="checkbox" class="chk-${type} custom-checkbox" id="${item.id}" onchange="recordPreparationChange(this)">
                         <label for="${item.id}" onclick="event.stopPropagation();">
                             <span>${item.text}</span>
                             ${item.sub ? `<span class="sub-text">${item.sub}</span>` : ''}
@@ -1926,10 +1944,11 @@ function updateProgress() {
         const state = {};
         chkMagang.forEach(el => state[el.id] = el.checked);
         chkSkripsi.forEach(el => state[el.id] = el.checked);
-        localStorage.setItem(`progress_${currentUser.nim}`, JSON.stringify(state));
+        if (!journeyCloud.supported) localStorage.setItem(`progress_${currentUser.nim}`, JSON.stringify(state));
         updateChecklistReminder(chkMagang.length - checkedMagang.length, chkSkripsi.length - checkedSkripsi.length);
     }
     renderAcademicStages();
+    renderAcademicJourney();
 }
 
 function updateChecklistReminder(unMagang, unSkripsi) {
@@ -1948,7 +1967,7 @@ function updateChecklistReminder(unMagang, unSkripsi) {
 }
 
 function loadProgressData() {
-    const state = readStoredJSON(localStorage, `progress_${currentUser.nim}`, {});
+    const state = journeyPreparationState();
     document.querySelectorAll('.chk-magang, .chk-skripsi').forEach(el => { el.checked = state[el.id] === true; });
     updateProgress();
 }
@@ -2074,6 +2093,7 @@ function openCaseDetail(id) {
         <div id="case-file-preview" hidden><iframe title="Pratinjau berkas" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
         <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
+        <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
         <h3>${uxText('Tindakan','Actions')}</h3><p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
         <div id="case-action-panel" hidden></div></aside></div>`;
@@ -2583,12 +2603,14 @@ function toggleDarkMode() {
 function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); }
 
 function canAccessTab(tabId) {
+    if (tabId === 'academic-journey') return ['mhs','admin'].includes(currentUser.role);
     if (['pendaftaran','student-status'].includes(tabId)) return currentUser.role === 'mhs';
     if (['admin-data','admin-dosen','admin-master'].includes(tabId)) return currentUser.role === 'admin';
     return true;
 }
 function switchTab(event, tabId) {
     if (!canAccessTab(tabId)) return;
+    if (tabId === 'academic-journey') renderAcademicJourney();
     if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return;
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -2850,7 +2872,7 @@ function toggleCheckFromRow(event, id) {
         const chk = document.getElementById(id);
         if (chk) {
             chk.checked = !chk.checked;
-            updateProgress();
+            recordPreparationChange(chk);
         }
     }
 }

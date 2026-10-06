@@ -400,6 +400,7 @@
                 data-en="Academic Calendar">Kalender Akademik</li>
 
             <div class="nav-header lang" data-id="Layanan" data-en="Services">Layanan</div>
+            <li tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'academic-journey')" data-nav-icon="student-status" data-id="Perjalanan Akademik" data-en="Academic Journey">Perjalanan Akademik</li>
             <li tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-nav-icon="pendaftaran" data-id="Pusat Pendaftaran"
                 data-en="Registration Center">Pusat Pendaftaran</li>
             <li tabindex="0" role="button" class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-nav-icon="student-status"
@@ -778,6 +779,10 @@
             </div>
         </div>
 
+        <div id="academic-journey" class="tab-content">
+            <div id="academic-journey-content"></div>
+        </div>
+
         <div id="student-status" class="tab-content">
             <h1>Status Pengajuan Saya</h1>
             <div id="student-mobile-list" class="case-mobile-list"></div>
@@ -1038,6 +1043,8 @@
     <script src="features.js"></script>
     <script src="workflow.js"></script>
     <script src="journey.js"></script>
+    <script src="document-checks.js"></script>
+    <script src="preflight.js"></script>
 </body>
 
 </html>

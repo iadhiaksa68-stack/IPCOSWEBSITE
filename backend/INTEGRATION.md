@@ -30,3 +30,13 @@ Simpan kedua file Google Apps Script, perbarui deployment endpoint lama ke versi
 ## Lampiran privat
 
 `get_document` memvalidasi sesi, kepemilikan pengajuan dan kecocokan URL dengan kolom link sebelum membaca Drive. PDF/gambar dipratinjau sebagai blob lokal, format lain diunduh. Blob dicabut saat detail ditutup, berganti pengajuan atau logout. Respons terlambat tidak boleh membuka dokumen setelah sesi berubah.
+
+## Perjalanan akademik dan pemeriksaan dokumen (6 Oktober 2026)
+
+`Features.gs` sekarang menyertakan helper dari `document-checks.js` dan `Journey.gs`. Unggah hanya `Features.gs` ke modul yang sudah ada; jangan menambahkan salinan helper sebagai modul kedua. Pengujian memeriksa kesamaan sumber helper.
+
+Tiga perubahan kecil di `Kode.gs`: respons `getDataForSession` menyertakan `...journeySnapshot(session)`; `doPost` meneruskan `get_journey` dan `save_progress` ke `journeyDispatch`; `auditFiles` memanggil `featureCheckDocumentBytes` sesudah decoding dan batas ukuran. Autentikasi, spreadsheet, kolom, endpoint, dan alur transaksi lama dipertahankan.
+
+Progres pribadi menggunakan Script Properties dengan kunci hash NIM, pembatasan poin yang valid, akses pemilik, dan lock saat patch disimpan. Setiap nilai dibatasi 8 KB. Catatan progres ikut manifest cadangan privat, tanpa sesi atau kredensial. Untuk pemulihan, salin entri `preparation` dari manifest ke Script Properties melalui pemilik proyek.
+
+Jalankan `verifyJourneyDeployment` sebelum memperbarui deployment lama. Pemeriksaan ini membaca data transaksi tanpa mengubahnya, memakai catatan persiapan sementara yang dipulihkan, dan hanya mencatat enam hasil boolean. Pengujian seluruh transaksi menggunakan data simulasi.

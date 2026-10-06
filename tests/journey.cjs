@@ -1,7 +1,7 @@
 const { chromium } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nTEST ONLY')};
+const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nTEST ONLY\n%%EOF')};
 (async () => {
     const browser = await chromium.launch();
     const context = await browser.newContext({reducedMotion:"reduce",viewport:{width:1365,height:900}});
@@ -47,7 +47,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     await page.click('[data-requirement-field="reg-judul"]'); assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-judul');
     await page.fill('#reg-judul','Judul yang dipulihkan');
     await page.setInputFiles('#file-transkrip',pdf); await page.setInputFiles('#file-proposal',pdf);
-    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'3/3 siap');
+    await page.waitForFunction(()=>document.querySelector('#registration-readiness .stage-progress').textContent==='3/3 siap');
     await page.evaluate(()=>clearSelectedFile('file-transkrip','name-transkrip-badge'));
     assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'2/3 siap');
     await page.reload(); await page.waitForSelector('#welcome-modal',{state:'hidden'});
@@ -66,7 +66,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
         } else await page.fill('#reg-judul','Judul uji');
         const fileIds = await page.evaluate(type=>registrationSpecs(type).map(([id])=>id),type);
         for (const id of fileIds) await page.setInputFiles('#'+id,pdf);
-        assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),`${total}/${total} siap`);
+        await page.waitForFunction(total=>document.querySelector('#registration-readiness .stage-progress').textContent===`${total}/${total} siap`,total);
         await page.click('#btn-review-registration');assert(await page.locator('#registration-review').isVisible());
         await page.click('#btn-edit-registration');
     }
