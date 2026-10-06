@@ -220,6 +220,11 @@ function contentText(value, english) {
     const original = String(value ?? '');
     return currentLang === 'en' ? String(english || contentEnglish[original] || original) : original;
 }
+function documentText(value) {
+    // Older outline uploads used "Proposal" as a document label. In a file list
+    // this means the draft, while the service of that name is a proposal seminar.
+    return currentLang === 'en' && value === 'Proposal' ? 'Proposal draft' : systemText(value);
+}
 function displayChecklistData(type) {
     return getChecklistData(type).map(group => ({...group, title:contentText(group.title,group.titleEn), items:(group.items || []).map(item => ({...item,text:contentText(item.text,item.textEn),sub:type === 'template_berkas' ? item.sub : contentText(item.sub,item.subEn)}))}));
 }

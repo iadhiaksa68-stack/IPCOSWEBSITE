@@ -57,6 +57,7 @@ async function layout(page,label) {
     await page.setViewportSize({width:1365,height:1000}); await page.fill('#input-nim','A'); await page.locator('#input-nim').press('Enter');
     await page.waitForSelector('#welcome-modal',{state:'hidden'}); await page.waitForFunction(()=>syncPhase === 'success');
     assert.equal(await page.getAttribute('html','lang'),'en');
+    assert((await page.evaluate(()=>caseFileListHtml({link:'<a href="https://example.com/draft.pdf">Proposal</a>',note:'[]'}))).includes('Proposal draft'));
     await page.evaluate(()=>switchTab(null,'skripsi'));
     assert((await page.locator('#skripsi-checklist-container').textContent()).includes('Attend at least five proposal supervision sessions'));
     await page.evaluate(()=>switchTab(null,'academic-journey'));
