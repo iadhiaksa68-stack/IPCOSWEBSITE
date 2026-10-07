@@ -169,6 +169,8 @@ const searchDatabase = [
     { title: "Template Dokumen & FAQ", keywords: "template download format faq tanya jawab", tab: "templates-faq" },
     { title: "Sebaran Mata Kuliah", keywords: "kurikulum mata kuliah sks", tab: "kurikulum" },
     { title: "SOP Remidial", keywords: "remidial sop perbaikan nilai", tab: "remidial" },
+    { title: "SOP Magang", keywords: "sop magang internship procedure panduan lampiran", tab: "sop-magang" },
+    { title: "SOP Tugas Akhir", keywords: "sop tugas akhir final project thesis procedure panduan", tab: "sop-tugas-akhir" },
     { title: "Kalender Yudisium", keywords: "kalender jadwal batas yudisium wisuda deadline", tab: "kalender" },
     { title: "Kontak Kami / Bantuan", keywords: "bantuan kontak whatsapp admin hubungi", tab: "feedback" }
 ];
@@ -526,6 +528,7 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    window.IPCOSSop?.reset();
     activeReceipt = null; latestBackup = null;
     languageBlocks.clear();
     resetAcademicJourney();
@@ -664,7 +667,9 @@ function applyDatabaseSnapshot(data) {
             }
 
             if (data.contents && data.contents.length > 0) {
+                window.IPCOSSop?.receive(data.contents);
                 data.contents.forEach(item => {
+                    if (['sop_magang','sop_tugas_akhir'].includes(item.Tipe)) return;
                     localStorage.setItem(`ipcos_content_${item.Tipe}`, item.DataJSON);
                 });
                 renderDynamicContent();
@@ -2015,6 +2020,7 @@ function toggleLanguage() {
     renderDynamicContent();
     applyDynamicLanguage();
     applyLanguageBlocks();
+    window.IPCOSSop?.languageChanged();
     refreshServiceAvailability();
     document.querySelectorAll('#registration-fields .dz-remove-btn').forEach(button=>button.textContent=uxText('Hapus File','Remove file'));
     const draftStatus = document.getElementById('form-draft-status');
@@ -2600,6 +2606,7 @@ async function submitStudentReply() {
 }
 
 function closeModal(modalId, force = false) {
+    if (modalId === 'modal-sop-editor' && !force) { window.IPCOSSop?.cancel(); return; }
     if (!force && modalId === 'modal-case-detail' && !confirmLeaveCase()) return;
     if (!force && modalId === 'modal-case-detail' && (isPreparingCorrection || activeUpdateIds.has(selectedCaseId))) return;
     const modal = document.getElementById(modalId);
@@ -2634,6 +2641,7 @@ function toggleDarkMode() {
 function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); }
 
 function canAccessTab(tabId) {
+    if (['sop-magang','sop-tugas-akhir'].includes(tabId)) return ['mhs','admin'].includes(currentUser.role);
     if (tabId === 'academic-journey') return ['mhs','admin'].includes(currentUser.role);
     if (['pendaftaran','student-status'].includes(tabId)) return currentUser.role === 'mhs';
     if (['admin-data','admin-dosen','admin-master'].includes(tabId)) return currentUser.role === 'admin';
@@ -2641,6 +2649,7 @@ function canAccessTab(tabId) {
 }
 function switchTab(event, tabId) {
     if (!canAccessTab(tabId)) return;
+    if (window.IPCOSSop && !window.IPCOSSop.beforeNavigate(tabId)) return;
     if (tabId === 'academic-journey') renderAcademicJourney();
     if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return;
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
@@ -2653,6 +2662,8 @@ function switchTab(event, tabId) {
         target.classList.remove('active'); void target.offsetWidth; target.classList.add('active');
     }
     document.getElementById('main-sidebar').classList.remove('active');
+    if (tabId === 'sop-magang') window.IPCOSSop?.open('sop_magang');
+    if (tabId === 'sop-tugas-akhir') window.IPCOSSop?.open('sop_tugas_akhir');
 
     if (tabId === 'pendaftaran') {
         loadFormDraft();

@@ -394,8 +394,6 @@
                 data-en="Thesis Requirements">Kewajiban Skripsi</li>
             <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-nav-icon="kurikulum" data-id="Sebaran Mata Kuliah"
                 data-en="Course Curriculum">Sebaran Mata Kuliah</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-nav-icon="remidial" data-id="SOP Remidial"
-                data-en="Remedial Procedure">SOP Remidial</li>
             <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kalender')" data-nav-icon="kalender" data-id="Kalender Akademik"
                 data-en="Academic Calendar">Kalender Akademik</li>
 
@@ -412,6 +410,10 @@
             <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
                 data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li>
 
+            <div class="nav-header lang" data-id="Standar Operasional Prosedur" data-en="Standard Operating Procedures">Standar Operasional Prosedur</div>
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-magang')" data-nav-icon="skripsi" data-id="SOP Magang" data-en="Internship SOP">SOP Magang</li>
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-tugas-akhir')" data-nav-icon="skripsi" data-id="SOP Tugas Akhir" data-en="Final Project SOP">SOP Tugas Akhir</li>
+            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-nav-icon="remidial" data-id="SOP Remidial" data-en="Remedial Procedure">SOP Remidial</li>
             <div class="nav-header lang" data-id="Pusat Bantuan" data-en="Help Center">Pusat Bantuan</div>
             <!-- 8. Menu Template Download & FAQ -->
             <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-nav-icon="templates-faq" data-id="Template & FAQ"
@@ -948,6 +950,8 @@
             </div>
         </div>
 
+        <div id="sop-magang" class="tab-content"><div id="sop_magang-view" class="sop-page" aria-live="polite"></div></div>
+        <div id="sop-tugas-akhir" class="tab-content"><div id="sop_tugas_akhir-view" class="sop-page" aria-live="polite"></div></div>
         <div id="remidial" class="tab-content">
             <h1>SOP & Prosedur Pelaksanaan Remidial</h1>
             <div class="card">
@@ -1046,6 +1050,7 @@
     <script src="journey.js"></script>
     <script src="document-checks.js"></script>
     <script src="preflight.js"></script>
+    <script src="sop.js"></script>
 </body>
 
 </html>

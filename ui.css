@@ -429,3 +429,72 @@ details[open]>summary::after { transform:rotate(225deg); }
 .editor-translation-label input { margin:6px 0 0; }
 .editor-translations { margin-bottom:14px; }
 .editor-translations summary { font-size:12px; font-weight:500; }
+/* SOP reading and editing share the portal's quiet surfaces. */
+.sop-page { max-width: 1060px; margin-inline: auto; }
+.sop-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+.sop-heading > div:first-child { flex:1; min-width:0; }
+.sop-heading .button-row { flex:0 0 auto; margin-top:4px; }
+.sop-heading button,.sop-file button,.sop-editor-card button { width:auto; margin-bottom:0; min-height:44px; white-space:normal; overflow-wrap:anywhere; }
+.sop-page h1,.sop-page h2,.sop-page h3,.sop-prose,.sop-file strong,.sop-updated { overflow-wrap:anywhere; }
+.sop-updated { font-size:12px; color:var(--text-muted); }
+.sop-notice { padding:12px 16px; line-height:1.65; overflow-wrap:anywhere; border-radius:12px; background:var(--item-bg); }
+.sop-empty { padding:28px; }
+.sop-empty h2 { margin:0 0 12px; font-size:20px; }
+.sop-section { padding:24px; margin:0 0 20px; }
+.sop-section-heading { display:flex; align-items:flex-start; gap:12px; margin-bottom:16px; }
+.sop-section-heading h2 { flex:1; min-width:0; margin:2px 0; font-size:20px; line-height:1.5; }
+.sop-step { flex:0 0 32px; width:32px; height:32px; display:grid; place-items:center; border-radius:10px; background:var(--item-bg); color:var(--heading-color); font-size:13px; font-weight:700; }
+.sop-intro { padding:0 2px 20px; }
+.sop-prose { font-size:14px; line-height:1.85; }
+.sop-prose p { margin:0 0 10px; white-space:pre-wrap; }
+.sop-prose h3 { margin:20px 0 10px; font-size:16px; line-height:1.6; }
+.sop-prose ul,.sop-prose ol { padding-left:24px; margin:12px 0; }
+.sop-prose li { padding:2px 0; }
+.sop-links { list-style:none; padding:0; margin:16px 0; display:flex; flex-direction:column; gap:8px; }
+.sop-links a,.sop-prose a { color:var(--umy-maroon); overflow-wrap:anywhere; text-decoration:underline; text-underline-offset:3px; }
+.dark-mode .sop-links a,.dark-mode .sop-prose a { color:#ed829a; }
+.sop-files { margin-top:20px; border-top:1px solid var(--item-border); padding-top:16px; }
+.sop-files h3 { font-size:14px; margin:0 0 10px; }
+.sop-file { display:flex; align-items:center; gap:14px; justify-content:space-between; padding:12px 0; }
+.sop-file > div { flex:1; min-width:0; }
+.sop-file strong { display:block; font-size:13px; line-height:1.6; }
+.sop-file span { display:block; margin-top:4px; font-size:12px; color:var(--text-muted); }
+.sop-file button { flex:0 0 auto; }
+.sop-overlay { z-index:2600; padding:20px; align-items:center; }
+.sop-editor-card { max-width:850px; max-height:90dvh; overflow:auto; text-align:left; padding:24px; }
+.sop-editor-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:12px; }
+.sop-editor-header h2 { margin:0; font-size:22px; overflow-wrap:anywhere; line-height:1.5; }
+#sop-editor-close { flex:0 0 44px; padding:0; font-size:24px; }
+.sop-editor-card label { display:block; margin:12px 0 6px; font-size:13px; font-weight:600; line-height:1.6; overflow-wrap:anywhere; }
+.sop-editor-card input:not([type=file]),.sop-editor-card textarea { display:block; width:100%; min-width:0; box-sizing:border-box; margin:6px 0 12px; font:inherit; font-size:14px; }
+.sop-editor-card textarea { min-height:92px; resize:vertical; line-height:1.7; }
+.sop-document-fields { margin:16px 0 20px; }
+.sop-edit-section { padding:20px; margin-bottom:16px; }
+.sop-edit-section-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.sop-edit-section-header h3 { margin:6px 0; font-size:16px; }
+.sop-edit-section-header .button-row { margin:0; }
+.sop-edit-section-header button { padding:8px 12px; }
+.sop-formatting { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 4px; }
+.sop-formatting button { padding:8px 12px; font-size:12px; }
+.sop-editor-links,.sop-editor-files { border-top:1px solid var(--item-border); padding-top:16px; margin-top:20px; }
+.sop-edit-link { border:1px solid var(--item-border); border-radius:12px; padding:12px; margin-bottom:12px; }
+.sop-upload-label { padding:14px; border:1px dashed var(--item-border); border-radius:12px; }
+.sop-upload-label input { display:block; width:100%; min-width:0; margin-top:10px; font-size:13px; overflow:hidden; }
+.sop-editor-footer { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; border-top:1px solid var(--item-border); padding-top:16px; margin-top:16px; }
+.sop-editor-card [hidden] { display:none !important; }
+.sop-editor-card :focus-visible,.sop-page button:focus-visible,.sop-page a:focus-visible { outline:2px solid var(--umy-maroon); outline-offset:3px; }
+@media (max-width:600px) {
+    .sop-heading { flex-direction:column; gap:12px; }
+    .sop-heading .button-row { width:100%; flex-wrap:wrap; }
+    .sop-heading .button-row button { flex:1; }
+    .sop-section { padding:18px; }
+    .sop-section-heading h2 { font-size:18px; }
+    .sop-overlay { padding:8px; }
+    .sop-editor-card { padding:16px; max-height:96dvh; }
+    .sop-edit-section { padding:14px; }
+    .sop-edit-section-header { flex-direction:column; gap:6px; }
+    .sop-file { align-items:flex-start; flex-direction:column; gap:8px; }
+    .sop-file button { width:100%; }
+    .sop-editor-footer button { flex:1 1 120px; }
+    .sop-editor-footer #sop-save { flex-basis:100%; }
+}

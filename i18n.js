@@ -1,5 +1,6 @@
 // Display-only translations. Stored service types, document labels and user text stay unchanged.
 const interfaceEnglish = {
+    'SOP Magang':'Internship SOP', 'SOP Tugas Akhir':'Final Project SOP',
     'ILMU KOMUNIKASI · UMY':'COMMUNICATION STUDIES · UMY',
     'Portal Akademik IPCOS UMY':'IPCOS UMY Academic Portal',
     'Ringkasan & layanan akademik':'Academic overview & services',
