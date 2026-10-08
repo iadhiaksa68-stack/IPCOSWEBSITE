@@ -97,6 +97,42 @@ async function editSop(page) {await openSop(page);await page.evaluate(()=>IPCOSS
     }
     pass('Compact identity opens accessibly on demand; navigation follows each role, groups disclose by keyboard and active location survives language switching');
 
+    // Check painted hit targets before clicking: isVisible alone misses a
+    // dropdown clipped by its ancestor's overflow rule.
+    for(const target of [student,admin]) {
+        await target.bringToFront();
+        for(const width of [1365,768,390,320]) for(const lang of ['id','en']) {
+            await target.setViewportSize({width,height:900});
+            await target.evaluate(lang=>{if(currentLang!==lang)toggleLanguage();},lang);
+            await target.locator('#profile-initials').click();await frames(target);
+            assert(await target.locator('#workspace-profile').evaluate(el=>el.open));
+            await visibleAction(target,'#student-header .btn-print','Painted profile refresh '+width+' '+lang);
+            await visibleAction(target,'#student-header .btn-logout','Painted profile logout '+width+' '+lang);
+            const reads=calls.filter(call=>call.action==='get_data').length;
+            await target.locator('#student-header .btn-print').click();
+            await target.waitForFunction(()=>syncPhase==='success');
+            assert(calls.filter(call=>call.action==='get_data').length>reads,'Profile refresh actually reaches the existing read handler');
+            assert(await target.locator('#workspace-profile').evaluate(el=>el.open));
+            await target.locator('#profile-initials').click();assert(!await target.locator('#workspace-profile').evaluate(el=>el.open));
+        }
+        await target.setViewportSize({width:1365,height:900});await target.evaluate(()=>{if(currentLang!=='id')toggleLanguage();});
+        await target.locator('#profile-summary-name').click();await visibleAction(target,'#student-header .btn-logout','Profile name opens a usable menu');
+        await target.locator('#task-home h2').click();assert(!await target.locator('#workspace-profile').evaluate(el=>el.open));
+    }
+    fs.mkdirSync('../qa-profile',{recursive:true});
+    for(const role of ['mhs','admin']) {
+        const touch=await login(browser,role,{viewport:{width:390,height:844},hasTouch:true});await touch.bringToFront();
+        await touch.locator('#profile-initials').tap();await frames(touch);
+        await visibleAction(touch,'#student-header .btn-print','Touch profile refresh '+role);
+        await visibleAction(touch,'#student-header .btn-logout','Touch profile logout '+role);
+        await touch.locator('#student-header .btn-print').tap();await touch.waitForFunction(()=>syncPhase==='success');
+        await touch.screenshot({path:'../qa-profile/'+role+'-menu-fixed.png'});
+        await touch.locator('#student-header .btn-logout').tap();assert.equal(await touch.evaluate(()=>currentUser.role),role,'Cancelling logout keeps the account active');
+        touch.permitLeave=true;await touch.locator('#student-header .btn-logout').tap();await touch.waitForSelector('#welcome-modal',{state:'visible'});
+        assert(await touch.locator('#workspace-profile').isHidden());await touch.context().close();
+    }
+    pass('Profile menus are painted and clickable at four widths in both languages; mouse and touch refresh/logout work for students and admins');
+
     await student.bringToFront();await student.setViewportSize({width:390,height:844});assert(await student.locator('#student-bottom-nav').isVisible());assert.equal(await student.locator('#student-bottom-nav [data-bottom-target]').count(),4);
     const requestNav=student.locator('#student-bottom-nav [data-bottom-target="student-status"]');await requestNav.focus();await requestNav.press('Enter');await activeTab(student,'student-status');assert.equal(await requestNav.getAttribute('aria-current'),'page');
     const sopNav=student.locator('#student-bottom-nav [data-bottom-target="sop-magang"]');await sopNav.focus();await sopNav.press('Space');await activeTab(student,'sop-magang');assert.equal(await sopNav.getAttribute('aria-current'),'page');
