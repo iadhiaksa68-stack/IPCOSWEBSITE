@@ -70,9 +70,18 @@
         });
         closeList(); return html;
     }
+    const anchorId = (doc,section,preview) => `${preview?'sop-preview':'sop'}-${doc.type}-${section.id}`;
+    function jump(event,link) {
+        const target = document.getElementById(link.getAttribute('href')?.slice(1));
+        if (!target || target.closest('.sop-page') !== link.closest('.sop-page')) return;
+        event.preventDefault();
+        target.querySelector('h2')?.focus({preventScroll:true});
+        target.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    }
     function bodyHtml(doc, preview = false) {
-        return `${doc.intro || doc.introEn ? `<div class="sop-intro sop-prose">${markdown(localized(doc,'intro'))}</div>` : ''}${doc.sections.map((section, index) => `<section class="card sop-section" id="${preview?'sop-preview':'sop'}-${escapeHtml(section.id)}">
-            <div class="sop-section-heading"><span class="sop-step" aria-hidden="true">${index + 1}</span><h2>${escapeHtml(localized(section,'title'))}</h2></div>
+        const toc = doc.sections.length > 1 ? `<nav class="sop-toc" aria-label="${t('Daftar isi SOP','SOP contents')}"><h2>${t('Daftar isi','Contents')}</h2><ol>${doc.sections.map((section,index) => `<li><a href="#${escapeHtml(anchorId(doc,section,preview))}" data-sop-action="jump"><span aria-hidden="true">${index+1}</span><span>${escapeHtml(localized(section,'title') || t('Bagian '+(index+1),'Section '+(index+1)))}</span><span aria-hidden="true">↘</span></a></li>`).join('')}</ol></nav>` : '';
+        return `${doc.intro || doc.introEn ? `<div class="sop-intro sop-prose">${markdown(localized(doc,'intro'))}</div>` : ''}${toc}${doc.sections.map((section, index) => `<section class="card sop-section" id="${escapeHtml(anchorId(doc,section,preview))}">
+            <div class="sop-section-heading"><span class="sop-step" aria-hidden="true">${index + 1}</span><h2 tabindex="-1">${escapeHtml(localized(section,'title'))}</h2></div>
             <div class="sop-prose">${markdown(localized(section,'body'))}</div>
             ${section.links.length ? `<ul class="sop-links">${section.links.map(link => { const url = allowedUrl(link.url); return url ? `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(localized(link,'label') || url)} <span aria-hidden="true">↗</span></a></li>` : ''; }).join('')}</ul>` : ''}
             ${section.files.length ? `<div class="sop-files"><h3>${t('Lampiran','Attachments')}</h3>${section.files.map(file => `<div class="sop-file"><div><strong>${escapeHtml(file.fileName)}</strong><span>${escapeHtml(size(file.size))}</span></div><button type="button" class="btn-secondary" data-sop-action="download" data-sop-type="${doc.type}" data-file-id="${escapeHtml(file.id)}" ${preview?'disabled':''}>${preview?t('Tersedia setelah disimpan','Available after saving'):t('Unduh','Download')}</button></div>`).join('')}</div>` : ''}
@@ -113,7 +122,7 @@
     function createModal() {
         if (document.getElementById('modal-sop-editor')) return;
         const modal = document.createElement('div'); modal.id = 'modal-sop-editor'; modal.className = 'overlay sop-overlay'; modal.style.display = 'none'; modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.setAttribute('aria-labelledby','sop-editor-heading');
-        modal.innerHTML = '<div class="modal-card sop-editor-card"><form id="sop-editor-form" novalidate><div class="sop-editor-header"><h2 id="sop-editor-heading"></h2><button type="button" id="sop-editor-close" class="btn-secondary">×</button></div><p id="sop-editor-helper" class="field-helper"></p><div id="sop-editor-fields"></div><div id="sop-preview-output" class="sop-page" hidden></div><p id="sop-editor-status" class="sop-notice" role="status" aria-live="polite"></p><div class="sop-editor-footer"><button type="button" id="sop-cancel" class="btn-secondary"></button><button type="button" id="sop-preview" class="btn-secondary"></button><button type="submit" id="sop-save" class="btn-primary"></button></div></form></div>';
+        modal.innerHTML = '<div class="modal-card sop-editor-card"><form id="sop-editor-form" novalidate><div class="sop-editor-header"><h2 id="sop-editor-heading"></h2><button type="button" id="sop-editor-close" class="btn-secondary">×</button></div><div class="sop-editor-scroll"><p id="sop-editor-helper" class="field-helper"></p><div id="sop-editor-fields"></div><div id="sop-preview-output" class="sop-page" hidden></div></div><div class="sop-editor-actions"><p id="sop-editor-status" class="sop-notice" role="status" aria-live="polite"></p><div class="sop-editor-footer"><button type="button" id="sop-cancel" class="btn-secondary"></button><button type="button" id="sop-preview" class="btn-secondary"></button><button type="submit" id="sop-save" class="btn-primary"></button></div></div></form></div>';
         document.body.appendChild(modal);
         modal.querySelector('form').addEventListener('submit',event => { event.preventDefault(); save(); });
         modal.querySelector('#sop-cancel').addEventListener('click',cancel);
@@ -121,7 +130,7 @@
         modal.querySelector('#sop-preview').addEventListener('click',preview);
         modal.addEventListener('input',input);
         modal.addEventListener('change',event => { if (event.target.matches('.sop-add-files')) addFiles(event.target); });
-        modal.addEventListener('click',event => { const button = event.target.closest('[data-sop-action]'); if (button) editorAction(button); });
+        modal.addEventListener('click',event => { const button = event.target.closest('[data-sop-action]'); if (button?.dataset.sopAction === 'jump') jump(event,button); else if (button) editorAction(button); });
         modal.addEventListener('keydown',event => {
             if (event.key !== 'Tab') return;
             const controls = [...modal.querySelectorAll('button,input,textarea,a[href]')].filter(el => !el.disabled && el.getClientRects().length);
@@ -135,7 +144,7 @@
     function renderEditor() {
         if (!editor) return;
         const oldModal = document.getElementById('modal-sop-editor'), active = document.activeElement;
-        const hadFocus = !!oldModal?.contains(active), scrollTop = oldModal?.querySelector('.sop-editor-card')?.scrollTop || 0;
+        const hadFocus = !!oldModal?.contains(active), scrollTop = oldModal?.querySelector('.sop-editor-scroll')?.scrollTop || 0;
         const openedDetails = new Set([...oldModal?.querySelectorAll('details[data-sop-details][open]') || []].map(detail => detail.dataset.sopDetails));
         const focus = hadFocus ? {id:active.id,sectionId:active.closest('[data-section-id]')?.dataset.sectionId,linkId:active.closest('[data-link-id]')?.dataset.linkId,
             action:active.dataset.sopAction,format:active.dataset.format,fileId:active.dataset.fileId,details:active.tagName === 'SUMMARY' ? active.parentElement.dataset.sopDetails : '',
@@ -143,11 +152,12 @@
         createModal(); const doc = editor.draft;
         const fields = document.getElementById('sop-editor-fields');
         fields.innerHTML = `<div class="sop-document-fields">${field('sop-title',t('Judul SOP','SOP title'),doc.title)}${field('sop-intro',t('Pengantar (opsional)','Introduction (optional)'),doc.intro,true,2000)}<details class="editor-translations" data-sop-details="document"><summary>${t('English untuk mahasiswa internasional (opsional)','English for international students (optional)')}</summary><div class="details-content">${field('sop-title-en',t('Judul English','English title'),doc.titleEn)}${field('sop-intro-en',t('Pengantar English','English introduction'),doc.introEn,true,2000)}</div></details></div>
-            <div id="sop-editor-sections">${doc.sections.map((section,index) => `<section class="card sop-edit-section" data-section-id="${section.id}"><div class="sop-edit-section-header"><h3>${t('Section','Section')} ${index+1}</h3><div class="button-row"><button type="button" class="btn-secondary" data-sop-action="move-up" ${index===0?'disabled':''} aria-label="${t('Pindahkan section ke atas','Move section up')}">↑</button><button type="button" class="btn-secondary" data-sop-action="move-down" ${index===doc.sections.length-1?'disabled':''} aria-label="${t('Pindahkan section ke bawah','Move section down')}">↓</button><button type="button" class="btn-secondary" data-sop-action="remove-section">${t('Hapus','Remove')}</button></div></div>
+            ${doc.sections.length > 1 ? `<div class="sop-editor-section-tools"><p>${t('Bagian SOP','SOP sections')} <span>${doc.sections.length}</span></p><button type="button" id="sop-fold-sections" class="btn-secondary" data-sop-action="fold-sections"></button></div>` : ''}
+            <div id="sop-editor-sections">${doc.sections.map((section,index) => `<section class="card sop-edit-section" data-section-id="${section.id}"><div class="sop-edit-section-header"><h3><button type="button" class="sop-section-toggle" data-sop-action="toggle-section" aria-expanded="${!editor.collapsed.has(section.id)}" aria-controls="sop-fields-${section.id}"><span class="sop-edit-number" aria-hidden="true">${index+1}</span><span data-sop-section-label>${escapeHtml(localized(section,'title') || t('Bagian '+(index+1),'Section '+(index+1)))}</span><span class="sop-fold-icon" aria-hidden="true">⌄</span></button></h3><div class="button-row"><button type="button" class="btn-secondary" data-sop-action="move-up" ${index===0?'disabled':''} aria-label="${t('Pindahkan section ke atas','Move section up')}">↑</button><button type="button" class="btn-secondary" data-sop-action="move-down" ${index===doc.sections.length-1?'disabled':''} aria-label="${t('Pindahkan section ke bawah','Move section down')}">↓</button><button type="button" class="btn-secondary" data-sop-action="remove-section">${t('Hapus','Remove')}</button></div></div><div class="sop-edit-section-content" id="sop-fields-${section.id}" ${editor.collapsed.has(section.id)?'hidden':''}>
             ${sectionField(section,'title',t('Judul section','Section title'))}<div class="sop-formatting" aria-label="${t('Format teks','Text formatting')}">${[['bold',t('Tebal','Bold')],['italic',t('Miring','Italic')],['heading',t('Subjudul','Heading')],['list',t('Daftar','List')],['numbered',t('Langkah','Steps')]].map(([format,label])=>`<button type="button" class="btn-secondary" data-sop-action="format" data-format="${format}">${label}</button>`).join('')}</div>${sectionField(section,'body',t('Isi SOP','SOP content'),true)}
             <details class="editor-translations" data-sop-details="${section.id}"><summary>${t('English (opsional)','English (optional)')}</summary><div class="details-content">${sectionField(section,'titleEn',t('Judul section English','English section title'))}${sectionField(section,'bodyEn',t('Isi SOP English','SOP content in English'),true)}</div></details>
             <div class="sop-editor-links">${section.links.map(link=>`<div class="sop-edit-link" data-link-id="${link.id}"><label>${t('Teks tautan','Link text')}<input id="sop-${section.id}-${link.id}-label" type="text" data-link-field="label" maxlength="200" value="${escapeHtml(link.label)}"></label><label>${t('Teks English (opsional)','English text (optional)')}<input id="sop-${section.id}-${link.id}-labelEn" type="text" data-link-field="labelEn" maxlength="200" value="${escapeHtml(link.labelEn)}"></label><label>URL<input id="sop-${section.id}-${link.id}-url" type="url" data-link-field="url" maxlength="2000" placeholder="https://" value="${escapeHtml(link.url)}"></label><button type="button" class="btn-secondary" data-sop-action="remove-link">${t('Hapus tautan','Remove link')}</button></div>`).join('')}<button type="button" class="btn-secondary" data-sop-action="add-link">${t('+ Tambah tautan','+ Add link')}</button></div>
-            <div class="sop-editor-files">${section.files.map(file=>`<div class="sop-file"><div><strong>${escapeHtml(file.fileName)}</strong><span>${escapeHtml(size(file.size))} · ${file.id.startsWith('new-')?t('Belum disimpan','Not saved yet'):t('Tersimpan','Saved')}</span></div><button type="button" class="btn-secondary" data-sop-action="remove-file" data-file-id="${file.id}">${t('Hapus lampiran','Remove attachment')}</button></div>`).join('')}<label class="sop-upload-label">${t('Tambahkan lampiran','Add attachments')}<input id="sop-${section.id}-files" type="file" class="sop-add-files" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple></label><p class="field-helper">${t('PDF, Word, PNG atau JPG. Maks. 5 MB/berkas, 6 lampiran per SOP, 12 MB unggahan per penyimpanan.','PDF, Word, PNG or JPG. Up to 5 MB/file, 6 attachments per SOP, 12 MB uploaded per save.')}</p></div></section>`).join('')}</div><button type="button" id="sop-add-section" class="btn-secondary" data-sop-action="add-section">${t('+ Tambah section','+ Add section')}</button>`;
+            <div class="sop-editor-files">${section.files.map(file=>`<div class="sop-file"><div><strong>${escapeHtml(file.fileName)}</strong><span>${escapeHtml(size(file.size))} · ${file.id.startsWith('new-')?t('Belum disimpan','Not saved yet'):t('Tersimpan','Saved')}</span></div><button type="button" class="btn-secondary" data-sop-action="remove-file" data-file-id="${file.id}">${t('Hapus lampiran','Remove attachment')}</button></div>`).join('')}<label class="sop-upload-label">${t('Tambahkan lampiran','Add attachments')}<input id="sop-${section.id}-files" type="file" class="sop-add-files" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple></label><p class="field-helper">${t('PDF, Word, PNG atau JPG. Maks. 5 MB/berkas, 6 lampiran per SOP, 12 MB unggahan per penyimpanan.','PDF, Word, PNG or JPG. Up to 5 MB/file, 6 attachments per SOP, 12 MB uploaded per save.')}</p></div></div></section>`).join('')}</div><button type="button" id="sop-add-section" class="btn-secondary" data-sop-action="add-section">${t('+ Tambah section','+ Add section')}</button>`;
         document.getElementById('sop-editor-heading').textContent = t('Edit ','Edit ') + name(doc.type);
         document.getElementById('sop-editor-helper').textContent = t('Susun teks, urutan section, tautan, dan lampiran. Perubahan tampil untuk mahasiswa setelah berhasil disimpan. English yang belum diisi akan memakai teks Indonesia.','Arrange text, sections, links and attachments. Changes become visible to students after a successful save. Missing English content uses the original Indonesian text.');
         document.getElementById('sop-cancel').textContent = t('Batal','Cancel');
@@ -155,7 +165,7 @@
         updateEditorState();
         const modal = document.getElementById('modal-sop-editor');
         modal.querySelectorAll('details[data-sop-details]').forEach(detail => { detail.open = openedDetails.has(detail.dataset.sopDetails); });
-        modal.querySelector('.sop-editor-card').scrollTop = scrollTop;
+        modal.querySelector('.sop-editor-scroll').scrollTop = scrollTop;
         if (focus && !editor.busy && !editor.filesBusy) {
             let target = focus.id ? document.getElementById(focus.id) : null;
             if (!target && focus.details) target = modal.querySelector(`details[data-sop-details="${CSS.escape(focus.details)}"] > summary`);
@@ -172,8 +182,20 @@
             }
         }
     }
+    function updateCollapsedSections() {
+        if (!editor) return;
+        const modal = document.getElementById('modal-sop-editor');
+        modal?.querySelectorAll('.sop-edit-section').forEach(block => {
+            const collapsed = editor.collapsed.has(block.dataset.sectionId);
+            block.querySelector('.sop-edit-section-content').hidden = collapsed;
+            block.querySelector('[data-sop-action="toggle-section"]').setAttribute('aria-expanded',String(!collapsed));
+        });
+        const fold = document.getElementById('sop-fold-sections');
+        if (fold) fold.textContent = editor.draft.sections.every(section=>editor.collapsed.has(section.id)) ? t('Buka semua','Expand all') : t('Ringkas semua','Collapse all');
+    }
     function updateEditorState() {
         if (!editor) return;
+        updateCollapsedSections();
         document.getElementById('sop-preview').textContent = editor.preview ? t('Kembali mengedit','Back to editing') : t('Pratinjau','Preview');
         document.getElementById('sop-save').textContent = editor.busy ? t('Menyimpan…','Saving…') : t('Simpan & Terbitkan','Save & Publish');
         document.getElementById('sop-editor-fields').hidden = editor.preview;
@@ -190,7 +212,7 @@
         if (!documents.has(type)) await open(type,true);
         if (currentUser.role !== 'admin' || !documents.has(type)) return;
         returnFocus = document.activeElement;
-        editor = {draft:structuredClone(documents.get(type)),files:new Map(),dirty:false,busy:false,filesBusy:0,preview:false,error:null,requestId:'',payload:null};
+        editor = {draft:structuredClone(documents.get(type)),files:new Map(),collapsed:new Set(),editScrollTop:0,dirty:false,busy:false,filesBusy:0,preview:false,error:null,requestId:'',payload:null};
         renderEditor(); const modal = document.getElementById('modal-sop-editor'); modal.style.display = 'flex'; modal.style.opacity = '1'; document.getElementById('sop-title').focus();
     }
     function changed() { editor.dirty = true; editor.error = null; editor.requestId = ''; editor.payload = null; updateEditorState(); }
@@ -200,19 +222,21 @@
         if (direct[target.id]) { editor.draft[direct[target.id]] = target.value; changed(); return; }
         const section = editor.draft.sections.find(item=>item.id === target.closest('[data-section-id]')?.dataset.sectionId);
         if (!section) return;
-        if (target.dataset.sectionField) { section[target.dataset.sectionField] = target.value; changed(); }
+        if (target.dataset.sectionField) { section[target.dataset.sectionField] = target.value; if (target.dataset.sectionField === 'title' || target.dataset.sectionField === 'titleEn') { const index = editor.draft.sections.indexOf(section); target.closest('[data-section-id]').querySelector('[data-sop-section-label]').textContent = localized(section,'title') || t('Bagian '+(index+1),'Section '+(index+1)); } changed(); }
         else if (target.dataset.linkField) { const link = section.links.find(item=>item.id === target.closest('[data-link-id]')?.dataset.linkId); if (link) { link[target.dataset.linkField] = target.value; changed(); } }
     }
     function editorAction(button) {
         if (!editor || editor.busy || editor.filesBusy) return;
         const action = button.dataset.sopAction, doc = editor.draft, section = doc.sections.find(item=>item.id === button.closest('[data-section-id]')?.dataset.sectionId), index = doc.sections.indexOf(section);
+        if (action === 'toggle-section' && section) { if (editor.collapsed.has(section.id)) editor.collapsed.delete(section.id); else editor.collapsed.add(section.id); updateCollapsedSections(); return; }
+        if (action === 'fold-sections') { if (doc.sections.every(item=>editor.collapsed.has(item.id))) editor.collapsed.clear(); else doc.sections.forEach(item=>editor.collapsed.add(item.id)); updateCollapsedSections(); return; }
         if (action === 'add-section') { if (doc.sections.length >= 20) return showToast(t('Maksimal 20 section per SOP.','Up to 20 sections per SOP.'),'error'); doc.sections.push({id:uuid(),title:'',titleEn:'',body:'',bodyEn:'',links:[],files:[]}); }
         else if (action === 'format' && section) {
             const target = button.closest('[data-section-id]').querySelector('[data-section-field="body"]'), start = target.selectionStart, end = target.selectionEnd, selected = target.value.slice(start,end) || t('Teks','Text');
             const formatted = ({bold:'**'+selected+'**',italic:'*'+selected+'*',heading:'\n### '+selected+'\n',list:'\n- '+selected+'\n',numbered:'\n1. '+selected+'\n'})[button.dataset.format];
             target.setRangeText(formatted,start,end,'select'); section.body = target.value; changed(); target.focus(); return;
         }
-        else if (section && action === 'remove-section') { if ((section.body || section.files.length || section.links.length) && !confirm(t('Hapus section ini dari draf SOP?','Remove this section from the SOP draft?'))) return; section.files.forEach(file=>editor.files.delete(file.id)); doc.sections.splice(index,1); }
+        else if (section && action === 'remove-section') { if ((section.body || section.files.length || section.links.length) && !confirm(t('Hapus section ini dari draf SOP?','Remove this section from the SOP draft?'))) return; section.files.forEach(file=>editor.files.delete(file.id)); editor.collapsed.delete(section.id); doc.sections.splice(index,1); }
         else if (section && action === 'move-up' && index > 0) [doc.sections[index-1],doc.sections[index]] = [section,doc.sections[index-1]];
         else if (section && action === 'move-down' && index < doc.sections.length-1) [doc.sections[index+1],doc.sections[index]] = [section,doc.sections[index+1]];
         else if (section && action === 'add-link') { if (section.links.length >= 6) return showToast(t('Maksimal 6 tautan per section.','Up to 6 links per section.'),'error'); section.links.push({id:uuid(),label:'',labelEn:'',url:''}); }
@@ -255,7 +279,24 @@
     async function save() {
         if (!editor || editor.busy || editor.filesBusy || currentUser.role !== 'admin') return;
         const draft = editor, doc = structuredClone(draft.draft), issue = validation(doc);
-        if (issue || isOffline) { draft.error = Error(issue || t('Anda sedang offline. Isian tetap tersedia.','You are offline. Your inputs are retained.')); updateEditorState(); return; }
+        if (issue || isOffline) {
+            draft.error = Error(issue || t('Anda sedang offline. Isian tetap tersedia.','You are offline. Your inputs are retained.')); updateEditorState();
+            if (issue) {
+                let targetId = !doc.title.trim() ? 'sop-title' : '';
+                for (const section of doc.sections) {
+                    const invalidLink = section.links.find(link=>!link.label.trim() || !allowedUrl(link.url));
+                    const key = !section.title.trim() ? 'title' : !section.body.trim() && !section.files.length && !section.links.length ? 'body' : '';
+                    if (key || invalidLink) {
+                        draft.collapsed.delete(section.id); updateCollapsedSections();
+                        if (!targetId) targetId = invalidLink && !key ? `sop-${section.id}-${invalidLink.id}-${!invalidLink.label.trim()?'label':'url'}` : `sop-${section.id}-${key}`;
+                        break;
+                    }
+                }
+                if (!targetId && !doc.sections.length && !doc.intro.trim()) targetId = 'sop-intro';
+                if (targetId) { if (draft.preview) { draft.preview = false; updateEditorState(); } document.getElementById(targetId)?.focus(); }
+            }
+            return;
+        }
         const epoch = sessionEpoch, run = generation;
         draft.busy = true; draft.error = null; updateEditorState();
         try {
@@ -278,7 +319,13 @@
         } catch (error) { if (current(epoch,run) && editor === draft && !error.staleSession) { draft.error = error; draft.busy = false; updateEditorState(); } }
         finally { if (current(epoch,run) && editor === draft) { draft.busy = false; updateEditorState(); } }
     }
-    function preview() { if (editor && !editor.busy && !editor.filesBusy) { editor.preview = !editor.preview; updateEditorState(); } }
+    function preview() {
+        if (!editor || editor.busy || editor.filesBusy) return;
+        const scroll = document.querySelector('#modal-sop-editor .sop-editor-scroll');
+        if (!editor.preview) editor.editScrollTop = scroll?.scrollTop || 0;
+        editor.preview = !editor.preview; updateEditorState();
+        if (scroll) scroll.scrollTop = editor.preview ? 0 : editor.editScrollTop;
+    }
     function cancel() {
         if (!editor) return true;
         if (editor.busy || editor.filesBusy) { showToast(t('Tunggu proses selesai sebelum menutup editor.','Wait for the current operation before closing the editor.'),'error'); return false; }
@@ -320,7 +367,8 @@
     document.addEventListener('click',event=> {
         const button = event.target.closest('.sop-page [data-sop-action]'); if (!button || button.disabled || button.closest('#modal-sop-editor')) return;
         const type = button.dataset.sopType;
-        if (button.dataset.sopAction === 'edit') edit(type);
+        if (button.dataset.sopAction === 'jump') jump(event,button);
+        else if (button.dataset.sopAction === 'edit') edit(type);
         else if (button.dataset.sopAction === 'refresh') open(type,true);
         else if (button.dataset.sopAction === 'download') download(type,button.dataset.fileId,button);
     });

@@ -1,0 +1,60 @@
+/* SOP reading and editing: private content stays in the existing session. */
+.sop-toc { margin: 0 0 28px; padding: 0 0 22px; border-bottom: 1px solid var(--item-border); }
+.sop-toc h2 { margin: 0 0 10px; color: var(--heading-color); font-size: 14px; line-height: 1.6; }
+.sop-toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px 20px; }
+.sop-toc li { min-width: 0; }
+.sop-toc a { display: grid; grid-template-columns: 22px minmax(0,1fr) 16px; align-items: center; gap: 9px; min-height: 44px; padding: 9px 10px; border-radius: 10px; color: var(--text-color); text-decoration: none; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; transition: background-color 160ms ease, color 160ms ease; }
+.sop-toc a > span:first-child,.sop-toc a > span:last-child { color: var(--text-muted); font-size: 12px; }
+.sop-toc a:hover { background: var(--item-bg); color: var(--heading-color); }
+.sop-toc a:focus-visible { outline: 2px solid var(--umy-maroon); outline-offset: 2px; }
+.sop-section { scroll-margin-block-start: 100px; }
+.sop-section-heading h2:focus { outline: none; }
+.sop-section-heading h2:focus-visible { outline: 2px solid var(--umy-maroon); outline-offset: 5px; border-radius: 4px; }
+
+/* Keep publishing actions reachable without covering editable content. */
+.sop-editor-card { display: flex; flex-direction: column; width: min(850px,100%); height: min(880px,90dvh); max-height: 90dvh; overflow: hidden; box-sizing: border-box; }
+#sop-editor-form { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
+.sop-editor-header { flex: 0 0 auto; }
+.sop-editor-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 4px 8px; }
+.sop-editor-scroll #sop-editor-helper { margin-top: 0; }
+.sop-editor-actions { flex: 0 0 auto; padding-top: 12px; border-top: 1px solid var(--item-border); background: var(--card-bg); }
+.sop-editor-actions #sop-editor-status { margin: 0 0 10px; padding: 8px 12px; max-height: 20dvh; overflow: auto; font-size: 12px; line-height: 1.55; }
+.sop-editor-actions .sop-editor-footer { border-top: 0; padding-top: 0; margin-top: 0; }
+.sop-editor-section-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 12px; }
+.sop-editor-section-tools p { margin: 0; color: var(--heading-color); font-size: 13px; font-weight: 600; }
+.sop-editor-section-tools p span { color: var(--text-muted); font-weight: 400; margin-left: 6px; }
+.sop-editor-section-tools button { flex: 0 0 auto; font-size: 12px; }
+.sop-edit-section-header h3 { flex: 1 1 auto; min-width: 0; margin: 0; }
+.sop-edit-section-header > .button-row { flex: 0 0 auto; }
+.sop-editor-card .sop-section-toggle { display: flex; align-items: flex-start; gap: 10px; width: 100%; min-width: 0; padding: 8px 0; margin: 0; border: 0; border-radius: 8px; background: transparent; text-align: left; font: inherit; font-weight: 600; color: var(--heading-color); cursor: pointer; box-shadow: none; }
+.sop-section-toggle [data-sop-section-label] { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.65; }
+.sop-edit-number { flex: 0 0 25px; display: grid; place-items: center; min-height: 25px; font-size: 12px; line-height: 1.5; border-radius: 7px; background: var(--item-bg); color: var(--text-muted); }
+.sop-fold-icon { flex: 0 0 18px; margin-top: 1px; color: var(--text-muted); font-size: 17px; line-height: 1.5; text-align: center; transition: transform 160ms ease; }
+.sop-section-toggle[aria-expanded="true"] .sop-fold-icon { transform: rotate(180deg); }
+.sop-edit-section-content { padding-top: 4px; }
+#sop-preview-output .sop-section { scroll-margin-block-start: 12px; }
+
+@media (max-width: 600px) {
+    .sop-editor-card input:not([type=file]),.sop-editor-card textarea { font-size:16px; }
+    .sop-toc ol { grid-template-columns: minmax(0,1fr); }
+    .sop-toc { margin-bottom: 22px; padding-bottom: 18px; }
+    .sop-toc a { padding-inline: 6px; }
+    .sop-editor-card { height: 96dvh; max-height: 96dvh; padding: 16px; }
+    .sop-editor-card .sop-editor-header h2 { font-size: 18px; }
+    .sop-editor-scroll { padding-inline: 2px; scrollbar-gutter: auto; }
+    .sop-edit-section-header h3 { width: 100%; }
+    .sop-edit-section-header > .button-row { width: 100%; justify-content: flex-end; }
+    .sop-editor-actions { padding-top: 10px; }
+    .sop-editor-actions .sop-editor-footer { gap: 8px; }
+    .sop-editor-actions #sop-editor-status { padding: 7px 10px; margin-bottom: 8px; }
+}
+@media (max-height: 540px) {
+    .sop-editor-card { height: 96dvh; max-height: 96dvh; padding: 12px; }
+    .sop-editor-header { margin-bottom: 6px; }
+    .sop-editor-actions #sop-editor-status { max-height: 14dvh; }
+    .sop-editor-actions .sop-editor-footer button { flex: 1 1 80px; font-size: 12px; padding-inline: 8px; }
+    .sop-editor-actions .sop-editor-footer #sop-save { flex-basis: 100px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sop-toc a,.sop-fold-icon { transition: none; }
+}

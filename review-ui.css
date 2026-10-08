@@ -1,0 +1,70 @@
+/* One consistent request state and a stable identity during review. */
+.request-state { min-width:0; text-align:left; }
+.request-state-heading { display:flex; gap:9px 12px; flex-wrap:wrap; align-items:center; }
+.request-state-heading .status-badge { white-space:normal; line-height:1.5; }
+.request-state-owner { color:var(--text-muted); font-size:12px; line-height:1.6; }
+.request-state-owner strong { color:var(--text-color); font-weight:600; }
+.request-state .request-state-next { margin:10px 0 0; color:var(--text-color); font-size:14px; line-height:1.7; overflow-wrap:anywhere; }
+.request-state-compact .request-state-next { font-size:13px; }
+.request-state-details { margin-top:8px; font-size:12px; color:var(--text-muted); }
+.request-state-details > summary { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; cursor:pointer; min-height:32px; list-style:none; }
+.request-state-details > summary::before { content:'+'; color:var(--heading-color); font-size:16px; width:12px; }
+.request-state-details[open] > summary::before { content:'−'; }
+.request-state-details > summary::-webkit-details-marker { display:none; }
+.request-state-attention { color:var(--umy-maroon); font-weight:600; }
+.request-state-details .waiting-badge { margin:5px 0 0; }
+.task-card .request-state { margin-top:12px; }
+.task-card h3 { margin-top:0; }
+.case-mobile-card .request-state { margin:12px 0; }
+.case-action-column > .request-state { padding-bottom:16px; margin-bottom:16px; border-bottom:1px solid var(--item-border); }
+
+#modal-case-detail .case-detail-heading { position:sticky; top:0; z-index:5; background:var(--card-bg); display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:14px; row-gap:10px; margin-bottom:20px; padding:8px 0 16px; }
+#modal-case-detail .case-detail-heading h2 { margin:0; font-size:19px; line-height:1.5; }
+#modal-case-detail .case-close { grid-column:2; grid-row:1; min-height:44px; }
+.case-review-identity { grid-column:1 / -1; min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 12px; }
+.case-review-identity strong { font-size:14px; line-height:1.6; color:var(--heading-color); }
+.case-review-identity span { font-size:12px; line-height:1.6; color:var(--text-muted); overflow-wrap:anywhere; }
+.case-review-keyboard-identity { display:none; }
+.case-review-navigation { grid-column:1 / -1; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; }
+.case-review-navigation button { width:auto; min-height:44px; min-width:112px; margin:0; font-size:12px; }
+.case-review-navigation button:disabled { cursor:default; }
+#case-review-position { color:var(--text-muted); font-size:12px; text-align:center; line-height:1.5; overflow-wrap:anywhere; }
+.case-keyboard-open .case-detail-heading { position:relative!important; }
+.case-keyboard-open .case-review-action-footer { position:relative!important; }
+
+/* The existing action row is moved here without duplicating controls or IDs. */
+#modal-case-detail .case-detail-card { display:flex; flex-direction:column; width:min(1100px,96vw); height:min(880px,calc(var(--review-viewport-height,100dvh) - 32px)); max-height:calc(var(--review-viewport-height,100dvh) - 32px); overflow:hidden; }
+#modal-case-detail .case-detail-heading { position:relative; flex:0 0 auto; margin-bottom:12px; }
+#case-detail-content { flex:1 1 auto; min-height:0; overflow:auto; overscroll-behavior:contain; padding:2px 4px 8px; }
+.case-review-action-footer { position:relative; flex:0 0 auto; z-index:6; padding:12px 0 max(12px,env(safe-area-inset-bottom)); background:var(--card-bg); border-top:1px solid var(--item-border); margin-top:10px; }
+.case-review-action-footer .case-detail-actions,.case-review-action-footer .button-row { display:flex; flex-wrap:wrap; gap:10px; margin:0; }
+.case-review-action-footer button { min-height:44px; width:auto; }
+
+/* Make room for editing when the software keyboard reduces the visible viewport. */
+#modal-case-detail.case-keyboard-open { align-items:flex-start; padding:6px; height:var(--review-viewport-height,100dvh); }
+#modal-case-detail.case-keyboard-open .case-detail-card { height:calc(var(--review-viewport-height,100dvh) - 12px); max-height:calc(var(--review-viewport-height,100dvh) - 12px); padding:8px 10px; }
+#modal-case-detail.case-keyboard-open .case-detail-heading { grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; padding:0 0 6px; margin:0 0 4px; }
+#modal-case-detail.case-keyboard-open .case-detail-heading h2,
+#modal-case-detail.case-keyboard-open .case-review-navigation,
+#modal-case-detail.case-keyboard-open .case-review-identity span { display:none; }
+#modal-case-detail.case-keyboard-open .case-review-identity { grid-column:1; grid-row:1; align-self:center; display:block; }
+#modal-case-detail.case-keyboard-open .case-review-identity strong { display:block; font-size:11px; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#modal-case-detail.case-keyboard-open .case-review-keyboard-identity { display:block; color:var(--text-muted); font-size:10px; line-height:1.4; overflow-wrap:anywhere; }
+#modal-case-detail.case-keyboard-open .case-close { margin:0; min-height:44px; padding:8px 10px; font-size:12px; }
+#modal-case-detail.case-keyboard-open #case-detail-content { min-height:100px; }
+#modal-case-detail.case-keyboard-open .case-review-action-footer { padding:6px 0; margin-top:4px; }
+#modal-case-detail.case-keyboard-open .case-review-action-footer button { min-height:44px; padding:8px 10px; font-size:12px; line-height:1.4; }
+
+@media(max-width:600px) {
+    #modal-case-detail .case-detail-heading { padding-top:0; row-gap:7px; margin-bottom:16px; }
+    #modal-case-detail .case-detail-heading h2 { font-size:17px; }
+    .case-review-identity { display:block; }
+    .case-review-identity strong,.case-review-identity span { display:block; }
+    .case-review-navigation { gap:7px; }
+    .case-review-navigation button { min-width:0; padding:10px 12px; }
+    #case-review-position { font-size:11px; }
+    .case-review-action-footer .case-detail-actions,.case-review-action-footer .button-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .case-review-action-footer button { width:100%; min-width:0; padding-inline:12px; overflow-wrap:anywhere; }
+    .case-review-action-footer .case-detail-actions > :only-child,.case-review-action-footer .button-row > :only-child { grid-column:1 / -1; }
+    .request-state .request-state-next { font-size:13px; }
+}

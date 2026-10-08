@@ -30,6 +30,9 @@
 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="ui.css">
+    <link rel="stylesheet" href="experience.css">
+    <link rel="stylesheet" href="review-ui.css">
+    <link rel="stylesheet" href="sop-ui.css">
 </head>
 
 <body class="transaction-view">
@@ -384,43 +387,18 @@
             </div>
         </div>
 
-        <ul class="nav-tabs">
-            <div class="nav-header lang" data-id="Akademik" data-en="Academics">Akademik</div>
-            <li tabindex="0" role="button" class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-nav-icon="dashboard" data-id="Dashboard Utama"
-                data-en="Main Dashboard">Dashboard Utama</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'magang')" data-nav-icon="magang" data-id="Kewajiban Magang"
-                data-en="Internship Requirements">Kewajiban Magang</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-nav-icon="skripsi" data-id="Kewajiban Skripsi"
-                data-en="Thesis Requirements">Kewajiban Skripsi</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-nav-icon="kurikulum" data-id="Sebaran Mata Kuliah"
-                data-en="Course Curriculum">Sebaran Mata Kuliah</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kalender')" data-nav-icon="kalender" data-id="Kalender Akademik"
-                data-en="Academic Calendar">Kalender Akademik</li>
-
-            <div class="nav-header lang" data-id="Layanan" data-en="Services">Layanan</div>
-            <li tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'academic-journey')" data-nav-icon="student-status" data-id="Perjalanan Akademik" data-en="Academic Journey">Perjalanan Akademik</li>
-            <li tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-nav-icon="pendaftaran" data-id="Pusat Pendaftaran"
-                data-en="Submit a Request">Pusat Pendaftaran</li>
-            <li tabindex="0" role="button" class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-nav-icon="student-status"
-                data-id="Status Pengajuanku" data-en="My Requests">Status Pengajuanku</li>
-
-            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-nav-icon="admin-data"
-                data-id="Antrean Pengajuan" data-en="Request Queue">Antrean Pengajuan</li>
-            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-nav-icon="admin-dosen" data-id="Plotting Dosen" data-en="Supervisor Capacity">Plotting Kuota Dosen</li>
-            <li tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
-                data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li>
-
-            <div class="nav-header lang" data-id="Standar Operasional Prosedur" data-en="Standard Operating Procedures">Standar Operasional Prosedur</div>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-magang')" data-nav-icon="skripsi" data-id="SOP Magang" data-en="Internship SOP">SOP Magang</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-tugas-akhir')" data-nav-icon="skripsi" data-id="SOP Tugas Akhir" data-en="Final Project SOP">SOP Tugas Akhir</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-nav-icon="remidial" data-id="SOP Remidial" data-en="Remedial Procedure">SOP Remidial</li>
-            <div class="nav-header lang" data-id="Pusat Bantuan" data-en="Help Center">Pusat Bantuan</div>
-            <!-- 8. Menu Template Download & FAQ -->
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-nav-icon="templates-faq" data-id="Template & FAQ"
-                data-en="Templates & FAQ">Template & FAQ</li>
-            <li tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'feedback')" data-nav-icon="feedback" data-id="Kontak Kami" data-en="Contact Us">
-                Kontak Kami</li>
-        </ul>
+        <ul class="nav-tabs"><li data-nav-target="dashboard" tabindex="0" role="button" class="nav-item active lang" onclick="switchTab(event, 'dashboard')" data-nav-icon="dashboard" data-id="Beranda"
+                data-en="Home">Beranda</li><li data-nav-target="admin-data" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-nav-icon="admin-data"
+                data-id="Antrean Pengajuan" data-en="Request Queue">Antrean Pengajuan</li><li data-nav-target="pendaftaran" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-nav-icon="pendaftaran" data-id="Pusat Pendaftaran"
+                data-en="Submit a Request">Pusat Pendaftaran</li><li data-nav-target="student-status" tabindex="0" role="button" class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-nav-icon="student-status"
+                data-id="Status Pengajuanku" data-en="My Requests">Status Pengajuanku</li><li data-nav-target="academic-journey" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'academic-journey')" data-nav-icon="student-status" data-id="Perjalanan Akademik" data-en="Academic Journey">Perjalanan Akademik</li><li class="nav-group"><details data-nav-group="management"><summary><span class="lang" data-id="Kelola layanan" data-en="Manage services">Kelola layanan</span></summary><ul><li data-nav-target="admin-dosen" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-nav-icon="admin-dosen" data-id="Plotting Dosen" data-en="Supervisor Capacity">Plotting Kuota Dosen</li><li data-nav-target="admin-master" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
+                data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li></ul></details></li><li class="nav-group"><details data-nav-group="sop"><summary><span class="lang" data-id="SOP & panduan" data-en="SOP & guides">SOP & panduan</span></summary><ul><li data-nav-target="sop-magang" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-magang')" data-nav-icon="skripsi" data-id="SOP Magang" data-en="Internship SOP">SOP Magang</li><li data-nav-target="sop-tugas-akhir" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-tugas-akhir')" data-nav-icon="skripsi" data-id="SOP Tugas Akhir" data-en="Final Project SOP">SOP Tugas Akhir</li><li data-nav-target="remidial" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-nav-icon="remidial" data-id="SOP Remidial" data-en="Remedial Procedure">SOP Remidial</li></ul></details></li><li class="nav-group"><details data-nav-group="academic"><summary><span class="lang" data-id="Referensi akademik" data-en="Academic resources">Referensi akademik</span></summary><ul><li data-nav-target="magang" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'magang')" data-nav-icon="magang" data-id="Kewajiban Magang"
+                data-en="Internship Requirements">Kewajiban Magang</li><li data-nav-target="skripsi" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-nav-icon="skripsi" data-id="Kewajiban Skripsi"
+                data-en="Thesis Requirements">Kewajiban Skripsi</li><li data-nav-target="kurikulum" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-nav-icon="kurikulum" data-id="Sebaran Mata Kuliah"
+                data-en="Course Curriculum">Sebaran Mata Kuliah</li><li data-nav-target="kalender" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kalender')" data-nav-icon="kalender" data-id="Kalender Akademik"
+                data-en="Academic Calendar">Kalender Akademik</li></ul></details></li><li class="nav-group"><details data-nav-group="help"><summary><span class="lang" data-id="Bantuan" data-en="Help">Bantuan</span></summary><ul><li data-nav-target="templates-faq" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-nav-icon="templates-faq" data-id="Template & FAQ"
+                data-en="Templates & FAQ">Template & FAQ</li><li data-nav-target="feedback" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'feedback')" data-nav-icon="feedback" data-id="Kontak Kami" data-en="Contact Us">
+                Kontak Kami</li></ul></details></li></ul>
 
         <button class="btn-sidebar" id="lang-btn" onclick="toggleLanguage()">Switch to English</button>
         <button class="btn-sidebar lang" onclick="toggleDarkMode()" data-id="Mode Gelap / Terang"
@@ -442,7 +420,7 @@
 
             <p id="sync-status" class="sync-status" role="status" hidden></p>
             <!-- Global Search & Notifications -->
-            <div style="display: flex; gap: 15px; align-items: center;">
+            <div class="workspace-utilities" style="display: flex; gap: 15px; align-items: center;">
               <button class="btn-secondary"
     onclick="openGlobalSearch()"
     aria-label="Cari"
@@ -774,9 +752,11 @@
 
                     </div>
                     <div id="registration-review" hidden aria-live="polite"></div>
+                    <div id="registration-actions" class="context-actions">
                     <button type="submit" id="btn-review-registration" class="btn-primary" style="margin-top:20px;">Periksa Ringkasan</button>
                     <button type="button" onclick="submitForm(event)" id="btn-submit-registration" hidden class="btn-primary"
                         style="background-color: var(--umy-maroon); margin-top:20px;">Konfirmasi & Kirim</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -821,7 +801,7 @@
                         <option value="Resubmitted">Perbaikan menunggu admin</option>
                         <option value="Accepted">Selesai</option>
                     </select>
-                    <select id="admin-type-filter" aria-label="Jenis layanan" onchange="currentAdminPage=1;filterAdminData()"><option value="">Semua layanan</option><option>Outline</option><option>Proposal</option><option>Pendadaran</option><option>Skripsi Jurnal</option><option>Pergantian Pembimbing</option></select><label class="overdue-filter"><input type="checkbox" id="admin-overdue-filter" onchange="currentAdminPage=1;filterAdminData()"><span class="lang" data-id="Lewat target internal" data-en="Past internal target">Lewat target internal</span></label>
+                    <select id="admin-type-filter" aria-label="Jenis layanan" onchange="currentAdminPage=1;filterAdminData()"><option value="">Semua layanan</option><option value="Outline">Outline</option><option value="Proposal">Proposal</option><option value="Pendadaran">Pendadaran</option><option value="Skripsi Jurnal">Skripsi Jurnal</option><option value="Pergantian Pembimbing">Pergantian Pembimbing</option></select><label class="overdue-filter"><input type="checkbox" id="admin-overdue-filter" onchange="currentAdminPage=1;filterAdminData()"><span class="lang" data-id="Lewat target internal" data-en="Past internal target">Lewat target internal</span></label>
                 </div>
                 <details class="data-management"><summary>Pengelolaan data</summary>
                     <p>Unduh rekap atau kelola seluruh data pendaftaran.</p>
@@ -837,8 +817,7 @@
                                         id="admin-sort-icon"></span></th>
                                 <th class="sticky-th">Mahasiswa</th>
                                 <th class="sticky-th">Jenis Formulir</th>
-                                <th class="sticky-th">Langkah Berikutnya</th>
-                                <th class="sticky-th">Status</th>
+                                <th class="sticky-th lang" colspan="2" data-id="Status & langkah berikutnya" data-en="Status & next step">Status & langkah berikutnya</th>
                                 <th class="sticky-th">Detail</th>
                             </tr>
                         </thead>
@@ -1051,6 +1030,8 @@
     <script src="document-checks.js"></script>
     <script src="preflight.js"></script>
     <script src="sop.js"></script>
+    <script src="review-navigation.js"></script>
+    <script src="experience.js"></script>
 </body>
 
 </html>

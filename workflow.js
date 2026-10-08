@@ -59,6 +59,24 @@ function setSubmissionStage(target,stage) {
     el.innerHTML=labels.map((label,i)=>`<span class="${i===index?'current':i<index?'done':''}">${i+1}. ${label}</span>`).join('');
     if (stage==='uncertain' || stage==='error') el.innerHTML+=`<p>${stage==='uncertain'?uxText('Belum ada konfirmasi. Periksa status pengajuan sebelum mengirim ulang.','No confirmation yet. Check the request status before retrying.'):uxText('Belum terkirim. Periksa isian dan berkas Anda.','Not sent. Check your inputs and files.')}</p>`;
 }
+function setProcessNotice(target,kind,detail='') {
+    const el=document.getElementById(target); if (!el) return;
+    el.ipcosNotice={kind,detail}; renderProcessNotice(el);
+}
+function renderProcessNotice(el) {
+    const notice=el?.ipcosNotice; if (!notice) return;
+    const {kind,detail}=notice;
+    const message=systemText(detail);
+    const labels={
+        'form-preparing':uxText('Menyiapkan berkas. Jangan tutup halaman sampai ada konfirmasi.','Preparing files. Keep this page open until confirmation.'),
+        'form-confirmed':uxText('Pengajuan berhasil dikirim dan tercatat.','Your request has been submitted and recorded.'),
+        'form-error':uxText('Periksa formulir: ','Check the form: ')+message,
+        'form-uncertain':uxText('Pengiriman belum dapat dipastikan: ','Submission could not be confirmed: ')+message+'. '+uxText('Periksa Status Pengajuan Saya sebelum mencoba lagi agar tidak mengirim dua kali.','Check My Requests before retrying to avoid submitting twice.'),
+        'case-uncertain':uxText('Penyimpanan belum dapat dipastikan. Isian Anda tetap tersedia. Segarkan status sebelum mencoba lagi.','Saving could not be confirmed. Your inputs remain available. Refresh the status before retrying.'),
+        'case-error':message || uxText('Berkas belum dapat diproses. Coba kembali.','The file could not be processed. Try again.')
+    };
+    if (kind in labels) el.textContent=labels[kind];
+}
 function caseEditorDirty() {
     const panel=document.getElementById('case-action-panel');
     return !!panel && !panel.hidden && panel.dataset.dirty==='true' && document.getElementById('modal-case-detail').style.display!=='none';

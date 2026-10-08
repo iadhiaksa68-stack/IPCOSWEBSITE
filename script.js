@@ -43,16 +43,19 @@ function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerText = systemText(message);
+    window.IPCOSExperience?.feedback(message,type);
     container.appendChild(toast);
     while (container.children.length > 2) container.firstElementChild.remove();
 
     setTimeout(() => {
         toast.classList.add('fadeOut');
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(() => toast.remove(), 180);
     }, 4000);
 }
 
 function showLoader(loadingText = null) {
+    window.IPCOSExperience?.beginOperation(loadingText);
+    if (isSubmittingRegistration || isPreparingCorrection || activeUpdateIds.size) return;
     const loaderEl = document.getElementById('loader');
     if (loaderEl) loaderEl.style.display = 'flex';
 
@@ -67,6 +70,7 @@ function showLoader(loadingText = null) {
 }
 
 function hideLoader() {
+    window.IPCOSExperience?.finishOperation();
     const loaderEl = document.getElementById('loader');
     if (loaderEl) loaderEl.style.display = 'none';
 }
@@ -556,7 +560,7 @@ function clearPrivateCache() {
     document.getElementById('dynamic-exam-form').style.display = 'none';
     document.getElementById('registration-fields').hidden = false; document.getElementById('registration-review').hidden = true;
     document.getElementById('btn-review-registration').hidden = false; document.getElementById('btn-submit-registration').hidden = true;
-    document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; });
+    document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; el.ipcosNotice=null; });
     document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); });
     document.querySelectorAll('.overlay, .overlay-dialog').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
     ['table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
@@ -567,6 +571,8 @@ function clearPrivateCache() {
     document.getElementById('admin-search-input').value = ''; document.getElementById('admin-status-filter').value = 'ACTION_REQUIRED';
     ['input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama','input-rev-note','input-reply-note','input-reply-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     editorTempData = [];
+    window.IPCOSReview?.reset();
+    window.IPCOSExperience?.reset();
 }
 function renderCachedTransactions() {
     const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
@@ -1172,6 +1178,8 @@ async function reviewRegistration(event) {
     if (isSubmittingRegistration || preflightBusy || document.getElementById('registration-fields').hidden) return;
     const epoch = sessionEpoch, type = document.getElementById('reg-jenis-utama').value;
     preflightBusy = true;
+    document.getElementById('form-submit-status').ipcosNotice=null;
+    document.getElementById('form-submit-status-steps')?.remove();
     document.getElementById('form-submit-status').textContent = uxText('Memeriksa format berkas...', 'Checking document formats...');
     try { await inspectRegistrationDocuments(); } finally { if (epoch === sessionEpoch) preflightBusy = false; }
     if (epoch !== sessionEpoch || type !== document.getElementById('reg-jenis-utama').value) return;
@@ -1251,7 +1259,7 @@ function renderTaskHome() {
         : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', revisions === 1 ? 'request needs your corrections.' : 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
     home.innerHTML = `<div class="task-home-header"><div><h2>${title}</h2><p>${subtitle}</p></div>
         <button type="button" class="btn-primary" onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : "switchTab(null, 'pendaftaran')"}">${admin ? uxText('Buka Antrean', 'Open Queue') : uxText('Buat Pengajuan', 'New Request')}</button></div>
-        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div>${getStatusBadge(item.status)}<h3>${escapeHtml(systemText(item.jenis))}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}<p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</div>
+        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div><h3>${escapeHtml(systemText(item.jenis))}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}</div>
         <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
         : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
         <div class="task-home-footer"><button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>${admin ? '' : `<button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Buka Perjalanan Akademik', 'Open Academic Journey')}</button>`}</div>`;
@@ -1298,6 +1306,7 @@ function caseDetailAction(action) {
     if (!item || activeUpdateIds.has(item.id)) return;
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') return;
+    window.IPCOSReview?.restoreActions();
     const panel = document.getElementById('case-action-panel');
     panel.dataset.action = action; panel.dataset.dirty = 'false';
     let html = '';
@@ -1324,13 +1333,16 @@ function caseDetailAction(action) {
         document.getElementById('case-reply-file-list').innerHTML = [...reply.files].map(file => `<p>${escapeHtml(file.name)} · ${formatFileSize(file.size)}${fileProblem(file, reply.accept) ? `<span class="field-error">${escapeHtml(fileProblem(file, reply.accept))}</span>` : ''}</p>`).join('');
     });
     (panel.querySelector('textarea, select, input') || panel.querySelector('button')).focus();
+    window.IPCOSReview?.actionsChanged();
 }
 function cancelCaseAction() {
     if (activeUpdateIds.has(selectedCaseId) || isPreparingCorrection) return;
     if (!confirmLeaveCase()) return;
+    window.IPCOSReview?.restoreActions();
     document.getElementById('case-action-panel').dataset.dirty = 'false';
     document.getElementById('case-action-panel').hidden = true;
     document.getElementById('case-detail-actions').hidden = false;
+    window.IPCOSReview?.actionsChanged();
 }
 let isPreparingCorrection = false;
 async function submitCaseAction() {
@@ -1339,20 +1351,21 @@ async function submitCaseAction() {
     const panel = document.getElementById('case-action-panel');
     const action = panel.dataset.action;
     const feedback = document.getElementById('case-action-feedback');
-    const fail = message => { feedback.textContent = systemText(message); return false; };
+    feedback.ipcosNotice=null;
+    const fail = (message,field=null) => { feedback.textContent = systemText(message); field?.focus(); return false; };
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
     let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [];
     if (action === 'revision') {
         const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
         const instruction = document.getElementById('case-revision-note').value.trim();
-        if (!selected.length) return fail(uxText('Pilih minimal satu berkas atau isian yang perlu diperbaiki.', 'Select at least one file or field needing corrections.'));
-        if (!instruction) return fail(uxText('Tulis instruksi perbaikan untuk mahasiswa.', 'Write correction instructions for the student.'));
+        if (!selected.length) return fail(uxText('Pilih minimal satu berkas atau isian yang perlu diperbaiki.', 'Select at least one file or field needing corrections.'),panel.querySelector('[name="revision-document"]'));
+        if (!instruction) return fail(uxText('Tulis instruksi perbaikan untuk mahasiswa.', 'Write correction instructions for the student.'),document.getElementById('case-revision-note'));
         note = `Berkas yang perlu diperbaiki:\n${selected.map(label => '- ' + label).join('\n')}\n\nInstruksi:\n${instruction}`;
         newStatus = 'Revision';
     } else if (action === 'dospem') {
         dospem = document.getElementById('case-supervisor').value;
-        if (!dospem) return fail(uxText('Pilih dosen pembimbing yang masih memiliki kuota.', 'Choose a supervisor with available capacity.'));
+        if (!dospem) return fail(uxText('Pilih dosen pembimbing yang masih memiliki kuota.', 'Choose a supervisor with available capacity.'),document.getElementById('case-supervisor'));
         note = `Pengajuan disetujui. Dosen Pembimbing: ${dospem}. Silakan hubungi dosen untuk tahapan bimbingan berikutnya.`;
     } else if (action === 'accept') note = 'Berkas telah disetujui dan terverifikasi.';
     else if (action === 'reply') {
@@ -1373,6 +1386,7 @@ async function submitCaseAction() {
     feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
     setSubmissionStage('case-action-feedback','preparing');
     isPreparingCorrection = true;
+    window.IPCOSReview?.actionsChanged();
     const requestEpoch = sessionEpoch;
     try {
         if (action === 'reply') {
@@ -1391,15 +1405,21 @@ async function submitCaseAction() {
         setSubmissionStage('case-action-feedback',success?'confirmed':'uncertain');
         if (success) panel.dataset.dirty='false';
         if (success && selectedCaseId === String(item.id) && document.getElementById('modal-case-detail').style.display !== 'none') openCaseDetail(item.id);
-        else if (!success && document.getElementById('case-action-feedback')) fail(uxText('Penyimpanan belum dapat dipastikan. Isian Anda tetap tersedia. Segarkan status sebelum mencoba lagi.', 'Saving could not be confirmed. Your inputs remain available. Refresh the status before retrying.'));
-    } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); fail(error.message || uxText('Berkas belum dapat diproses. Coba kembali.', 'The file could not be processed. Try again.')); }
+        else if (!success && document.getElementById('case-action-feedback')) setProcessNotice('case-action-feedback','case-uncertain');
+    } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); setProcessNotice('case-action-feedback','case-error',error.message); }
     finally {
         if (requestEpoch === sessionEpoch) isPreparingCorrection = false;
         if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = uxText('Coba Simpan Lagi', 'Try Saving Again'); }
+        if (requestEpoch === sessionEpoch) window.IPCOSReview?.actionsChanged();
     }
 }
 
 function toggleExamForm() {
+    if (document.getElementById('reg-jenis-utama').value) {
+        document.getElementById('form-submit-status').ipcosNotice=null;
+        document.getElementById('form-submit-status').textContent='';
+        document.getElementById('form-submit-status-steps')?.remove();
+    }
     editRegistration();
     refreshServiceAvailability();
     renderRegistrationReadiness();
@@ -1470,7 +1490,7 @@ async function submitForm(e) {
     submitButton.disabled = true;
     submitButton.textContent = systemText('Sedang mengirim...');
     setSubmissionStage('form-submit-status','preparing');
-    if (submitStatus) submitStatus.textContent = systemText('Menyiapkan berkas. Jangan tutup halaman sampai ada konfirmasi.');
+    setProcessNotice('form-submit-status','form-preparing');
 
     let finalDetail = `<b>Judul:</b> ${document.getElementById('reg-judul').value}`;
 
@@ -1542,7 +1562,7 @@ async function submitForm(e) {
             lastSubmittedCaseId = result.id || '';
             sessionStorage.removeItem('ipcos_pending_submission');
             showSubmissionReceipt({ id: lastSubmittedCaseId, date: result.date || dateStr, jenis: jenisUjian, files: filesToUpload });
-            if (submitStatus) submitStatus.textContent = systemText('Pengajuan berhasil dikirim dan tercatat.');
+            setProcessNotice('form-submit-status','form-confirmed');
             clearFormDraft();
             document.getElementById('reg-jenis-utama').value = "";
             document.querySelectorAll('.dz-file-name').forEach(el => el.innerText = "");
@@ -1564,9 +1584,7 @@ async function submitForm(e) {
         if (err.staleSession || requestEpoch !== sessionEpoch) return;
         setSubmissionStage('form-submit-status',requestStarted?'uncertain':'error');
         showToast(err.message, "error");
-        if (submitStatus) submitStatus.textContent = requestStarted
-            ? `${uxText('Pengiriman belum dapat dipastikan: ', 'Submission could not be confirmed: ')}${systemText(err.message)}. ${uxText('Periksa Status Pengajuan Saya sebelum mencoba lagi agar tidak mengirim dua kali.', 'Check My Requests before retrying to avoid submitting twice.')}`
-            : `${uxText('Periksa formulir: ', 'Check the form: ')}${systemText(err.message)}`;
+        setProcessNotice('form-submit-status',requestStarted?'form-uncertain':'form-error',err.message);
     } finally {
         if (requestEpoch === sessionEpoch) {
         isSubmittingRegistration = false;
@@ -1908,6 +1926,11 @@ function triggerConfetti() {
     if (!canvas) return;
 
     if (confettiAnimationId) cancelAnimationFrame(confettiAnimationId);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        confettiAnimationId=null;
+        canvas.style.display='none';
+        return;
+    }
 
     canvas.style.display = 'block';
     const ctx = canvas.getContext('2d');
@@ -2020,6 +2043,8 @@ function toggleLanguage() {
     renderDynamicContent();
     applyDynamicLanguage();
     applyLanguageBlocks();
+    document.querySelectorAll('.submission-steps[data-stage]').forEach(steps => setSubmissionStage(steps.id.replace(/-steps$/,''),steps.dataset.stage));
+    document.querySelectorAll('#form-submit-status,#case-action-feedback').forEach(renderProcessNotice);
     window.IPCOSSop?.languageChanged();
     refreshServiceAvailability();
     document.querySelectorAll('#registration-fields .dz-remove-btn').forEach(button=>button.textContent=uxText('Hapus File','Remove file'));
@@ -2052,6 +2077,7 @@ function applyDynamicLanguage() {
             el.classList.add('lang-animating');
         }
     });
+    window.IPCOSExperience?.refresh();
 }
 
 // ==========================================
@@ -2093,16 +2119,19 @@ function caseTimelineHtml(item) {
 }
 
 function openCaseDetail(id, languageRefresh = false) {
-    if (!languageRefresh && (String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return;
-    const savedPanel = languageRefresh && document.getElementById('case-action-panel');
-    const savedPreview = languageRefresh && document.getElementById('case-file-preview');
-    if (!languageRefresh) clearCaseBlobUrls();
     const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const item = records.find(record => String(record.id) === String(id));
-    if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) {
+    if (!item || !['admin','mhs'].includes(currentUser.role) || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) {
         showToast('Pengajuan belum tersedia. Coba segarkan data.', 'error');
         return;
     }
+    if (!languageRefresh && (String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return;
+    const active=document.activeElement;
+    const restoreFocus=languageRefresh && document.getElementById('modal-case-detail').contains(active) ? {node:active,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection,scroll:document.getElementById('case-detail-content').scrollTop} : null;
+    window.IPCOSReview?.restoreActions();
+    const savedPanel = languageRefresh && document.getElementById('case-action-panel');
+    const savedPreview = languageRefresh && document.getElementById('case-file-preview');
+    if (!languageRefresh) clearCaseBlobUrls();
     selectedCaseId = String(item.id);
     const isAdmin = currentUser.role === 'admin';
     const status = String(item.status || '').trim().toLowerCase();
@@ -2117,7 +2146,6 @@ function openCaseDetail(id, languageRefresh = false) {
     }
     const content = document.getElementById('case-detail-content');
     content.innerHTML = `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
-        <div>${getStatusBadge(item.status)}${waitingHtml(item)}</div>
         <button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
         <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(systemText(item.jenis))}</dd>
         <dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
@@ -2129,7 +2157,7 @@ function openCaseDetail(id, languageRefresh = false) {
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
         <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
         <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
-        <h3>${uxText('Tindakan','Actions')}</h3><p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}
+        ${window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
         <div id="case-action-panel" hidden></div></aside></div>`;
     if (savedPanel) { content.querySelector('#case-action-panel').replaceWith(savedPanel); content.querySelector('#case-detail-actions').hidden = !savedPanel.hidden; }
@@ -2140,12 +2168,18 @@ function openCaseDetail(id, languageRefresh = false) {
     modal.style.display = 'flex';
     modal.style.opacity = '1';
     if (!languageRefresh) modal.querySelector('.case-close').focus();
+    window.IPCOSReview?.opened(item,{languageRefresh});
+    if (restoreFocus?.node.isConnected && !restoreFocus.node.disabled) {
+        restoreFocus.node.focus({preventScroll:true});
+        if (typeof restoreFocus.start==='number') restoreFocus.node.setSelectionRange(restoreFocus.start,restoreFocus.end,restoreFocus.direction || 'none');
+        document.getElementById('case-detail-content').scrollTop=restoreFocus.scroll;
+    }
 }
 
 function caseMobileCard(item, isAdmin) {
-    return `<article class="case-mobile-card"><div class="case-mobile-top">${getStatusBadge(item.status)}<small>${escapeHtml(formatDate(isAdmin ? getCaseEventTime(item) : item.date))}</small></div>
+    return `<article class="case-mobile-card"><div class="case-mobile-top"><small>${escapeHtml(formatDate(isAdmin ? getCaseEventTime(item) : item.date))}</small></div>
         <strong>${escapeHtml(systemText(item.jenis))}</strong>${isAdmin ? `<p>${escapeHtml(item.nama)}<br><small>${escapeHtml(item.nim)}</small></p>` : ''}
-        <p>${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}
+        ${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}
         <button type="button" class="btn-primary" data-case-id="${escapeHtml(item.id)}">${systemText('Buka Detail & Tindakan')}</button></article>`;
 }
 
@@ -2202,7 +2236,7 @@ function loadStudentStatus() {
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
                 <td style="vertical-align:top;"><b>${escapeHtml(systemText(item.jenis))}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${detailText}</td>
-                <td style="text-align:center; vertical-align:top;">${getStatusBadge(item.status)}<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>${waitingHtml(item)}</td>
+                <td style="text-align:center; vertical-align:top;">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}</td>
                 <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
             </tr>`;
         });
@@ -2280,6 +2314,7 @@ function filterAdminData() {
         return isAdminSortDesc ? (dateB - dateA) : (dateA - dateB);
     });
 
+    window.IPCOSReview?.setQueue(adminFilteredData);
     renderAdminTable();
     saveQueueView();
     renderTaskHome();
@@ -2330,8 +2365,7 @@ function renderAdminTable() {
             <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
             <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
             <td><strong>${escapeHtml(systemText(item.jenis))}</strong></td>
-            <td class="queue-next-step">${escapeHtml(caseNextStep(item))}${waitingHtml(item)}</td>
-            <td>${getStatusBadge(item.status)}</td>
+            <td colspan="2">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}</td>
             <td><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${uxText('Buka Pengajuan','Open Request')}</button></td>
         </tr>`;
     });
@@ -2497,6 +2531,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
         return false;
     }
     activeUpdateIds.add(id);
+    window.IPCOSReview?.actionsChanged();
     const requestEpoch = sessionEpoch;
     showLoader(currentLang === 'id' ? 'Sedang Memproses...' : 'Processing...');
     try {
@@ -2561,7 +2596,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
         showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan/upload." : "Network/upload error occurred.", "error");
         return false;
     } finally {
-        if (requestEpoch === sessionEpoch) { activeUpdateIds.delete(id); hideLoader(); }
+        if (requestEpoch === sessionEpoch) { activeUpdateIds.delete(id); hideLoader(); window.IPCOSReview?.actionsChanged(); }
     }
 }
 
@@ -2621,7 +2656,7 @@ function closeModal(modalId, force = false) {
     if (force) { modal.style.display = 'none'; modal.style.opacity = '0'; return; }
     else {
         modal.style.opacity = '0';
-        modalCloseTimers.set(modalId, setTimeout(() => { modal.style.display = 'none'; modalCloseTimers.delete(modalId); }, 300));
+        modalCloseTimers.set(modalId, setTimeout(() => { modal.style.display = 'none'; modalCloseTimers.delete(modalId); }, 180));
     }
 }
 function syncThemeControl() {
@@ -2638,7 +2673,7 @@ function toggleDarkMode() {
     localStorage.setItem('ipcos_theme', isDark ? 'dark' : 'light');
     syncThemeControl();
 }
-function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); }
+function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); window.IPCOSExperience?.drawerChanged(); }
 
 function canAccessTab(tabId) {
     if (['sop-magang','sop-tugas-akhir'].includes(tabId)) return ['mhs','admin'].includes(currentUser.role);
@@ -2652,6 +2687,7 @@ function switchTab(event, tabId) {
     if (window.IPCOSSop && !window.IPCOSSop.beforeNavigate(tabId)) return;
     if (tabId === 'academic-journey') renderAcademicJourney();
     if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return;
+    window.IPCOSExperience?.beforeTab(tabId);
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -2662,6 +2698,7 @@ function switchTab(event, tabId) {
         target.classList.remove('active'); void target.offsetWidth; target.classList.add('active');
     }
     document.getElementById('main-sidebar').classList.remove('active');
+    window.IPCOSExperience?.tabChanged(tabId);
     if (tabId === 'sop-magang') window.IPCOSSop?.open('sop_magang');
     if (tabId === 'sop-tugas-akhir') window.IPCOSSop?.open('sop_tugas_akhir');
 
@@ -2690,7 +2727,7 @@ function silentSyncDatabase() {
 // ==========================================
 // 14. SIDEBAR INTERAKTIF & WHATSAPP FLOAT
 // ==========================================
-function toggleDesktopSidebar() { document.getElementById('main-sidebar').classList.toggle('collapsed'); document.querySelector('.main-content').classList.toggle('expanded'); }
+function toggleDesktopSidebar() { document.getElementById('main-sidebar').classList.toggle('collapsed'); document.querySelector('.main-content').classList.toggle('expanded'); window.IPCOSExperience?.drawerChanged(); }
 let waScrollTimer;
 window.addEventListener('scroll', () => {
     const waBtn = document.getElementById('wa-float-btn');
@@ -3072,8 +3109,9 @@ document.addEventListener('click', function(event) {
     // Cek apakah mode mobile sedang aktif (lebar <= 850px)
     if (window.innerWidth <= 850) {
         // Jika sidebar aktif dan target klik BUKAN sidebar dan BUKAN tombol toggle
-        if (sidebar.classList.contains('active') && !sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+        if (sidebar.classList.contains('active') && !sidebar.contains(event.target) && !toggleBtn.contains(event.target) && !event.target.closest('[data-bottom-target="menu"]')) {
             sidebar.classList.remove('active');
+            window.IPCOSExperience?.drawerChanged();
         }
     }
 });

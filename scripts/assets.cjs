@@ -1,1 +1,1 @@
-module.exports = ['index.html', 'script.js', 'i18n.js', 'features.js', 'workflow.js', 'journey.js', 'document-checks.js', 'preflight.js', 'sop.js', 'style.css', 'ui.css', 'favicon.svg', 'recovery-guide.html'];
+module.exports = ['index.html', 'script.js', 'i18n.js', 'features.js', 'workflow.js', 'journey.js', 'document-checks.js', 'preflight.js', 'sop.js', 'experience.js', 'review-navigation.js', 'experience.css', 'review-ui.css', 'sop-ui.css', 'style.css', 'ui.css', 'favicon.svg', 'recovery-guide.html'];
