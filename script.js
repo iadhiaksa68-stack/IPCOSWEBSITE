@@ -45,6 +45,7 @@ function showToast(message, type = 'success') {
     toast.innerText = systemText(message);
     window.IPCOSExperience?.feedback(message,type);
     container.appendChild(toast);
+    bindLanguageBlock(toast);
     while (container.children.length > 2) container.firstElementChild.remove();
 
     setTimeout(() => {

@@ -1,5 +1,7 @@
 // Display-only translations. Stored service types, document labels and user text stay unchanged.
 const interfaceEnglish = {
+    'Pendaftaran & Berkas berhasil dikirim!':'Registration & Files submitted successfully!',
+    'Status berhasil diperbarui!':'Status updated successfully!',
     'Pilih dosen yang berbeda.':'Choose a different supervisor.',
     'Jelaskan perbaikan Anda.':'Describe your corrections.',
     'Perbaikan sebelumnya sudah tercatat. Segarkan untuk melihat hasilnya.':'The previous correction is already recorded. Refresh to see the result.',
