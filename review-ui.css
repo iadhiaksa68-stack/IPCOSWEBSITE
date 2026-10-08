@@ -36,7 +36,7 @@
 /* The fixed overlay bounds the card even before viewport measurements settle. */
 #modal-case-detail .case-detail-card { display:flex; flex-direction:column; width:min(1100px,96vw); height:min(880px,100%,calc(100dvh - 32px),calc(var(--review-viewport-height,100dvh) - 32px)); max-height:min(100%,calc(100dvh - 32px),calc(var(--review-viewport-height,100dvh) - 32px)); overflow:hidden; }
 #modal-case-detail .case-detail-heading { position:relative; flex:0 0 auto; margin-bottom:12px; }
-#case-detail-content { flex:1 1 auto; min-height:0; overflow:auto; overscroll-behavior:contain; padding:2px 4px 8px; }
+#case-detail-content { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding:2px 4px 8px; }
 .case-review-action-footer { position:relative; flex:0 0 auto; z-index:6; padding:12px 0 max(12px,env(safe-area-inset-bottom)); background:var(--card-bg); border-top:1px solid var(--item-border); margin-top:10px; }
 .case-review-action-footer .case-detail-actions,.case-review-action-footer .button-row { display:flex; flex-wrap:wrap; gap:10px; margin:0; }
 .case-review-action-footer button { min-height:44px; width:auto; }
