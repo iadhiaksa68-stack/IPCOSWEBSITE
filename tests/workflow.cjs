@@ -7,7 +7,7 @@ let failRead=false,failUpdate=false,holdCreate=false,createRelease,errors=[],cal
 let records=Array.from({length:25},(_,i)=>({id:'q'+i,nim:'B',nama:'Mahasiswa Uji '+i,jenis:'Proposal',status:'Pending',date:'2026-10-05T01:00:00Z',detail:'Contoh Uji',link:'',note:'[]'}));
 await context.route('**/*',async route=>{
  const url=route.request().url(); if(url.includes('script.google.com/macros/')) {
- const data=route.request().postDataJSON();calls.push(data); let result;
+ const data=route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return;calls.push(data); let result;
  if(data.action==='admin_login') result={status:'success',token:'admin'};
  else if(data.action==='student_login') result={status:'success',token:'student-A',nama:'Mahasiswa Uji'};
  else if(data.action==='get_data')result=failRead?{status:'error',message:'Gangguan uji'}:{status:'success',registrations:data.token==='admin'?records:records.filter(r=>r.nim==='A'),students:[],dosens:[],contents:[],announcements:[]};

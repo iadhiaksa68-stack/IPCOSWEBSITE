@@ -1,0 +1,33 @@
+.upload-guidance { display:flex; flex-wrap:wrap; gap:8px 16px; margin:6px 0 10px; }
+.upload-guidance .text-link { width:auto; min-height:44px; margin:0; padding:6px 0; border:0; background:transparent; box-shadow:none; color:var(--umy-maroon); font-size:12px; text-align:left; }
+#draft-controls,.reminder-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+#draft-controls:empty { display:none; }
+#draft-controls { margin-bottom:16px; }
+#draft-controls button { flex:1 1 160px; margin:0; }
+#service-reminder { padding:14px 16px; border:1px solid var(--item-border); border-radius:14px; margin:12px 0; background:var(--item-bg); }
+.reminder-controls select { flex:1 1 130px; width:auto; margin:0; }
+.reminder-controls button { flex:1 1 170px; margin:0; }
+.guide-back { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 18px; }
+.guide-back button { margin:0; width:auto; }
+.guide-back span { font-size:12px; color:var(--text-muted); line-height:1.6; }
+.queue-extra-controls,.export-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:12px 0; align-items:end; }
+.queue-extra-controls label,.export-controls label { display:block; font-size:12px; line-height:1.6; margin:0 0 4px; }
+.queue-extra-controls select,.queue-extra-controls input,.export-controls select { margin:0; min-width:0; }
+.export-controls button { margin:0; }
+.health-list { list-style:none; padding:0; margin:12px 0; }
+.health-list li { display:flex; flex-wrap:wrap; gap:4px 16px; padding:10px 0; border-bottom:1px solid var(--item-border); font-size:12px; line-height:1.6; }
+.health-list span { color:var(--text-muted); overflow-wrap:anywhere; }
+#case-revision-fields { padding:14px; border:1px solid var(--item-border); border-radius:12px; min-width:0; margin:12px 0; }
+#case-revision-fields legend { font-weight:600; font-size:13px; padding:0 6px; }
+#case-revision-fields textarea { width:100%; min-height:68px; }
+.field-change-list dd { margin:4px 0 14px; overflow-wrap:anywhere; }
+.field-change-list span,.field-change-list strong { display:block; white-space:pre-wrap; line-height:1.6; }
+.field-change-list span { color:var(--text-muted); font-size:12px; }
+@media(max-width:600px) { .queue-extra-controls,.export-controls { grid-template-columns:1fr; } .upload-guidance .text-link { flex:1 1 130px; } }
+
+.admin-table-controls .overdue-filter input { min-width:18px!important; }
+.health-management>summary { padding:16px 20px; min-height:56px; display:flex; align-items:center; gap:14px; font-size:13px; font-weight:600; line-height:1.65; color:var(--heading-color); cursor:pointer; }
+.health-management>p,.health-management>#health-results { margin:16px 20px; font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+.health-management>button { width:calc(100% - 40px); margin:0 20px; }
+.data-management>.export-controls { margin:16px 20px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:600px) { .data-management>.export-controls { grid-template-columns:1fr; } }

@@ -33,6 +33,7 @@
     <link rel="stylesheet" href="experience.css">
     <link rel="stylesheet" href="review-ui.css">
     <link rel="stylesheet" href="sop-ui.css">
+    <link rel="stylesheet" href="next-ui.css">
 </head>
 
 <body class="transaction-view">
@@ -658,8 +659,8 @@
             <h1 class="lang" data-id="Pusat Pendaftaran" data-en="Submit a Request">Pusat Pendaftaran Ujian & Skripsi
             </h1>
             <div class="card">
-                <p class="form-helper">Isian teks disimpan sementara di tab ini. Berkas perlu dipilih ulang jika halaman ditutup atau dimuat ulang.</p>
-                <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p>
+                <p class="form-helper">Draf isian disimpan otomatis. Berkas dipilih ulang pada perangkat yang digunakan dan diunggah saat pengajuan dikirim.</p>
+                <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p><div id="draft-controls"></div><div id="service-reminder" hidden></div>
                 <div class="form-group">
                     <label for="reg-jenis-utama">Pilih Jenis Pendaftaran *</label>
                     <select id="reg-jenis-utama" onchange="toggleExamForm()"
@@ -803,11 +804,17 @@
                     </select>
                     <select id="admin-type-filter" aria-label="Jenis layanan" onchange="currentAdminPage=1;filterAdminData()"><option value="">Semua layanan</option><option value="Outline">Outline</option><option value="Proposal">Proposal</option><option value="Pendadaran">Pendadaran</option><option value="Skripsi Jurnal">Skripsi Jurnal</option><option value="Pergantian Pembimbing">Pergantian Pembimbing</option></select><label class="overdue-filter"><input type="checkbox" id="admin-overdue-filter" onchange="currentAdminPage=1;filterAdminData()"><span class="lang" data-id="Lewat target internal" data-en="Past internal target">Lewat target internal</span></label>
                 </div>
+                <div class="queue-extra-controls">
+                    <div><label for="admin-queue-order" class="lang" data-id="Urutan Antrean" data-en="Queue Order">Urutan Antrean</label><select id="admin-queue-order" onchange="currentAdminPage=1;filterAdminData()"><option value="activity" class="lang" data-id="Aktivitas Terakhir" data-en="Latest Activity">Aktivitas Terakhir</option><option value="oldest" class="lang" data-id="Terlama Menunggu" data-en="Longest Waiting">Terlama Menunggu</option><option value="overdue" class="lang" data-id="Paling Lewat Target" data-en="Most Overdue">Paling Lewat Target</option></select></div>
+                    <div><label for="admin-date-from" class="lang" data-id="Dikirim Mulai" data-en="Submitted From">Dikirim Mulai</label><input type="date" id="admin-date-from" onchange="currentAdminPage=1;filterAdminData()"></div>
+                    <div><label for="admin-date-to" class="lang" data-id="Dikirim Sampai" data-en="Submitted Until">Dikirim Sampai</label><input type="date" id="admin-date-to" onchange="currentAdminPage=1;filterAdminData()"></div>
+                </div><p id="queue-date-error" class="field-error" role="status"></p>
                 <details class="data-management"><summary>Pengelolaan data</summary>
                     <p>Unduh rekap atau kelola seluruh data pendaftaran.</p>
-                    <div class="button-row"><button type="button" class="btn-secondary" onclick="exportAdminDataCSV()">Ekspor CSV</button>
+                    <div class="export-controls"><div><label for="admin-export-scope" class="lang" data-id="Data Rekap" data-en="Export Scope">Data Rekap</label><select id="admin-export-scope"><option value="filtered" class="lang" data-id="Hasil Filter Saat Ini" data-en="Current Filter Results">Hasil Filter Saat Ini</option><option value="all" class="lang" data-id="Semua Pengajuan" data-en="All Requests">Semua Pengajuan</option></select></div><button type="button" class="btn-secondary lang" onclick="exportAdminDataCSV()" data-id="Unduh Rekap CSV" data-en="Download CSV Report">Unduh Rekap CSV</button></div><div class="button-row">
                     <button type="button" class="btn-secondary danger-action" onclick="deleteAllRegistrations()">Kosongkan Data</button></div>
                 </details>
+                <details class="health-management"><summary class="lang" data-id="Kesehatan Layanan" data-en="Service Health">Kesehatan Layanan</summary><p class="lang" data-id="Ringkasan gangguan selama 7 hari. Tidak mencatat isi dokumen, NIM, atau kredensial. Jumlah ini menunjukkan gangguan yang dilaporkan, bukan seluruh kejadian." data-en="Issues reported over 7 days. Document contents, student IDs and credentials are not recorded. Counts represent reported issues, not every occurrence.">Ringkasan gangguan selama 7 hari. Tidak mencatat isi dokumen, NIM, atau kredensial. Jumlah ini menunjukkan gangguan yang dilaporkan, bukan seluruh kejadian.</p><button type="button" class="btn-secondary lang" data-health-refresh data-id="Muat Ringkasan" data-en="Load Summary">Muat Ringkasan</button><div id="health-results" role="status"></div></details>
                 <div id="admin-mobile-list" class="case-mobile-list"></div>
                 <div class="responsive-table-wrapper case-desktop-table" style="max-height: 60vh;">
                     <table id="admin-table-main">
@@ -1022,16 +1029,17 @@
     <canvas id="confetti-canvas"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; display: none;"></canvas>
 
-    <script src="i18n.js"></script>
-    <script src="script.js"></script>
-    <script src="features.js"></script>
-    <script src="workflow.js"></script>
-    <script src="journey.js"></script>
-    <script src="document-checks.js"></script>
-    <script src="preflight.js"></script>
-    <script src="sop.js"></script>
-    <script src="review-navigation.js"></script>
-    <script src="experience.js"></script>
+    <script src="i18n.js" defer></script>
+    <script src="script.js" defer></script>
+    <script src="features.js" defer></script>
+    <script src="workflow.js" defer></script>
+    <script src="journey.js" defer></script>
+    <script src="document-checks.js" defer></script>
+    <script src="preflight.js" defer></script>
+    <script src="lazy-modules.js" defer></script>
+    <script src="review-navigation.js" defer></script>
+    <script src="experience.js" defer></script>
+    <script src="next-workflow.js" defer></script>
 </body>
 
 </html>

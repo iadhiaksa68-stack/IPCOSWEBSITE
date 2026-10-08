@@ -10,7 +10,7 @@ async function clickProfileLogout(page) {
 const browser=await chromium.launch({});const context=await browser.newContext({reducedMotion:"reduce"});let calls=[],delayRead=false,failRead=false;let releaseRead;let holdCreates=false;let createReleases=[];
 await context.route('**/*',async route=>{
 const url=route.request().url();if(url.includes('script.google.com/macros/')){
-const data=route.request().postDataJSON();calls.push(data);let result;
+const data=route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return;calls.push(data);let result;
 if(data.action==='student_login'){await new Promise(r=>setTimeout(r,120));result={status:'success',token:'student-'+data.nim,nama:'Mahasiswa '+data.nim};}
 else if(data.action==='admin_login')result={status:'success',token:'admin'};
 else if(data.action==='get_data'){

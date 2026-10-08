@@ -35,7 +35,7 @@ async function mockedPage(browser,role) {
     await context.route('**/*',async route=>{
         const url=route.request().url();
         if(url.includes('script.google.com/macros/')) {
-            const data=route.request().postDataJSON();calls.push(data);let result,gate;
+            const data=route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return;calls.push(data);let result,gate;
             if(data.action === 'student_login') result={status:'success',nama:'Mahasiswa SOP Uji',token:'student'};
             else if(data.action === 'admin_login') result={status:'success',token:'admin'};
             else if(data.action === 'get_data') result={status:'success',registrations:[],students:[],dosens:[],contents:[],announcements:[],services:[]};

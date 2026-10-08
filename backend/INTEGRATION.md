@@ -40,3 +40,19 @@ Tiga perubahan kecil di `Kode.gs`: respons `getDataForSession` menyertakan `...j
 Progres pribadi menggunakan Script Properties dengan kunci hash NIM, pembatasan poin yang valid, akses pemilik, dan lock saat patch disimpan. Setiap nilai dibatasi 8 KB. Catatan progres ikut manifest cadangan privat, tanpa sesi atau kredensial. Untuk pemulihan, salin entri `preparation` dari manifest ke Script Properties melalui pemilik proyek.
 
 Jalankan `verifyJourneyDeployment` sebelum memperbarui deployment lama. Pemeriksaan ini membaca data transaksi tanpa mengubahnya, memakai catatan persiapan sementara yang dipulihkan, dan hanya mencatat enam hasil boolean. Pengujian seluruh transaksi menggunakan data simulasi.
+
+## Draf, revisi isian dan kesehatan layanan (8 Oktober 2026)
+
+Tambahkan file `Next.gs` terpisah, dengan isi tepat dari `backend/Next.gs`. Jangan menyalin ulang `Features.gs` atau helper Journey/SOP. Di dalam `doPost`, tepat setelah parsing `data`, tambahkan:
+
+```js
+if (NEXT_ACTIONS.includes(data.action))
+  return ContentService.createTextOutput(JSON.stringify(nextDispatch(data)))
+    .setMimeType(ContentService.MimeType.JSON);
+```
+
+Rute baru memakai validasi sesi dan lock sendiri. Jalankan `verifyNextDeployment`: empat boolean wajib `true`. Pemeriksaan hanya memakai kunci draf diagnostik sementara yang dipulihkan, tanpa perubahan data akademik. Perbarui deployment aktif endpoint yang sama ke versi baru, lalu terbitkan frontend setelah seluruh gate lulus.
+
+Draf teks menggunakan `IPCOS_DRAFT_<hash NIM>`: batas 8 KB, 14 hari, allowlist kolom, CAS revision dan ID retry. Tidak menyimpan berkas. Kunci kedaluwarsa dipangkas pada penyimpanan baru. Revisi isian memakai satu commit pada baris pengajuan yang sama, versi detail/status/catatan/link, pemeriksaan pemilik dan izin revisi admin, validasi unggahan serta rollback berkas baru jika commit gagal. Data akademik tidak dimigrasi.
+
+Ringkasan gangguan menggunakan `IPCOS_HEALTH_YYYY-MM-DD`, agregat tanpa pesan/stack/URL/NIM/nama berkas/token; hanya admin dapat membacanya. Retensi tujuh hari, cache rate limit dan bucket terbatas. Draft dan ringkasan ini tidak dimasukkan ke cadangan catatan akademik; keduanya data sementara.

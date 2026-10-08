@@ -109,6 +109,7 @@ function doPost(e) {
   let lock;
   try {
     const data = JSON.parse(e && e.postData && e.postData.contents || '{}');
+    if (NEXT_ACTIONS.includes(data.action)) return ContentService.createTextOutput(JSON.stringify(nextDispatch(data))).setMimeType(ContentService.MimeType.JSON);
     if (data.action==='update_content' && ['sop_magang','sop_tugas_akhir'].includes(data.type)) throw new Error('Gunakan editor SOP untuk memperbarui konten ini.');
     if (['create','update','manage_student','manage_dosen','post_announcement','update_content','delete_all_registrations','save_services'].includes(data.action)) {
       lock = LockService.getScriptLock();

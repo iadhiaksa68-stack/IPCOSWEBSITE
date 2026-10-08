@@ -9,7 +9,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     await context.route('**/*', async route => {
         const url = route.request().url();
         if (url.includes('script.google.com/macros/')) {
-            const data = route.request().postDataJSON(); calls.push(data);
+            const data = route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return; calls.push(data);
             let result;
             if (data.action === 'student_login') result = {status:'success',token:'student-'+data.nim,nama:'Mahasiswa Uji'};
             else if (data.action === 'admin_login') result = {status:'success',token:'admin'};
@@ -107,7 +107,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     await page.setViewportSize({width:390,height:844});
     await page.waitForFunction(()=>document.querySelector('.main-content').getBoundingClientRect().x===0);
     await page.screenshot({path:path.join(__dirname,'../test-results/requirements-mobile.png'),fullPage:true});
-    await page.evaluate(()=>{currentLang='en';applyDynamicLanguage();});assert((await page.locator('#registration-readiness').textContent()).includes('Request requirements'));
+    await page.evaluate(()=>{currentLang='en';applyDynamicLanguage();});assert((await page.locator('#registration-readiness').textContent()).includes('Request Requirements'));
     console.log('PASS Readiness fits four screen sizes in light/dark themes with accessible controls and translated guidance');
 
     await page.evaluate(()=>logoutUser());await page.waitForSelector('#welcome-modal',{state:'visible'});

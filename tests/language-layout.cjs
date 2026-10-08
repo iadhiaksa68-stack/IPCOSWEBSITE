@@ -9,7 +9,7 @@ async function mock(context) {
     await context.route('**/*',async route=>{
         const url = route.request().url();
         if (url.includes('script.google.com/macros/')) {
-            const data = route.request().postDataJSON(); calls.push(data); let result;
+            const data = route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return; calls.push(data); let result;
             if (data.action === 'student_login') result = data.nim === 'invalid' ? {status:'error',message:'NIM tidak terdaftar.'} : {status:'success',nama:'Mahasiswa Uji Internasional',token:'student'};
             else if (data.action === 'admin_login') result = {status:'success',token:'admin'};
             else if (data.action === 'get_data') result = {status:'success',registrations:structuredClone(data.token === 'admin' ? records : records.filter(item=>item.nim === 'A')),students:[{NIM:'A',Nama:'Mahasiswa Uji Internasional',Status:'Aktif'}],dosens:[{Nama:'Dosen Uji',Terpakai:0,Maksimal:5}],contents:[],announcements:[],services:[]};
@@ -72,12 +72,12 @@ async function layout(page,label) {
         for (const [id,label] of specs) await page.setInputFiles('#'+id,{name:id+'.pdf',mimeType:'application/pdf',buffer:pdf(label)});
         await page.click('#btn-review-registration'); assert(await page.locator('#registration-review').isVisible());
         const text = await page.locator('#registration-review').textContent();
-        assert(text.includes('Review before sending')); assert(!/Dosen sekarang|Usulan dosen|Draft Jurnal|Berkas Pendadaran|Surat Permohonan/.test(text));
+        assert(text.includes('Review Before Sending')); assert(!/Dosen sekarang|Usulan dosen|Draft Jurnal|Berkas Pendadaran|Surat Permohonan/.test(text));
         if(type === 'Pergantian Pembimbing') assert(text.includes('Dosen Lama Asli'));
         await page.evaluate(()=>toggleLanguage()); assert.equal(await page.getAttribute('html','lang'),'id');
         assert.equal(await page.inputValue('#reg-jenis-utama'),type);
         for (const [id] of specs) assert.equal(await page.locator('#'+id).evaluate(el=>el.files.length),1);
-        await page.evaluate(()=>toggleLanguage()); assert((await page.locator('#registration-review').textContent()).includes('Review before sending'));
+        await page.evaluate(()=>toggleLanguage()); assert((await page.locator('#registration-review').textContent()).includes('Review Before Sending'));
         await page.click('#btn-edit-registration');
     }
     pass('All five English request summaries preserve entered text, selected files and backend enums across language changes');
@@ -99,7 +99,7 @@ async function layout(page,label) {
     assert.equal(await page.inputValue('#revision-label-0'),'Berkas Pendadaran');
     await page.evaluate(()=>toggleLanguage()); await page.evaluate(()=>toggleLanguage());
     assert.equal(await page.inputValue('#case-reply-note'),'Catatan asli mahasiswa'); assert.equal(await page.locator('#case-reply-files').evaluate(el=>el.files[0].name),'defense-corrected.pdf');
-    assert(await page.isChecked('[name="correction-complete"]')); assert((await page.locator('#case-action-panel h3').textContent()).includes('Corrections')); assert((await page.locator('#revision-label-0').textContent()).includes('Thesis defense documents'));
+    assert(await page.isChecked('[name="correction-complete"]')); assert((await page.locator('#case-action-panel h3').textContent()).includes('Corrections')); assert((await page.locator('#revision-label-0').textContent()).includes('Thesis Defense Documents'));
     await page.click('#btn-case-submit'); await page.waitForFunction(()=>!activeUpdateIds.size && !isPreparingCorrection);
     const correction = calls.find(call=>call.action === 'update'); assert.equal(correction.files[0].label,'Berkas Pendadaran'); assert.equal(correction.noteText,'Catatan asli mahasiswa');
     await page.evaluate(()=>closeModal('modal-case-detail',true));

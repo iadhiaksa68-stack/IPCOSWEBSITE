@@ -7,7 +7,7 @@ let records=[{id:'revision',nim:'A',nama:'Mahasiswa Uji',jenis:'Outline',status:
 let calls=[],errors=[],failSettings=false,holdReceipt=false,receiptRelease;
 const checks=[];function pass(name){checks.push(name);console.log('PASS '+name)}
 (async()=>{const browser=await chromium.launch({});const context=await browser.newContext({reducedMotion:"reduce",viewport:{width:1365,height:1000}});
-await context.route('**/*',async route=>{const url=route.request().url();if(url.includes('script.google.com/macros/')) {const data=route.request().postDataJSON();calls.push(data);let result;
+await context.route('**/*',async route=>{const url=route.request().url();if(url.includes('script.google.com/macros/')) {const data=route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return;calls.push(data);let result;
 if(data.action==='student_login')result={status:'success',nama:'Mahasiswa Uji',token:'mhs'};
 else if(data.action==='admin_login')result={status:'success',token:'admin'};
 else if(data.action==='get_data')result={status:'success',registrations:structuredClone(data.token==='admin'?records:records.filter(r=>r.nim==='A')),students:[],dosens:[],contents:[],announcements:[],services,backup:data.token==='admin'?{state:'success',scheduled:true,files:3,time:new Date().toISOString(),folderId:'PRIVATE-FIXTURE'}:null};

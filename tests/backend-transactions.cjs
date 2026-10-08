@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync(__dirname+'/backend-transactions.fixture.cjs','utf8')+'\n'+fs.readFileSync(__dirname+'/backend-create.fixture.cjs','utf8')+'\n'+fs.readFileSync(__dirname+'/../backend/Features.gs','utf8');
+const source=fs.readFileSync(__dirname+'/backend-transactions.fixture.cjs','utf8')+'\n'+fs.readFileSync(__dirname+'/backend-create.fixture.cjs','utf8')+'\n'+fs.readFileSync(__dirname+'/../backend/Features.gs','utf8')+'\n'+fs.readFileSync(__dirname+'/../backend/Next.gs','utf8');
 let properties={};let session={role:'admin',nama:'Admin'};
 let regs,dosens,students,created,failUpload,failWrite,locked,lockAllowed,dispatches;const checks=[];
 const headers=['id','date','nim','nama','jenis','detail','link','status','note'];

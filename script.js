@@ -430,15 +430,19 @@ function apiPost(url, options) {
     const payload = JSON.parse(options.body || '{}');
     const context = { token: getSessionToken(), epoch: sessionEpoch, action: payload.action };
     payload.token = context.token;
-    return fetch(url, { ...options, body: JSON.stringify(payload) }).then(response => { apiRequestContexts.set(response, context); return response; });
+    const controller=new AbortController();let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;controller.abort();},120000);
+    const abort=()=>controller.abort();if(options.signal?.aborted)abort();else options.signal?.addEventListener('abort',abort,{once:true});
+    return fetch(url, { ...options, signal:controller.signal, body: JSON.stringify(payload) }).then(response => { apiRequestContexts.set(response, context); return response; }).catch(error=>{if(context.epoch===sessionEpoch)window.IPCOSNext?.report(timedOut?'api_timeout':'network',context.action);throw error;}).finally(()=>{clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);});
 }
 async function readApiResult(response) {
-    const result = await response.json();
-    const context = apiRequestContexts.get(response);
+    const context = apiRequestContexts.get(response);let result;
+    try {result=await response.json();if(!result||typeof result!=='object'||Array.isArray(result))throw Error('Invalid API response');}
+    catch(error){if(context&&context.epoch===sessionEpoch)window.IPCOSNext?.report('api_response',context.action);throw error;}
     if (context && !['student_login', 'admin_login', 'logout'].includes(context.action)) {
         if (context.epoch !== sessionEpoch || context.token !== getSessionToken()) throw staleRequestError();
         if (result.status === 'error' && /sesi|session|token/i.test(result.message || '')) expireSession();
     }
+    if(result.status==='error'&&context&&context.epoch===sessionEpoch)window.IPCOSNext?.report('api_response',context.action);
     return result;
 }
 async function apiPostSuccess(url, options) {
@@ -533,6 +537,7 @@ window.onload = function () {
 
 function clearPrivateCache() {
     window.IPCOSSop?.reset();
+    window.IPCOSNext?.reset();
     activeReceipt = null; latestBackup = null;
     languageBlocks.clear();
     resetAcademicJourney();
@@ -624,6 +629,7 @@ function applyDatabaseSnapshot(data) {
             sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
             renderNotifications();
             refreshServiceAvailability();
+            window.IPCOSNext?.refresh();
 
             if (data.dosens) {
                 sessionStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
@@ -821,6 +827,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
         scheduleCat();
         syncDatabase();
         applyDynamicLanguage();
+        window.IPCOSNext?.startDraft();
     }, 400);
 }
 
@@ -1080,7 +1087,8 @@ function saveFormDraft() {
     fields.forEach(id => { draft[id] = document.getElementById(id)?.value || ''; });
     sessionStorage.setItem('ipcos_form_draft', JSON.stringify(draft));
     const indicator = document.getElementById('form-draft-status');
-    if (indicator) indicator.textContent = systemText('Draf isian tersimpan di tab ini.');
+    if (indicator && !window.IPCOSNext) indicator.textContent = systemText('Draf isian tersimpan di tab ini.');
+    window.IPCOSNext?.changed();
 }
 
 function loadFormDraft() {
@@ -1107,6 +1115,7 @@ function loadFormDraft() {
 
 function clearFormDraft() {
     registrationDirty = false;
+    window.IPCOSNext?.changed(true);
     sessionStorage.removeItem('ipcos_form_draft');
     const indicator = document.getElementById('form-draft-status');
     if (indicator) indicator.textContent = '';
@@ -1333,6 +1342,7 @@ function caseDetailAction(action) {
         document.getElementById('case-reply-file-list').innerHTML = [...reply.files].map(file => `<p>${escapeHtml(file.name)} · ${formatFileSize(file.size)}${fileProblem(file, reply.accept) ? `<span class="field-error">${escapeHtml(fileProblem(file, reply.accept))}</span>` : ''}</p>`).join('');
     });
     (panel.querySelector('textarea, select, input') || panel.querySelector('button')).focus();
+    if(action === 'reply') window.IPCOSNext?.revisionFields(item,panel);
     window.IPCOSReview?.actionsChanged();
 }
 function cancelCaseAction() {
@@ -1355,7 +1365,7 @@ async function submitCaseAction() {
     const fail = (message,field=null) => { feedback.textContent = systemText(message); field?.focus(); return false; };
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
-    let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [];
+    let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [], correctedFields=null;
     if (action === 'revision') {
         const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
         const instruction = document.getElementById('case-revision-note').value.trim();
@@ -1373,7 +1383,8 @@ async function submitCaseAction() {
         const chosen = [...input.files];
         note = document.getElementById('case-reply-note').value.trim();
         if ([...panel.querySelectorAll('[name="correction-complete"]')].some(input => !input.checked)) return fail(uxText('Konfirmasi semua poin perbaikan sebelum mengirim.', 'Confirm all requested corrections before sending.'));
-        if (!chosen.length || !note) return fail(uxText('Pilih berkas perbaikan dan jelaskan perubahan Anda.', 'Select corrected files and describe your changes.'));
+        if(window.IPCOSNext?.wantsFields(item)) { try { correctedFields=window.IPCOSNext.correctionPayload(); } catch(error) { return fail(error.message); } }
+        if ((!chosen.length && !correctedFields) || !note) return fail(uxText('Lengkapi perbaikan dan jelaskan perubahan Anda.', 'Complete your corrections and describe your changes.'));
         if (chosen.length > 5 || chosen.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) return fail(uxText('Kirim maksimal 5 berkas dengan total ukuran hingga 20 MB.', 'Send up to 5 files with a total size of 20 MB.'));
         const error = chosen.map(file => fileProblem(file, input.accept)).find(Boolean);
         if (error) return fail(error);
@@ -1400,7 +1411,7 @@ async function submitCaseAction() {
         if (requestEpoch !== sessionEpoch) return;
         // Escape user text before it enters the existing rich-text note history.
         setSubmissionStage('case-action-feedback','sending');
-        const success = await sendUpdateRequest(item.id, newStatus, escapeHtml(note), payloadFiles, dospem);
+        const success = await sendUpdateRequest(item.id, newStatus, escapeHtml(note), payloadFiles, dospem, correctedFields);
         if (requestEpoch !== sessionEpoch) return;
         setSubmissionStage('case-action-feedback',success?'confirmed':'uncertain');
         if (success) panel.dataset.dirty='false';
@@ -1633,7 +1644,7 @@ function academicCalendarDate(value) {
     const date = new Date(Date.UTC(year,month,day));
     return date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day ? date : null;
 }
-function downloadICS(title, dateStr) {
+function downloadICS(title, dateStr, options = {}) {
     const date = academicCalendarDate(dateStr);
     if (!date) { showToast(uxText('Format tanggal tidak valid untuk diekspor', 'Invalid date format for export'), 'error'); return; }
     const compact = date => date.toISOString().slice(0,10).replaceAll('-','');
@@ -1642,10 +1653,11 @@ function downloadICS(title, dateStr) {
     const event = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//IPCOS UMY//Academic Calendar//EN','BEGIN:VEVENT',
         'UID:'+Date.now()+'@ipcos.umy.ac.id',
         'DTSTAMP:'+new Date().toISOString().replace(/-|:|\.\d+/g,'').slice(0,15)+'Z',
-        'DTSTART;VALUE=DATE:'+compact(date),'DTEND;VALUE=DATE:'+compact(nextDay),
-        'SUMMARY:'+escapeCalendar(uxText('Batas Pendaftaran Yudisium - ', 'Graduation clearance deadline - ')+contentText(title)),
-        'DESCRIPTION:'+escapeCalendar(uxText('Pengingat batas pendaftaran Yudisium IPCOS UMY. Pastikan seluruh berkas dikumpulkan sesuai ketentuan program studi.', 'IPCOS UMY graduation clearance reminder. Submit the required documents according to study program rules.')),
-        'END:VEVENT','END:VCALENDAR',''].join('\r\n');
+        ...(options.service ? ['DTSTART:'+compact(date)+'T165900Z','DTEND:'+compact(date)+'T170000Z'] : ['DTSTART;VALUE=DATE:'+compact(date),'DTEND;VALUE=DATE:'+compact(nextDay)]),
+        'SUMMARY:'+escapeCalendar(options.service ? uxText('Batas Pengajuan - ', 'Submission deadline - ')+systemText(title) : uxText('Batas Pendaftaran Yudisium - ', 'Graduation clearance deadline - ')+contentText(title)),
+        'DESCRIPTION:'+escapeCalendar(options.service ? uxText('Batas pengajuan layanan IPCOS UMY adalah pukul 23:59 WIB (UTC+7). Jadwal mengikuti pengaturan saat pengingat dibuat.','IPCOS UMY submission deadline is 23:59 WIB (UTC+7). The reminder follows the schedule at creation time.') : uxText('Pengingat batas pendaftaran Yudisium IPCOS UMY. Pastikan seluruh berkas dikumpulkan sesuai ketentuan program studi.', 'IPCOS UMY graduation clearance reminder. Submit the required documents according to study program rules.')),
+        ...(options.service ? ['BEGIN:VALARM','ACTION:DISPLAY','TRIGGER:-P'+options.alarmDays+'D','DESCRIPTION:'+escapeCalendar(uxText('Batas Pengajuan IPCOS · 23:59 WIB (UTC+7)','IPCOS Submission Deadline · 23:59 WIB (UTC+7)')),'END:VALARM'] : []),
+        'END:VEVENT','END:VCALENDAR',''].map(line=>{let folded='',count=0;for(const char of line){const size=new TextEncoder().encode(char).length;if(count+size>73){folded+='\r\n ';count=1;}folded+=char;count+=size;}return folded;}).join('\r\n');
     const url = URL.createObjectURL(new Blob([event],{type:'text/calendar;charset=utf-8'}));
     const link = document.createElement('a');link.href=url;link.download='IPCOS-calendar-'+compact(date)+'.ics';
     document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
@@ -2049,7 +2061,7 @@ function toggleLanguage() {
     refreshServiceAvailability();
     document.querySelectorAll('#registration-fields .dz-remove-btn').forEach(button=>button.textContent=uxText('Hapus File','Remove file'));
     const draftStatus = document.getElementById('form-draft-status');
-    if (draftStatus.textContent) draftStatus.textContent = systemText('Draf isian tersimpan di tab ini.');
+    if (!window.IPCOSNext && draftStatus.textContent) draftStatus.textContent = systemText('Draf isian tersimpan di tab ini.');
     if (currentUser.role === 'admin') { loadAdminData(); renderServiceSettings(); renderDashboardCharts(readStoredJSON(sessionStorage,'ipcos_registrations',[])); renderDosenTable(); renderMasterMahasiswa(readStoredJSON(sessionStorage,'ipcos_students',[])); if (latestBackup) renderBackupStatus(latestBackup); }
     else if (currentUser.role === 'mhs') { loadStudentStatus(); renderActivityTimeline(readStoredJSON(sessionStorage,'ipcos_registrations',[])); }
     renderNotifications();
@@ -2059,6 +2071,7 @@ function toggleLanguage() {
     if (activeReceipt && document.getElementById('modal-submission-receipt').style.display === 'flex') showSubmissionReceipt(activeReceipt);
     if (selectedCaseId && document.getElementById('modal-case-detail').style.display === 'flex') openCaseDetail(selectedCaseId,true);
     if (document.getElementById('modal-global-search').style.display === 'flex') renderSearchResults(document.getElementById('global-search-input').value);
+    window.IPCOSNext?.refresh();
 }
 
 function applyDynamicLanguage() {
@@ -2115,7 +2128,7 @@ function caseTimelineHtml(item) {
     if (!Array.isArray(logs) || !logs.length) return `<p>${uxText('Belum ada catatan.', 'No notes yet.')}</p>`;
     return logs.map(log => `<div class="case-timeline-item"><strong>${escapeHtml(log.sender === 'Sistem' || !log.sender ? uxText('Sistem','System') : log.sender)}</strong>
         <small>${escapeHtml(formatDateTime(log.time || item.date).replace(/<[^>]*>/g, ' '))}</small>
-        <div class="preserve-lines">${localizedSystemNote(log.message || '')}</div></div>`).join('');
+        <div class="preserve-lines">${localizedSystemNote(log.message || '')}</div>${window.IPCOSNext?.fieldHistory(log) || ''}</div>`).join('');
 }
 
 function openCaseDetail(id, languageRefresh = false) {
@@ -2268,6 +2281,7 @@ function debounceAdminSearch() { clearTimeout(debounceTimer); debounceTimer = se
 function loadAdminData() { restoreQueueView(); filterAdminData(); }
 
 function toggleSortDate() {
+    document.getElementById('admin-queue-order').value='activity';
     isAdminSortDesc = !isAdminSortDesc;
     const sortIcon = document.getElementById('admin-sort-icon');
     if (sortIcon) sortIcon.innerText = isAdminSortDesc ? '↓' : '↑';
@@ -2286,10 +2300,10 @@ function filterAdminData() {
     records.forEach(item => { const status = String(item.status || '').trim().toLowerCase(); if (status in counts) counts[status]++; });
     const summary = document.getElementById('admin-queue-summary');
     if (summary) summary.innerHTML = `
-        <button type="button" onclick="setAdminQueueFilter('ACTION_REQUIRED')"><strong>${counts.pending + counts.resubmitted}</strong><span>Perlu Ditinjau</span></button>
-        <button type="button" onclick="setAdminQueueFilter('Pending')"><strong>${counts.pending}</strong><span>Baru Masuk</span></button>
-        <button type="button" onclick="setAdminQueueFilter('Resubmitted')"><strong>${counts.resubmitted}</strong><span>Perbaikan Masuk</span></button>
-        <button type="button" onclick="setAdminQueueFilter('Revision')"><strong>${counts.revision}</strong><span>Menunggu Mahasiswa</span></button>`;
+        <button type="button" onclick="setAdminQueueFilter('ACTION_REQUIRED')"><strong>${counts.pending + counts.resubmitted}</strong><span>${uxText('Perlu Ditinjau','Needs Review')}</span></button>
+        <button type="button" onclick="setAdminQueueFilter('Pending')"><strong>${counts.pending}</strong><span>${uxText('Baru Masuk','New Requests')}</span></button>
+        <button type="button" onclick="setAdminQueueFilter('Resubmitted')"><strong>${counts.resubmitted}</strong><span>${uxText('Perbaikan Masuk','Corrections Received')}</span></button>
+        <button type="button" onclick="setAdminQueueFilter('Revision')"><strong>${counts.revision}</strong><span>${uxText('Menunggu Mahasiswa','Awaiting Student')}</span></button>`;
 
     adminFilteredData = records.filter(item => {
         const matchSearch = String(item.nama || '').toLowerCase().includes(searchVal) || String(item.nim || '').toLowerCase().includes(searchVal);
@@ -2297,10 +2311,21 @@ function filterAdminData() {
         const matchFilter = filterVal === 'ALL' || (filterVal === 'ACTION_REQUIRED' ? ['pending', 'resubmitted'].includes(stat) : stat === filterVal.toLowerCase());
         const type = document.getElementById('admin-type-filter')?.value || '';
         const overdueOnly = document.getElementById('admin-overdue-filter')?.checked;
-        return matchSearch && matchFilter && (!type || item.jenis === type) && (!overdueOnly || caseWaiting(item)?.overdue);
+        const from=document.getElementById('admin-date-from').value,to=document.getElementById('admin-date-to').value;
+        const submitted=new Date(item.date),day=Number.isFinite(submitted.getTime())?submitted.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';
+        return matchSearch && matchFilter && (!type || item.jenis === type) && (!overdueOnly || caseWaiting(item)?.overdue) && (!from || day>=from) && (!to || day<=to) && (!from || !to || from<=to);
     });
 
+    const from=document.getElementById('admin-date-from').value,to=document.getElementById('admin-date-to').value;
+    document.getElementById('queue-date-error').textContent=from&&to&&from>to?uxText('Tanggal mulai harus sebelum atau sama dengan tanggal akhir.','The start date must be on or before the end date.'):'';
     adminFilteredData.sort((a, b) => {
+        const order=document.getElementById('admin-queue-order').value;
+        if(order==='oldest' || order==='overdue') {
+            const waitA=caseWaiting(a),waitB=caseWaiting(b);
+            const score=wait=>wait ? wait.days-(order==='overdue'?wait.target:0) : -Infinity;
+            if(score(waitA)!==score(waitB))return score(waitB)-score(waitA);
+            return (Date.parse(a.date)||0)-(Date.parse(b.date)||0);
+        }
         if (filterVal === 'ACTION_REQUIRED') {
             const priority = item => String(item.status).toLowerCase() === 'resubmitted' ? 0 : 1;
             if (priority(a) !== priority(b)) return priority(a) - priority(b);
@@ -2381,17 +2406,6 @@ function changeAdminPage(direction) {
     saveQueueView();
 }
 
-function exportAdminDataCSV() {
-    if (currentUser.role !== 'admin') return;
-    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
-    if (!records.length) { showToast('Belum ada data untuk diekspor.', 'error'); return; }
-    const cell = value => { let text = String(value ?? ''); if (/^[=+@\-\t\r]/.test(text)) text = "'" + text; return '"' + text.replace(/"/g,'""') + '"'; };
-    const rows = [['ID','Tanggal','NIM','Nama','Jenis','Status'], ...records.map(r => [r.id,r.date,r.nim,r.nama,r.jenis,r.status])];
-    const blob = new Blob(['\ufeff' + rows.map(row => row.map(cell).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'});
-    const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = `Rekap_IPCOS_UMY_${Date.now()}.csv`;
-    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast('Data CSV berhasil diunduh!', 'success');
-}
 
 function deleteAllRegistrations() {
     if (isOffline) {
@@ -2524,7 +2538,7 @@ function openChatTimeline(id) {
 // 13. UPDATE DATA & REVISI PERBAIKAN
 // ==========================================
 const activeUpdateIds = new Set();
-async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = null) {
+async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = null, correctedFields = null) {
     if (activeUpdateIds.has(id)) return false;
     if (isOffline) {
         showToast(currentLang === 'id' ? "Tidak dapat menyimpan saat offline." : "Cannot save while offline.", "error");
@@ -2560,15 +2574,16 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
 
         const finalNoteJSON = JSON.stringify(logs);
 
-        const payload = { action: 'update', id: id, status: newStatus, noteText: noteText, files: files, dospem: dospem };
+        const payload = { action: correctedFields ? 'revise_request' : 'update', ...(correctedFields || {}), id: id, status: newStatus, noteText: noteText, files: files, dospem: dospem };
         const res = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         const result = await readApiResult(res);
 
         if (result.status === "success") {
             // --- UPDATE LOKAL INSTAN ---
             if (targetIndex !== -1) {
-                records[targetIndex].status = newStatus;
-                records[targetIndex].note = finalNoteJSON;
+                records[targetIndex].status = correctedFields && result.recordStatus ? result.recordStatus : newStatus;
+                records[targetIndex].note = correctedFields && typeof result.note==='string' ? result.note : finalNoteJSON;
+                if(correctedFields && typeof result.detail==='string')records[targetIndex].detail=result.detail;
                 if (dospem) {
                     records[targetIndex].dospem = dospem;
                 }

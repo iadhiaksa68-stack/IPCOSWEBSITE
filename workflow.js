@@ -16,7 +16,7 @@ function setSyncPhase(phase) {
 }
 function saveQueueView() {
     if (currentUser.role !== 'admin') return;
-    sessionStorage.setItem('ipcos_queue_view',JSON.stringify({search:document.getElementById('admin-search-input').value,status:document.getElementById('admin-status-filter').value,type:document.getElementById('admin-type-filter').value,overdue:document.getElementById('admin-overdue-filter').checked,page:currentAdminPage,desc:isAdminSortDesc}));
+    sessionStorage.setItem('ipcos_queue_view',JSON.stringify({search:document.getElementById('admin-search-input').value,status:document.getElementById('admin-status-filter').value,type:document.getElementById('admin-type-filter').value,overdue:document.getElementById('admin-overdue-filter').checked,page:currentAdminPage,desc:isAdminSortDesc,order:document.getElementById('admin-queue-order').value,from:document.getElementById('admin-date-from').value,to:document.getElementById('admin-date-to').value}));
 }
 function restoreQueueView() {
     if (queueRestored || currentUser.role !== 'admin') return;
@@ -29,6 +29,8 @@ function restoreQueueView() {
     document.getElementById('admin-overdue-filter').checked=state.overdue===true;
     currentAdminPage=Number.isInteger(state.page) && state.page>0 ? state.page : 1;
     isAdminSortDesc=state.desc!==false;
+    document.getElementById('admin-queue-order').value=['activity','oldest','overdue'].includes(state.order)?state.order:'activity';
+    for(const [id,key] of [['admin-date-from','from'],['admin-date-to','to']])document.getElementById(id).value=/^\d{4}-\d{2}-\d{2}$/.test(state[key]||'')?state[key]:'';
     document.getElementById('admin-sort-icon').textContent=isAdminSortDesc?'↓':'↑';
 }
 const correctionTemplates = {
@@ -96,6 +98,7 @@ function resetWorkflowSession() {
     document.getElementById('admin-type-filter').value='';
     document.getElementById('admin-overdue-filter').checked=false;
     isAdminSortDesc=true;
+    document.getElementById('admin-queue-order').value='activity';document.getElementById('admin-date-from').value='';document.getElementById('admin-date-to').value='';
     document.getElementById('form-submit-status-steps')?.remove();
     renderSyncStatus();
 }
