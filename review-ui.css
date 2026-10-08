@@ -33,7 +33,8 @@
 .case-keyboard-open .case-review-action-footer { position:relative!important; }
 
 /* The existing action row is moved here without duplicating controls or IDs. */
-#modal-case-detail .case-detail-card { display:flex; flex-direction:column; width:min(1100px,96vw); height:min(880px,calc(var(--review-viewport-height,100dvh) - 32px)); max-height:calc(var(--review-viewport-height,100dvh) - 32px); overflow:hidden; }
+/* Native viewport bounds remain authoritative while resize events catch up. */
+#modal-case-detail .case-detail-card { display:flex; flex-direction:column; width:min(1100px,96vw); height:min(880px,calc(100dvh - 32px),calc(var(--review-viewport-height,100dvh) - 32px)); max-height:min(calc(100dvh - 32px),calc(var(--review-viewport-height,100dvh) - 32px)); overflow:hidden; }
 #modal-case-detail .case-detail-heading { position:relative; flex:0 0 auto; margin-bottom:12px; }
 #case-detail-content { flex:1 1 auto; min-height:0; overflow:auto; overscroll-behavior:contain; padding:2px 4px 8px; }
 .case-review-action-footer { position:relative; flex:0 0 auto; z-index:6; padding:12px 0 max(12px,env(safe-area-inset-bottom)); background:var(--card-bg); border-top:1px solid var(--item-border); margin-top:10px; }
@@ -41,8 +42,8 @@
 .case-review-action-footer button { min-height:44px; width:auto; }
 
 /* Make room for editing when the software keyboard reduces the visible viewport. */
-#modal-case-detail.case-keyboard-open { align-items:flex-start; padding:6px; height:var(--review-viewport-height,100dvh); }
-#modal-case-detail.case-keyboard-open .case-detail-card { height:calc(var(--review-viewport-height,100dvh) - 12px); max-height:calc(var(--review-viewport-height,100dvh) - 12px); padding:8px 10px; }
+#modal-case-detail.case-keyboard-open { align-items:flex-start; padding:6px; height:min(100dvh,var(--review-viewport-height,100dvh)); }
+#modal-case-detail.case-keyboard-open .case-detail-card { height:min(calc(100dvh - 12px),calc(var(--review-viewport-height,100dvh) - 12px)); max-height:min(calc(100dvh - 12px),calc(var(--review-viewport-height,100dvh) - 12px)); padding:8px 10px; }
 #modal-case-detail.case-keyboard-open .case-detail-heading { grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; padding:0 0 6px; margin:0 0 4px; }
 #modal-case-detail.case-keyboard-open .case-detail-heading h2,
 #modal-case-detail.case-keyboard-open .case-review-navigation,
