@@ -70,6 +70,7 @@
         });
         closeList(); return html;
     }
+    const contentsOpen = new Map();
     const anchorId = (doc,section,preview) => `${preview?'sop-preview':'sop'}-${doc.type}-${section.id}`;
     function jump(event,link) {
         const target = document.getElementById(link.getAttribute('href')?.slice(1));
@@ -79,12 +80,13 @@
         target.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
     }
     function bodyHtml(doc, preview = false) {
-        const toc = doc.sections.length > 1 ? `<nav class="sop-toc" aria-label="${t('Daftar isi SOP','SOP contents')}"><h2>${t('Daftar isi','Contents')}</h2><ol>${doc.sections.map((section,index) => `<li><a href="#${escapeHtml(anchorId(doc,section,preview))}" data-sop-action="jump"><span aria-hidden="true">${index+1}</span><span>${escapeHtml(localized(section,'title') || t('Bagian '+(index+1),'Section '+(index+1)))}</span><span aria-hidden="true">↘</span></a></li>`).join('')}</ol></nav>` : '';
+        const toc = doc.sections.length > 1 ? `<details class="sop-contents" data-contents-key="${preview?'preview-':''}${doc.type}" id="${preview?'preview-':''}${doc.type}-contents" ${contentsOpen.get((preview?'preview-':'')+doc.type) ?? !matchMedia('(max-width:600px)').matches ? 'open' : ''}><summary>${t('Daftar Isi · Lompat ke Bagian','Contents · Jump to a Section')}</summary><nav class="sop-toc" aria-label="${t('Daftar isi SOP','SOP contents')}"><h2>${t('Daftar isi','Contents')}</h2><ol>${doc.sections.map((section,index) => `<li><a href="#${escapeHtml(anchorId(doc,section,preview))}" data-sop-action="jump"><span aria-hidden="true">${index+1}</span><span>${escapeHtml(localized(section,'title') || t('Bagian '+(index+1),'Section '+(index+1)))}</span><span aria-hidden="true">↘</span></a></li>`).join('')}</ol></nav></details>` : '';
         return `${doc.intro || doc.introEn ? `<div class="sop-intro sop-prose">${markdown(localized(doc,'intro'))}</div>` : ''}${toc}${doc.sections.map((section, index) => `<section class="card sop-section" id="${escapeHtml(anchorId(doc,section,preview))}">
             <div class="sop-section-heading"><span class="sop-step" aria-hidden="true">${index + 1}</span><h2 tabindex="-1">${escapeHtml(localized(section,'title'))}</h2></div>
             <div class="sop-prose">${markdown(localized(section,'body'))}</div>
             ${section.links.length ? `<ul class="sop-links">${section.links.map(link => { const url = allowedUrl(link.url); return url ? `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(localized(link,'label') || url)} <span aria-hidden="true">↗</span></a></li>` : ''; }).join('')}</ul>` : ''}
             ${section.files.length ? `<div class="sop-files"><h3>${t('Lampiran','Attachments')}</h3>${section.files.map(file => `<div class="sop-file"><div><strong>${escapeHtml(file.fileName)}</strong><span>${escapeHtml(size(file.size))}</span></div><button type="button" class="btn-secondary" data-sop-action="download" data-sop-type="${doc.type}" data-file-id="${escapeHtml(file.id)}" ${preview?'disabled':''}>${preview?t('Tersedia setelah disimpan','Available after saving'):t('Unduh','Download')}</button></div>`).join('')}</div>` : ''}
+            ${doc.sections.length>1?`<a class="text-link sop-back" href="#${preview?'preview-':''}${doc.type}-contents" data-sop-action="contents">${t('Kembali ke Daftar Isi','Back to Contents')}</a>`:''}
         </section>`).join('')}`;
     }
     function render(type) {
@@ -348,10 +350,12 @@
         finally { if (current(epoch,run)) { downloads.delete(key); if (button.isConnected) { button.disabled = false; button.textContent = t('Unduh','Download'); } } }
     }
     function reset() {
+        contentsOpen.clear();
         generation++; documents.clear(); loading.clear(); loadErrors.clear(); downloads.clear(); blobs.forEach(url=>URL.revokeObjectURL(url)); blobs.clear(); editor = null; returnFocus = null;
         types.forEach(type=>{ const view = document.getElementById(type+'-view'); if (view) view.textContent = ''; try { localStorage.removeItem('ipcos_content_'+type); } catch (_) {} });
         document.getElementById('modal-sop-editor')?.remove();
     }
+    document.addEventListener('click',event=>{ const summary=event.target.closest('.sop-contents>summary');if(summary){const details=summary.parentElement;contentsOpen.set(details.dataset.contentsKey,!details.open);} });
     function languageChanged() { types.forEach(render); if (editor) renderEditor(); }
     function receive(contents) {
         if (!getSessionToken()) return;
@@ -368,6 +372,7 @@
         const button = event.target.closest('.sop-page [data-sop-action]'); if (!button || button.disabled || button.closest('#modal-sop-editor')) return;
         const type = button.dataset.sopType;
         if (button.dataset.sopAction === 'jump') jump(event,button);
+        if (button.dataset.sopAction === 'contents') { const toc=document.getElementById(button.getAttribute('href')?.slice(1)); if(toc && toc.closest('.sop-page')===button.closest('.sop-page')) { event.preventDefault();contentsOpen.set(toc.dataset.contentsKey,true);toc.open=true;toc.querySelector('summary').focus({preventScroll:true});toc.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); } }
         else if (button.dataset.sopAction === 'edit') edit(type);
         else if (button.dataset.sopAction === 'refresh') open(type,true);
         else if (button.dataset.sopAction === 'download') download(type,button.dataset.fileId,button);

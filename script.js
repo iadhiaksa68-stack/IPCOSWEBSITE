@@ -108,23 +108,26 @@ function renderTimelineSkeleton(containerId, items = 3) {
     container.innerHTML = html;
 }
 
+function displayDate(value) {
+    if (value instanceof Date) return value;
+    let source = String(value || '').trim().replace(' ', 'T');
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(source)) source += '+07:00';
+    return new Date(source);
+}
 function formatDate(dateString) {
     if (!dateString) return '-';
-    const safeDate = typeof dateString === 'string' ? dateString.replace(' ', 'T') : dateString;
-    const d = new Date(safeDate);
-    if (isNaN(d)) return dateString;
-    return d.toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+    const d = displayDate(dateString);
+    if (isNaN(d)) return '-';
+    return d.toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-US', { timeZone:'Asia/Jakarta', day:'2-digit', month:'short', year:'numeric' });
 }
-
 function formatDateTime(dateString) {
     if (!dateString) return '-';
-    const safeDate = typeof dateString === 'string' ? dateString.replace(' ', 'T') : dateString;
-    const d = new Date(safeDate);
-    if (isNaN(d)) return dateString;
+    const d = displayDate(dateString);
+    if (isNaN(d)) return '-';
     const lang = currentLang === 'id' ? 'id-ID' : 'en-US';
-    const dPart = d.toLocaleDateString(lang, { day: '2-digit', month: 'short', year: 'numeric' });
-    const tPart = d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    return `${dPart}<br><span style="font-size: 11px; opacity: 0.8;">${tPart}</span>`;
+    const date = formatDate(d);
+    const time = d.toLocaleTimeString(lang, { timeZone:'Asia/Jakarta', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+    return `${date}<br><span class="display-time">${time} WIB</span>`;
 }
 
 function timeAgo(dateString) {
@@ -539,6 +542,7 @@ window.onload = function () {
 function clearPrivateCache() {
     window.IPCOSSop?.reset();
     window.IPCOSNext?.reset();
+    window.IPCOSPolish?.reset();
     activeReceipt = null; latestBackup = null;
     languageBlocks.clear();
     resetAcademicJourney();
@@ -567,7 +571,7 @@ function clearPrivateCache() {
     document.getElementById('registration-fields').hidden = false; document.getElementById('registration-review').hidden = true;
     document.getElementById('btn-review-registration').hidden = false; document.getElementById('btn-submit-registration').hidden = true;
     document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; el.ipcosNotice=null; });
-    document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); });
+    document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); if(document.getElementById(el.id+'-format'))el.setAttribute('aria-describedby',el.id+'-format');else el.removeAttribute('aria-describedby'); });
     document.querySelectorAll('.overlay, .overlay-dialog').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
     ['table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -1157,8 +1161,8 @@ function setFieldError(id, message) {
     error.textContent = message;
     error.hidden = !message;
     input.setAttribute('aria-invalid', message ? 'true' : 'false');
-    if (message) input.setAttribute('aria-describedby', errorId);
-    else input.removeAttribute('aria-describedby');
+    const descriptions=[document.getElementById(id+'-format')?id+'-format':'',message?errorId:''].filter(Boolean);
+    if(descriptions.length)input.setAttribute('aria-describedby',descriptions.join(' '));else input.removeAttribute('aria-describedby');
 }
 function validateRegistration() {
     if (!registrationServiceAllowed()) return false;
@@ -1265,7 +1269,7 @@ function renderTaskHome() {
     const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0,1);
     const revisions = records.filter(item => String(item.status).toLowerCase() === 'revision').length;
     const title = admin ? uxText('Antrean kerja Anda', 'Your review queue') : uxText('Pengajuan Anda', 'Your requests');
-    const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Perbaikan masuk ditampilkan lebih dulu.', actionable.length === 1 ? 'request needs review. Resubmissions appear first.' : 'requests need review. Resubmissions appear first.')}`
+    const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Di beranda, perbaikan masuk didahulukan, lalu aktivitas paling lama. Pilih urutan lain di Antrean.', actionable.length === 1 ? 'request needs review. Home shows corrections first, then oldest activity. Choose another order in the Queue.' : 'requests need review. Home shows corrections first, then oldest activity. Choose another order in the Queue.')}`
         : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', revisions === 1 ? 'request needs your corrections.' : 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
     home.innerHTML = `<div class="task-home-header"><div><h2>${title}</h2><p>${subtitle}</p></div>
         <button type="button" class="btn-primary" onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : "switchTab(null, 'pendaftaran')"}">${admin ? uxText('Buka Antrean', 'Open Queue') : uxText('Buat Pengajuan', 'New Request')}</button></div>
@@ -1569,7 +1573,7 @@ async function submitForm(e) {
         const result = await readApiResult(response);
 
         if (result.status === "success") {
-            showToast(currentLang === 'id' ? "Pendaftaran & Berkas berhasil dikirim!" : "Registration & Files submitted successfully!", "success");
+            window.IPCOSExperience?.feedback(uxText("Pendaftaran & Berkas berhasil dikirim!", "Registration & Files submitted successfully!"), "success");
             setSubmissionStage('form-submit-status','confirmed');
             lastSubmittedCaseId = result.id || '';
             sessionStorage.removeItem('ipcos_pending_submission');
@@ -1611,6 +1615,7 @@ async function submitForm(e) {
 
 function showSubmissionReceipt(receipt) {
     activeReceipt = receipt;
+    window.IPCOSPolish?.receipt(receipt);
     const content = document.getElementById('submission-receipt-content');
     content.innerHTML = `<p>${uxText('Data dan berkas sudah diterima sistem. Simpan ringkasan ini untuk pengecekan.', 'Your data and files have been received. Keep this summary for reference.')}</p>
         <dl class="receipt-list"><dt>${systemText('Nomor pengajuan')}</dt><dd>${escapeHtml(receipt.id)}</dd>
@@ -2073,6 +2078,7 @@ function toggleLanguage() {
     if (selectedCaseId && document.getElementById('modal-case-detail').style.display === 'flex') openCaseDetail(selectedCaseId,true);
     if (document.getElementById('modal-global-search').style.display === 'flex') renderSearchResults(document.getElementById('global-search-input').value);
     window.IPCOSNext?.refresh();
+    window.IPCOSPolish?.refresh();
 }
 
 function applyDynamicLanguage() {
@@ -2143,6 +2149,7 @@ function openCaseDetail(id, languageRefresh = false) {
     const active=document.activeElement;
     const restoreFocus=languageRefresh && document.getElementById('modal-case-detail').contains(active) ? {node:active,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection,scroll:document.getElementById('case-detail-content').scrollTop} : null;
     window.IPCOSReview?.restoreActions();
+    const savedDetailsOpen=languageRefresh?document.querySelector('.case-academic-details')?.open:undefined;
     const savedPanel = languageRefresh && document.getElementById('case-action-panel');
     const savedPreview = languageRefresh && document.getElementById('case-file-preview');
     if (!languageRefresh) clearCaseBlobUrls();
@@ -2160,20 +2167,21 @@ function openCaseDetail(id, languageRefresh = false) {
     }
     const content = document.getElementById('case-detail-content');
     content.innerHTML = `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
-        <button type="button" class="btn-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
         <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(systemText(item.jenis))}</dd>
         <dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
         ${isAdmin ? `<dt>${uxText('Mahasiswa','Student')}</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
         <dt>${uxText('Nomor','ID')}</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
-        <h3>${uxText('Detail','Details')}</h3><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div>
-        <h3>${uxText('Berkas','Documents')}</h3><div class="case-content-block">${caseFileListHtml(item)}</div>
+        <h3>${uxText('Berkas','Documents')}</h3><div class="case-content-block case-documents">${caseFileListHtml(item)}</div>
+        <details class="case-academic-details" open><summary>${uxText('Detail Pengajuan','Request Details')}</summary><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div></details>
         <div id="case-file-preview" hidden><iframe title="${uxText('Pratinjau berkas','Document preview')}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
+        <button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
         <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
         <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
         ${window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
         <div id="case-action-panel" hidden></div></aside></div>`;
+    if(savedDetailsOpen!==undefined)content.querySelector('.case-academic-details').open=savedDetailsOpen;
     if (savedPanel) { content.querySelector('#case-action-panel').replaceWith(savedPanel); content.querySelector('#case-detail-actions').hidden = !savedPanel.hidden; }
     if (savedPreview) content.querySelector('#case-file-preview').replaceWith(savedPreview);
     content.querySelectorAll('[data-preview-index]').forEach(button => button.addEventListener('click', () => previewCaseFile(Number(button.dataset.previewIndex))));
@@ -2342,6 +2350,7 @@ function filterAdminData() {
 
     window.IPCOSReview?.setQueue(adminFilteredData);
     renderAdminTable();
+    window.IPCOSPolish?.queue();
     saveQueueView();
     renderTaskHome();
 }
@@ -2404,6 +2413,7 @@ function changeAdminPage(direction) {
     if (currentAdminPage < 1) currentAdminPage = 1;
     if (currentAdminPage > totalPages) currentAdminPage = totalPages;
     renderAdminTable();
+    window.IPCOSPolish?.queue();
     saveQueueView();
 }
 

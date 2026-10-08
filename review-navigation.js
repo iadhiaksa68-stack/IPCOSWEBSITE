@@ -169,7 +169,7 @@
         const timing = wait ? `<details class="request-state-details"><summary>${escape(text('Rincian waktu', 'Timing details'))}${wait.overdue ? `<span class="request-state-attention">${escape(text('Perlu perhatian', 'Needs attention'))}</span>` : ''}</summary>${waitingHtml(item)}</details>` : '';
         return `<section class="request-state${options.compact ? ' request-state-compact' : ''}" aria-label="${escape(text('Status dan langkah pengajuan', 'Request status and next step'))}">
             <div class="request-state-heading">${getStatusBadge(item.status)}<span class="request-state-owner">${escape(status === 'accepted' ? text('Tahap selanjutnya', 'Next stage') : text('Tindakan berikutnya', 'Next action'))}: <strong>${escape(owner)}</strong></span></div>
-            <p class="request-state-next">${escape(caseNextStep(item))}</p>${timing}</section>`;
+            <p class="request-state-next">${escape(caseNextStep(item))}</p>${wait?`<p class="request-state-target">${text('Target internal','Internal target')}: ${wait.target} ${text('hari',wait.target===1?'day':'days')}${wait.overdue?' · '+text('Perlu perhatian','Needs attention'):''}</p>`:''}${timing}</section>`;
     }
 
     function updateKeyboardState() {

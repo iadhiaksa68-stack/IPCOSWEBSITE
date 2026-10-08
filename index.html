@@ -34,6 +34,7 @@
     <link rel="stylesheet" href="review-ui.css">
     <link rel="stylesheet" href="sop-ui.css">
     <link rel="stylesheet" href="next-ui.css">
+    <link rel="stylesheet" href="polish.css">
 </head>
 
 <body class="transaction-view">
@@ -310,7 +311,7 @@
         <canvas id="doodle-canvas" aria-hidden="true"></canvas>
         <div class="login-shell">
             <aside class="login-story" aria-label="IPCOS Portal Akademik">
-                <div class="brand-lockup"><span class="brand-symbol" aria-hidden="true">I</span><span>IPCOS <small>ILMU KOMUNIKASI · UMY</small></span></div>
+                <div class="brand-lockup"><span class="brand-symbol" aria-hidden="true"><img src="/favicon.svg?v=2" alt="" width="40" height="40"></span><span>IPCOS <small>ILMU KOMUNIKASI · UMY</small></span></div>
                 <div class="login-story-body">
                     <span class="eyebrow lang" data-id="RUANG AKADEMIK ANDA" data-en="YOUR ACADEMIC WORKSPACE">RUANG AKADEMIK ANDA</span>
                     <h1 class="lang" data-id="Temani perjalanan magang dan skripsi Anda." data-en="Your internship and thesis journey, made easier.">Temani perjalanan magang dan skripsi Anda.</h1>
@@ -512,13 +513,13 @@
                     </div>
                     <div class="stat-cards-grid">
                         <div class="stat-card stat-pending"><span class="stat-num" id="stat-count-pending">0</span><span
-                                class="stat-label">Menunggu admin</span></div>
+                                class="stat-label lang" data-id="Baru Masuk" data-en="New Requests">Baru Masuk</span></div>
                         <div class="stat-card stat-resubmitted"><span class="stat-num"
-                                id="stat-count-resubmitted">0</span><span class="stat-label">Perbaikan masuk</span></div>
+                                id="stat-count-resubmitted">0</span><span class="stat-label lang" data-id="Perbaikan Masuk" data-en="Corrections Received">Perbaikan Masuk</span></div>
                         <div class="stat-card stat-revision"><span class="stat-num"
-                                id="stat-count-revision">0</span><span class="stat-label">Menunggu mahasiswa</span></div>
+                                id="stat-count-revision">0</span><span class="stat-label lang" data-id="Menunggu Mahasiswa" data-en="Awaiting Student">Menunggu Mahasiswa</span></div>
                         <div class="stat-card stat-accepted"><span class="stat-num"
-                                id="stat-count-accepted">0</span><span class="stat-label">Selesai</span></div>
+                                id="stat-count-accepted">0</span><span class="stat-label lang" data-id="Selesai" data-en="Completed">Selesai</span></div>
                     </div>
                 </div>
 
@@ -659,7 +660,7 @@
             <h1 class="lang" data-id="Pusat Pendaftaran" data-en="Submit a Request">Pusat Pendaftaran Ujian & Skripsi
             </h1>
             <div class="card">
-                <p class="form-helper">Draf isian disimpan otomatis. Berkas dipilih ulang pada perangkat yang digunakan dan diunggah saat pengajuan dikirim.</p>
+                <details class="draft-help"><summary class="lang" data-id="Tentang Draf & Berkas" data-en="About Drafts & Files">Tentang Draf & Berkas</summary><p class="lang" data-id="Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim." data-en="Text drafts are kept for 14 days and can be continued on another device. Select files on the device you use; files are uploaded only when you submit the request.">Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim.</p></details>
                 <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p><div id="draft-controls"></div><div id="service-reminder" hidden></div>
                 <div class="form-group">
                     <label for="reg-jenis-utama">Pilih Jenis Pendaftaran *</label>
@@ -688,44 +689,44 @@
                     <!-- Outline, Sempro, Pendadaran, Jurnal, Ganti Dosen blocks -->
                     <div id="req-outline-only" style="display:none;">
                         <div class="form-group">
-                            <label for="file-transkrip">Upload Transkrip Nilai (PDF, Max 10MB) *</label>
-                            <input type="file" id="file-transkrip" accept=".pdf"
+                            <label for="file-transkrip" class="lang" data-id="Transkrip Nilai *" data-en="Transcript *">Transkrip Nilai *</label><p id="file-transkrip-format" class="upload-format lang" data-id="PDF · Maks. 10 MB" data-en="PDF · max. 10 MB">PDF · Maks. 10 MB</p>
+                            <input type="file" id="file-transkrip" aria-describedby="file-transkrip-format" accept=".pdf"
                                 onchange="validateFile(this, 'name-transkrip-badge')">
                             <div id="name-transkrip-badge"></div>
                         </div>
                         <div class="form-group">
-                            <label for="file-proposal">Upload Draft Proposal (PDF/DOCX, Max 10MB) *</label>
-                            <input type="file" id="file-proposal" accept=".pdf,.doc,.docx"
+                            <label for="file-proposal" class="lang" data-id="Draf Proposal *" data-en="Proposal Draft *">Draf Proposal *</label><p id="file-proposal-format" class="upload-format lang" data-id="PDF / DOC / DOCX · Maks. 10 MB" data-en="PDF / DOC / DOCX · max. 10 MB">PDF / DOC / DOCX · Maks. 10 MB</p>
+                            <input type="file" id="file-proposal" aria-describedby="file-proposal-format" accept=".pdf,.doc,.docx"
                                 onchange="validateFile(this, 'name-proposal-badge')">
                             <div id="name-proposal-badge"></div>
                         </div>
                     </div>
                     <div id="req-sempro-only" style="display:none;">
                         <div class="form-group">
-                            <label for="file-acc-sempro">Upload Form ACC Seminar Proposal (PDF, Max 10MB) *</label>
-                            <input type="file" id="file-acc-sempro" accept=".pdf"
+                            <label for="file-acc-sempro" class="lang" data-id="Form ACC Seminar Proposal *" data-en="Proposal Seminar Approval Form *">Form ACC Seminar Proposal *</label><p id="file-acc-sempro-format" class="upload-format lang" data-id="PDF · Maks. 10 MB" data-en="PDF · max. 10 MB">PDF · Maks. 10 MB</p>
+                            <input type="file" id="file-acc-sempro" aria-describedby="file-acc-sempro-format" accept=".pdf"
                                 onchange="validateFile(this, 'name-sempro-badge')">
                             <div id="name-sempro-badge"></div>
                         </div>
                     </div>
                     <div id="req-pendadaran" style="display:none;">
                         <div class="form-group">
-                            <label for="file-folder-pendadaran">Upload Berkas Pendadaran (PDF/ZIP/RAR, Max 10MB) *</label>
-                            <input type="file" id="file-folder-pendadaran" accept=".pdf,.zip,.rar"
+                            <label for="file-folder-pendadaran" class="lang" data-id="Berkas Pendadaran *" data-en="Thesis Defense Documents *">Berkas Pendadaran *</label><p id="file-folder-pendadaran-format" class="upload-format lang" data-id="PDF / ZIP / RAR · Maks. 10 MB" data-en="PDF / ZIP / RAR · max. 10 MB">PDF / ZIP / RAR · Maks. 10 MB</p>
+                            <input type="file" id="file-folder-pendadaran" aria-describedby="file-folder-pendadaran-format" accept=".pdf,.zip,.rar"
                                 onchange="validateFile(this, 'name-pendadaran-badge')">
                             <div id="name-pendadaran-badge"></div>
                         </div>
                     </div>
                     <div id="req-jurnal-only" style="display:none;">
                         <div class="form-group">
-                            <label for="file-loa-jurnal">Upload LoA Jurnal (PDF, Max 10MB) *</label>
-                            <input type="file" id="file-loa-jurnal" accept=".pdf"
+                            <label for="file-loa-jurnal" class="lang" data-id="LoA Jurnal *" data-en="Journal Acceptance Letter *">LoA Jurnal *</label><p id="file-loa-jurnal-format" class="upload-format lang" data-id="PDF · Maks. 10 MB" data-en="PDF · max. 10 MB">PDF · Maks. 10 MB</p>
+                            <input type="file" id="file-loa-jurnal" aria-describedby="file-loa-jurnal-format" accept=".pdf"
                                 onchange="validateFile(this, 'name-loa-badge')">
                             <div id="name-loa-badge"></div>
                         </div>
                         <div class="form-group">
-                            <label for="file-draft-jurnal">Upload Draft Jurnal (PDF/DOCX, Max 10MB) *</label>
-                            <input type="file" id="file-draft-jurnal" accept=".pdf,.doc,.docx"
+                            <label for="file-draft-jurnal" class="lang" data-id="Draf Jurnal *" data-en="Journal Draft *">Draf Jurnal *</label><p id="file-draft-jurnal-format" class="upload-format lang" data-id="PDF / DOC / DOCX · Maks. 10 MB" data-en="PDF / DOC / DOCX · max. 10 MB">PDF / DOC / DOCX · Maks. 10 MB</p>
+                            <input type="file" id="file-draft-jurnal" aria-describedby="file-draft-jurnal-format" accept=".pdf,.doc,.docx"
                                 onchange="validateFile(this, 'name-draftjurnal-badge')">
                             <div id="name-draftjurnal-badge"></div>
                         </div>
@@ -744,8 +745,8 @@
                             <textarea id="reg-alasan-ganti" rows="3" placeholder="Jelaskan alasan pergantian dosen..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="file-surat-ganti">Upload Surat Permohonan Ganti Dosen (PDF, Max 10MB) *</label>
-                            <input type="file" id="file-surat-ganti" accept=".pdf"
+                            <label for="file-surat-ganti" class="lang" data-id="Surat Permohonan Ganti Dosen *" data-en="Supervisor Change Request Letter *">Surat Permohonan Ganti Dosen *</label><p id="file-surat-ganti-format" class="upload-format lang" data-id="PDF · Maks. 10 MB" data-en="PDF · max. 10 MB">PDF · Maks. 10 MB</p>
+                            <input type="file" id="file-surat-ganti" aria-describedby="file-surat-ganti-format" accept=".pdf"
                                 onchange="validateFile(this, 'name-gantidosen-badge')">
                             <div id="name-gantidosen-badge"></div>
                         </div>
@@ -1040,6 +1041,7 @@
     <script src="review-navigation.js" defer></script>
     <script src="experience.js" defer></script>
     <script src="next-workflow.js" defer></script>
+    <script src="polish.js" defer></script>
 </body>
 
 </html>

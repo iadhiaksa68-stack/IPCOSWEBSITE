@@ -5,9 +5,9 @@ function renderSyncStatus() {
     const el = document.getElementById('sync-status');
     if (!el) return;
     el.hidden = !getSessionToken();
-    const time = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString(currentLang === 'id' ? 'id-ID' : 'en-GB', {hour:'2-digit',minute:'2-digit'}) : '';
+    const time = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString(currentLang === 'id' ? 'id-ID' : 'en-GB', {hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}) : '';
     el.dataset.state = syncPhase;
-    el.textContent = isOffline ? uxText('Offline · data terakhir ditampilkan','Offline · showing cached data') : syncPhase === 'syncing' ? uxText('Sedang memperbarui…','Updating…') : syncPhase === 'error' ? uxText('Pembaruan gagal · gunakan Segarkan Data','Update failed · use Refresh Data') : time ? uxText('Terakhir diperbarui ','Last updated ')+time : uxText('Belum tersinkron','Not synced yet');
+    el.textContent = isOffline ? uxText('Offline · data terakhir ditampilkan','Offline · showing cached data') : syncPhase === 'syncing' ? uxText('Sedang memperbarui…','Updating…') : syncPhase === 'error' ? uxText('Pembaruan gagal · gunakan Segarkan Data','Update failed · use Refresh Data') : time ? uxText('Terakhir diperbarui ','Last updated ')+time+' WIB' : uxText('Belum tersinkron','Not synced yet');
 }
 function setSyncPhase(phase) {
     syncPhase = phase;

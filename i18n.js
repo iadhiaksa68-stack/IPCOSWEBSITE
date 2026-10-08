@@ -116,7 +116,7 @@ const interfaceEnglish = {
     'Tutup detail pengajuan':'Close request details', 'Tutup Modal':'Close dialog',
     'Outline':'Thesis outline', 'Proposal':'Proposal seminar', 'Pendadaran':'Thesis defense (Pendadaran)',
     'Skripsi Jurnal':'Journal-based thesis', 'Pergantian Pembimbing':'Supervisor change',
-    'Transkrip':'Transcript', 'Draft Proposal':'Proposal draft', 'Form ACC Seminar Proposal':'Proposal seminar approval form',
+    'Transkrip':'Transcript', 'ACC Sempro':'Proposal Seminar Approval Form', 'Draft Proposal':'Proposal Draft', 'Form ACC Seminar Proposal':'Proposal seminar approval form',
     'Bukti ACC':'Approval form', 'Form ACC':'Approval form', 'Berkas Pendadaran':'Thesis defense documents',
     'LoA Jurnal':'Journal acceptance letter', 'Draft Jurnal':'Journal draft',
     'Surat Permohonan Ganti Dosen':'Supervisor change request letter', 'Isian pengajuan':'Request details',
@@ -231,8 +231,23 @@ const contentEnglish = {
     'Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan.':'The deadline for proposal corrections is one month after the exam.',
 };
 
+// One display glossary; stored service enums remain canonical.
+const serviceLabels = {
+    Outline:['Pengajuan Outline Skripsi','Thesis Outline'],
+    Proposal:['Ujian Seminar Proposal','Proposal Seminar'],
+    Pendadaran:['Ujian Pendadaran','Thesis Defense (Pendadaran)'],
+    'Skripsi Jurnal':['Ujian Skripsi Jurnal','Journal-Based Thesis Assessment'],
+    'Pergantian Pembimbing':['Pengajuan Pergantian Dosen Pembimbing','Supervisor Change']
+};
+interfaceEnglish['Pengajuan Outline Skripsi']='Thesis Outline';
+interfaceEnglish['Ujian Seminar Proposal']='Proposal Seminar';
+interfaceEnglish['Ujian Pendadaran']='Thesis Defense (Pendadaran)';
+interfaceEnglish['Ujian Skripsi Jurnal']='Journal-Based Thesis Assessment';
+interfaceEnglish['Pengajuan Pergantian Dosen Pembimbing']='Supervisor Change';
+function serviceLabel(value) { const pair=serviceLabels[value]; return pair ? pair[currentLang==='en'?1:0] : String(value ?? ''); }
 function systemText(value) {
     const text = String(value ?? '');
+    if (serviceLabels[text]) return serviceLabel(text);
     if (currentLang !== 'en') return text;
     const key = text.replace(/\s+/g, ' ').trim();
     if (interfaceEnglish[key]) return interfaceEnglish[key];

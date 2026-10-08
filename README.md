@@ -25,7 +25,7 @@ On macOS the tests use installed Google Chrome; on Linux they use the pinned bun
 
 GitHub Actions runs eleven browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
 
-Vercel installs no browser dependencies. Build output contains only the twenty-two website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
+Vercel installs no browser dependencies. Build output contains only the twenty-four website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
 
 Tests cover the supported scenarios, not a guarantee against every possible bug. Backend releases must also run their own Apps Script checks because the backend is deployed separately.
 
@@ -40,3 +40,7 @@ Tests cover the supported scenarios, not a guarantee against every possible bug.
 - System headings/control labels use consistent capitalization in Indonesian and English. Names, authored SOP content, submitted titles, filenames and backend enums retain their original values.
 
 The new module and the small doPost routing addition must be published in Apps Script before the frontend release. See backend/INTEGRATION.md.
+
+## UI clarity refinements
+
+The admin queue keeps search/status and result chips ahead of the table; advanced filters and reporting tools disclose separately. Mobile SOP navigation offers all three guides. Confirmed submissions retain a private in-session receipt card; logout clears it. Display service labels share one glossary, document labels keep canonical keys, and displayed timestamps use Asia/Jakarta (WIB). No backend or spreadsheet migration is needed.

@@ -18,7 +18,7 @@
         const bottom = document.createElement('nav'); bottom.id = 'student-bottom-nav'; bottom.hidden = true;
         const items = [['dashboard','home','Beranda','Home'],['student-status','requests','Pengajuan','Requests'],['sop-magang','sop','SOP','SOP'],['menu','menu','Menu','Menu']];
         bottom.innerHTML = items.map(([target,name,id,en]) => '<button type="button" data-bottom-target="'+target+'">'+icon(name)+'<span data-label-id="'+id+'" data-label-en="'+en+'">'+text(id,en)+'</span></button>').join('');
-        bottom.addEventListener('click', event => { const button = event.target.closest('[data-bottom-target]'); if (!button) return; if (button.dataset.bottomTarget === 'menu') toggleSidebar(); else navigate(button.dataset.bottomTarget); });
+        bottom.addEventListener('click', event => { const button = event.target.closest('[data-bottom-target]'); if (!button) return; if (button.dataset.bottomTarget === 'menu') toggleSidebar(); else if (button.dataset.bottomTarget === 'sop-magang') window.IPCOSPolish?.openSopPicker(); else navigate(button.dataset.bottomTarget); });
         document.body.appendChild(bottom);
         const backdrop = document.createElement('button'); backdrop.id = 'nav-backdrop'; backdrop.type = 'button'; backdrop.hidden = true; backdrop.tabIndex = -1; backdrop.addEventListener('click', () => { document.getElementById('main-sidebar').classList.remove('active'); drawerChanged(); }); document.body.appendChild(backdrop);
         document.addEventListener('click', event => { if (profile.open && !profile.contains(event.target)) profile.open = false; });

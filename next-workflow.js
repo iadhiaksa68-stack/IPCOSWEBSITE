@@ -18,8 +18,8 @@
             :draft.error?text('Draf cloud belum tersimpan. Isian di tab ini tetap tersedia.','The cloud draft could not be saved. Your inputs remain available in this tab.')
             :!draft.loaded?text('Memeriksa draf cloud…','Checking your cloud draft…')
             :draft.saving||draft.generation>draft.confirmed?text('Menyimpan draf…','Saving your draft…')
-            :draft.revision>0&&draft.intent!==null&&Object.keys(draft.intent).length>0?text('Draf isian tersimpan di cloud. Berkas dipilih ulang pada perangkat yang digunakan.','Your text draft is saved in the cloud. Select files again on the device you use.')
-            :text('Draf cloud disimpan selama 14 hari. Berkas diunggah hanya saat Anda mengirim pengajuan.','Cloud drafts are kept for 14 days. Files are uploaded only when you submit the request.');
+            :draft.revision>0&&draft.intent!==null&&Object.keys(draft.intent).length>0?text('Draf tersimpan di cloud.','Draft saved in the cloud.')
+            :text('Siap untuk pengajuan baru.','Ready for a new request.');
         const controlsKey=JSON.stringify([!!conflict,draft.error,currentLang]);
         if(controls.dataset.renderKey===controlsKey)return;controls.dataset.renderKey=controlsKey;
         controls.innerHTML=conflict?`<button type="button" class="btn-secondary" data-draft-choice="cloud">${text('Lanjutkan Draf Cloud','Continue Cloud Draft')}</button><button type="button" class="btn-secondary" data-draft-choice="local">${text('Gunakan Isian di Tab Ini','Use This Tab’s Inputs')}</button>`
@@ -148,7 +148,7 @@
         if(!healthEvents)return;
         const labels={javascript:['Tampilan','Interface'],network:['Koneksi','Connection'],api_response:['Proses Belum Berhasil','Unsuccessful Operation'],api_timeout:['Waktu Tunggu Habis','Request Timed Out'],module:['Pemuatan Fitur','Feature Loading']};
         const operations={create:['Pengajuan Baru','New Request'],update:['Perubahan Pengajuan','Request Update'],revise_request:['Perbaikan Pengajuan','Request Correction'],get_document:['Berkas Pengajuan','Request Documents'],get_receipt:['Bukti Pengajuan','Request Receipt'],get_data:['Pembaruan Data','Data Refresh'],get_sop:['Panduan SOP','SOP Guide'],save_sop:['Publikasi SOP','SOP Publication'],get_sop_file:['Lampiran SOP','SOP Attachments'],save_form_draft:['Penyimpanan Draf','Draft Saving'],get_form_draft:['Pemulihan Draf','Draft Recovery'],save_progress:['Persiapan Akademik','Academic Preparation'],get_journey:['Perjalanan Akademik','Academic Journey'],module:['Pemuatan Fitur','Feature Loading'],runtime:['Tampilan','Interface']};
-        container.innerHTML=healthEvents.length?`<ul class="health-list">${healthEvents.map(event=>`<li><strong>${text(...(labels[event.code]||labels.api_response))}</strong><span>${text(...(operations[event.operation]||operations.runtime))} · ${event.role==='admin'?text('Admin','Admin'):text('Mahasiswa','Student')} · ${Number(event.count)} ${text('Kejadian','Events')} · ${escapeHtml(event.day)}</span></li>`).join('')}</ul>`:`<p>${text('Belum ada gangguan tercatat dalam 7 hari terakhir.','No issues have been recorded in the last 7 days.')}</p>`;
+        container.innerHTML=healthEvents.length?`<ul class="health-list">${healthEvents.map(event=>`<li><strong>${text(...(labels[event.code]||labels.api_response))}</strong><span>${text(...(operations[event.operation]||operations.runtime))} · ${event.role==='admin'?text('Admin','Admin'):text('Mahasiswa','Student')} · ${Number(event.count)} ${text('kejadian',Number(event.count)===1?'event':'events')} · ${escapeHtml(formatDate(event.day))}</span></li>`).join('')}</ul>`:`<p>${text('Belum ada gangguan tercatat dalam 7 hari terakhir.','No issues have been recorded in the last 7 days.')}</p>`;
     }
     function revisionLanguage() {
         const form=document.getElementById('case-revision-fields');if(!form)return;
@@ -166,7 +166,7 @@
         if(!interfaceReady)return;
         const selectors='h1,h2,h3,h4,summary,button,label,option,th';
         document.querySelectorAll(selectors).forEach(el=>{
-            if(el.closest('#welcome-modal,#workspace-profile,#faq-content-container,#template_berkas-content-container,#kalender-content-container,#kurikulum-content-container,#remidial-content-container,#input-dospem-select,#case-supervisor,.sop-page,#modal-sop-editor,.case-content-block,.case-timeline,.case-file-row,.academic-stage,.journey-stage')||el.matches('#edit-dosen-name-display,[data-case-id],[data-requirement-field]'))return;
+            if(el.closest('#welcome-modal,#workspace-profile,#faq-content-container,#template_berkas-content-container,#kalender-content-container,#kurikulum-content-container,#remidial-content-container,#input-dospem-select,#case-supervisor,.sop-page,#modal-sop-editor,.case-content-block,.case-timeline,.case-file-row,.academic-stage,.journey-stage')||el.matches('#edit-dosen-name-display,[data-case-id],[data-requirement-field],[data-clear-filter]'))return;
             const nodes=[...el.childNodes,...[...el.children].filter(child=>child.matches('span')).flatMap(child=>[...child.childNodes])];
             nodes.filter(node=>node.nodeType===Node.TEXT_NODE).forEach(node=>{const value=labelCase(node.textContent);if(value!==node.textContent)node.textContent=value;});
         });
