@@ -189,6 +189,7 @@ document.addEventListener('keydown', function (event) {
         openGlobalSearch();
     }
     if (event.key === "Escape") {
+        if(document.fullscreenElement || document.querySelector('.document-expanded'))return;
         closeModal('modal-global-search');
         document.querySelectorAll('.overlay').forEach(modal => {
             if (window.getComputedStyle(modal).display !== 'none' && modal.id !== 'welcome-modal') {
@@ -251,156 +252,6 @@ function executeSearchNavigation(tabId) {
             switchTab({ currentTarget: item }, tabId);
         }
     });
-}
-
-// ==========================================
-// 3. INTERACTIVE DOODLE BACKGROUND
-// ==========================================
-let doodleCanvas, doodleCtx, doodleAnimationId;
-let doodles = [];
-let mouse = { x: -1000, y: -1000, radius: 160 };
-
-function initDoodleCanvas() {
-    doodleCanvas = document.getElementById('doodle-canvas');
-    if (!doodleCanvas || getComputedStyle(doodleCanvas).display === 'none') return;
-    doodleCtx = doodleCanvas.getContext('2d');
-
-    resizeDoodleCanvas();
-    window.addEventListener('resize', resizeDoodleCanvas);
-
-    window.addEventListener('mousemove', (e) => {
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-    });
-
-    window.addEventListener('touchmove', (e) => {
-        if (e.touches.length > 0) {
-            mouse.x = e.touches[0].clientX;
-            mouse.y = e.touches[0].clientY;
-        }
-    }, { passive: true });
-
-    window.addEventListener('mouseleave', () => {
-        mouse.x = -1000;
-        mouse.y = -1000;
-    });
-
-    createDoodles();
-    animateDoodles();
-}
-
-function resizeDoodleCanvas() {
-    if (!doodleCanvas) return;
-    doodleCanvas.width = window.innerWidth;
-    doodleCanvas.height = window.innerHeight;
-}
-
-class DoodleItem {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.vx = (Math.random() - 0.5) * 1.2;
-        this.vy = (Math.random() - 0.5) * 1.2;
-        this.size = Math.random() * 20 + 15;
-        this.strokeWidth = Math.random() * 3 + 3;
-        this.type = Math.floor(Math.random() * 6);
-        this.color = ['#F4B324', '#8E2122', '#00492C', '#007BFF', '#FF8DA1', '#9C27B0', '#00BCD4', '#FF9800'][Math.floor(Math.random() * 8)];
-        this.rotation = Math.random() * Math.PI * 2;
-        this.rotSpeed = (Math.random() - 0.5) * 0.03;
-    }
-
-    draw() {
-        if (!doodleCtx) return;
-        doodleCtx.save();
-        doodleCtx.translate(this.x, this.y);
-        doodleCtx.rotate(this.rotation);
-        doodleCtx.strokeStyle = this.color;
-        doodleCtx.fillStyle = this.color;
-        doodleCtx.lineWidth = this.strokeWidth;
-        doodleCtx.lineCap = 'round';
-        doodleCtx.lineJoin = 'round';
-        doodleCtx.globalAlpha = 0.85;
-
-        switch (this.type) {
-            case 0:
-                doodleCtx.beginPath();
-                for (let i = 0; i < Math.PI * 5; i += 0.2) {
-                    let r = (this.size / 15) * i;
-                    let sx = r * Math.cos(i);
-                    let sy = r * Math.sin(i);
-                    if (i === 0) doodleCtx.moveTo(sx, sy);
-                    else doodleCtx.lineTo(sx, sy);
-                }
-                doodleCtx.stroke(); break;
-            case 1:
-                doodleCtx.beginPath();
-                for (let i = 0; i < 4; i++) {
-                    let angle = (i * Math.PI) / 4;
-                    doodleCtx.moveTo(Math.cos(angle) * this.size, Math.sin(angle) * this.size);
-                    doodleCtx.lineTo(-Math.cos(angle) * this.size, -Math.sin(angle) * this.size);
-                }
-                doodleCtx.stroke(); break;
-            case 2:
-                doodleCtx.beginPath();
-                doodleCtx.moveTo(-this.size, 0);
-                doodleCtx.quadraticCurveTo(-this.size / 2, -this.size * 0.8, 0, 0);
-                doodleCtx.quadraticCurveTo(this.size / 2, this.size * 0.8, this.size, 0);
-                doodleCtx.stroke(); break;
-            case 3:
-                doodleCtx.beginPath();
-                doodleCtx.moveTo(this.size * 0.5, 0);
-                doodleCtx.bezierCurveTo(this.size * 0.8, -this.size * 0.5, -this.size * 0.2, -this.size, -this.size * 0.6, -this.size * 0.2);
-                doodleCtx.bezierCurveTo(-this.size * 1.2, this.size * 0.5, -this.size * 0.2, this.size * 0.8, this.size * 0.5, 0);
-                doodleCtx.stroke(); break;
-            case 4:
-                doodleCtx.beginPath(); doodleCtx.arc(0, 0, this.size / 3, 0, Math.PI * 2); doodleCtx.fill();
-                doodleCtx.beginPath(); doodleCtx.arc(this.size * 0.8, -this.size * 0.5, this.size / 4, 0, Math.PI * 2); doodleCtx.fill();
-                doodleCtx.beginPath(); doodleCtx.arc(-this.size * 0.7, this.size * 0.6, this.size / 5, 0, Math.PI * 2); doodleCtx.fill(); break;
-            case 5:
-                doodleCtx.beginPath(); let r = this.size * 0.4; doodleCtx.moveTo(0, r);
-                doodleCtx.bezierCurveTo(0, -r, -r * 2.5, -r * 1.5, -r * 1.5, r * 0.5);
-                doodleCtx.bezierCurveTo(-r, r * 2, 0, r * 2.5, 0, r * 3);
-                doodleCtx.bezierCurveTo(0, r * 2.5, r, r * 2, r * 1.5, r * 0.5);
-                doodleCtx.bezierCurveTo(r * 2.5, -r * 1.5, 0, -r, 0, r); doodleCtx.stroke(); break;
-        }
-        doodleCtx.restore();
-    }
-
-    update() {
-        this.rotation += this.rotSpeed;
-        this.x += this.vx; this.y += this.vy;
-
-        if (this.x < 20 || this.x > doodleCanvas.width - 20) this.vx *= -1;
-        if (this.y < 20 || this.y > doodleCanvas.height - 20) this.vy *= -1;
-
-        let dx = mouse.x - this.x; let dy = mouse.y - this.y;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < mouse.radius) {
-            let forceDirectionX = dx / distance; let forceDirectionY = dy / distance;
-            let maxDistance = mouse.radius; let force = (maxDistance - distance) / maxDistance;
-            this.x -= forceDirectionX * force * 10; this.y -= forceDirectionY * force * 10;
-        }
-        this.draw();
-    }
-}
-
-function createDoodles() {
-    doodles = [];
-    let count = Math.floor((window.innerWidth * window.innerHeight) / 12000);
-    count = Math.max(25, Math.min(count, 70));
-    for (let i = 0; i < count; i++) {
-        let x = Math.random() * (window.innerWidth - 60) + 30;
-        let y = Math.random() * (window.innerHeight - 60) + 30;
-        doodles.push(new DoodleItem(x, y));
-    }
-}
-
-function animateDoodles() {
-    if (!doodleCtx) return;
-    doodleCtx.clearRect(0, 0, doodleCanvas.width, doodleCanvas.height);
-    doodles.forEach(d => d.update());
-    doodleAnimationId = requestAnimationFrame(animateDoodles);
 }
 
 // ==========================================
@@ -521,7 +372,6 @@ window.onload = function () {
     applyDynamicLanguage();
     startCountdownWidget();
     renderDynamicContent();
-    initDoodleCanvas();
 
     const session = sessionStorage.getItem('ipcos_session');
 
@@ -540,6 +390,7 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    window.IPCOSAdminDrafts?.clear();
     window.IPCOSSop?.reset();
     window.IPCOSNext?.reset();
     window.IPCOSPolish?.reset();
@@ -824,14 +675,9 @@ function finalizeLogin(displayName, displayNim, role, token) {
     if (document.getElementById('student-header')) document.getElementById('student-header').style.display = 'flex';
     document.getElementById('welcome-modal').style.opacity = '0';
 
-    if (doodleAnimationId) {
-        cancelAnimationFrame(doodleAnimationId);
-    }
-
     setTimeout(() => {
         if (loginEpoch !== sessionEpoch || getSessionToken() !== token) return;
         document.getElementById('welcome-modal').style.display = 'none';
-        scheduleCat();
         syncDatabase();
         applyDynamicLanguage();
         window.IPCOSNext?.startDraft();
@@ -853,8 +699,7 @@ function logoutUser() {
         switchTab({ currentTarget: document.querySelector('.nav-tabs li') }, 'dashboard');
         const modal = document.getElementById('welcome-modal');
         modal.style.display = 'flex';
-        initDoodleCanvas();
-        setTimeout(() => { modal.style.opacity = '1'; }, 10);
+            setTimeout(() => { modal.style.opacity = '1'; }, 10);
     }
 }
 
@@ -1287,7 +1132,7 @@ function caseFileListHtml(item) {
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
     const rows=files.map((file,index)=>{const doc=metadata.find(doc=>doc.url===file.url); return {...file,index,document:doc};});
     const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
-    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div></div>`;
+    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${row.document&&latest.get(row.document.label)===row&&comparableCaseFiles(item,row.document.label).length>1?`<button type="button" class="btn-secondary" data-compare-label="${escapeHtml(row.document.label)}">${uxText('Bandingkan Revisi','Compare Revisions')}</button>`:''}${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div></div>`;
     const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
     const old=rows.filter(row=>!current.includes(row));
     if(!current.length) return files.length?`<p class="field-helper">${systemText('Berkas lama belum memiliki penanda versi. Periksa tanggal dan nama berkas sebelum meninjau.')}</p>`+rows.map(html).join(''):uxText('Belum ada berkas.','No files available.');
@@ -1299,6 +1144,7 @@ function previewCaseFile(index) {
     const file = item && getCaseFiles(item)[index];
     if (!file) return;
     if (isPrivateDriveUrl(file.url)) { accessCaseDocument(index,true); return; }
+    clearCaseBlobUrls();
     const preview = document.getElementById('case-file-preview');
     preview.hidden = false;
     window.IPCOSDocuments?.reset(preview);
@@ -1327,6 +1173,8 @@ function caseDetailAction(action) {
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') return;
     window.IPCOSReview?.restoreActions();
     const panel = document.getElementById('case-action-panel');
+    if(!panel.hidden&&panel.dataset.action===action)return;
+    if(!panel.hidden&&panel.dataset.dirty==='true'&&!confirmLeaveCase())return;
     panel.dataset.action = action; panel.dataset.dirty = 'false';
     let html = '';
     if (action === 'revision') {
@@ -1431,6 +1279,7 @@ async function submitCaseAction() {
         if (requestEpoch !== sessionEpoch) return;
         setSubmissionStage('case-action-feedback',success?'confirmed':'uncertain');
         if (success) panel.dataset.dirty='false';
+        if(success&&currentUser.role==='admin')window.IPCOSAdminDrafts?.forget(item.id);
         if (success && selectedCaseId === String(item.id) && document.getElementById('modal-case-detail').style.display !== 'none') openCaseDetail(item.id);
         else if (!success && document.getElementById('case-action-feedback')) setProcessNotice('case-action-feedback','case-uncertain');
     } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); setProcessNotice('case-action-feedback','case-error',error.message); }
@@ -1724,7 +1573,7 @@ const defaultTemplate = [
 
 const defaultFaq = [
     { title: "Daftar Pertanyaan", items: [
-        { id: "f1", text: "Bagaimana jika file PDF saya lebih dari 10MB?", sub: "Silakan kompres file Anda terlebih dahulu menggunakan layanan gratis seperti ilovepdf.com sebelum diunggah ke sistem." },
+        { id: "f1", text: "Bagaimana jika file PDF saya lebih dari 10MB?", sub: "Ekspor ulang dokumen dengan ukuran PDF yang lebih kecil, pastikan teks tetap terbaca, lalu periksa kembali sebelum mengunggah." },
         { id: "f2", text: "Kapan batas waktu revisi proposal?", sub: "Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan." }
     ]}
 ];
@@ -1827,7 +1676,7 @@ function renderDynamicContent() {
                 group.items.forEach(item => {
                     html += `<li style="background: var(--item-bg); padding: 12px; border: 1px solid var(--item-border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <span style="font-size: 13.5px; font-weight: 600;">${item.text}</span>
-                            <a href="${item.sub}" target="_blank" class="btn-secondary" style="width: auto; min-height: 30px; padding: 5px 10px; font-size: 12px; text-decoration: none; display: flex; align-items: center;">Unduh</a>
+                            ${item.sub!=='#'?`<a href="${item.sub}" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="width: auto; min-height: 30px; padding: 5px 10px; font-size: 12px; text-decoration: none; display: flex; align-items: center;">${uxText('Unduh','Download')}</a>`:`<span class="field-helper">${uxText('Belum Tersedia','Not Available Yet')}</span>`}
                         </li>`;
                 });
             });
@@ -2711,11 +2560,6 @@ function switchTab(event, tabId) {
     }
 }
 
-const catEl = document.getElementById('easter-cat'); let catTimer;
-function scheduleCat() { catTimer = setTimeout(showCat, Math.floor(Math.random() * 10000) + 5000); }
-function showCat() { catEl.classList.add('peek'); setTimeout(() => { if (catEl.classList.contains('peek')) hideCat(); }, 4000); }
-function hideCat() { catEl.classList.remove('peek'); clearTimeout(catTimer); scheduleCat(); }
-
 function silentSyncDatabase() {
     if (document.hidden || isOffline || !getSessionToken() || syncPhase === 'syncing') return;
     return apiRead().then(applyDatabaseSnapshot).catch(error => { if (!error.staleSession && getSessionToken()) setSyncPhase('error'); });
@@ -3130,8 +2974,8 @@ if (secondaryDashboard) secondaryDashboard.addEventListener('toggle', () => {
 });
 document.addEventListener('keydown', event => {
     const login = document.getElementById('welcome-modal');
-    const modal = getComputedStyle(login).display !== 'none' ? login : document.getElementById('modal-case-detail');
-    if (event.key !== 'Tab' || getComputedStyle(modal).display !== 'flex') return;
+    const modal = document.querySelector('.document-expanded') || document.fullscreenElement || (getComputedStyle(login).display !== 'none' ? login : document.getElementById('modal-case-detail'));
+    if (event.key !== 'Tab' || !(modal.classList.contains('document-expanded') || document.fullscreenElement===modal || getComputedStyle(modal).display==='flex')) return;
     const controls = [...modal.querySelectorAll('button, a[href], input, textarea, select')].filter(el => !el.disabled && el.getClientRects().length > 0);
     const first = controls[0], last = controls[controls.length - 1];
     if (!modal.contains(document.activeElement)) { event.preventDefault(); first?.focus(); }

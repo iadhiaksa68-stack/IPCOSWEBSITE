@@ -136,11 +136,12 @@ function clearCaseBlobUrls() {
     caseBlobUrls.forEach(url=>URL.revokeObjectURL(url)); caseBlobUrls.clear();
     window.IPCOSDocuments?.reset(document.getElementById('case-file-preview'));
     window.IPCOSDocuments?.clearLocal();
-    const modal=document.getElementById('modal-case-detail');if(modal){modal.classList.remove('has-document-preview');delete modal.dataset.workspaceView;}
+    const modal=document.getElementById('modal-case-detail');if(modal){modal.classList.remove('has-document-preview','has-document-comparison');delete modal.dataset.workspaceView;}
 }
 async function accessCaseDocument(index,preview=false,button=null) {
     const item=currentCase(), file=item && getCaseFiles(item)[index];
     if(!file || !isPrivateDriveUrl(file.url)) return;
+    if(preview)clearCaseBlobUrls();
     const epoch=sessionEpoch, id=String(item.id), version=preview?++documentRequestVersion:0, contextVersion=caseDocumentEpoch;
     const panel=document.getElementById('case-file-preview');
     if(preview) { window.IPCOSDocuments.reset(panel);panel.hidden=false; panel.querySelector('p').textContent=uxText('Memuat berkas melalui sesi IPCOS…','Loading the file through your IPCOS session…'); panel.querySelector('iframe').src='about:blank'; }
@@ -166,3 +167,48 @@ async function accessCaseDocument(index,preview=false,button=null) {
     finally { if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-document-index]');if(button)accessCaseDocument(Number(button.dataset.documentIndex),false,button);});
+
+// Compare only versions already attached to this accessible request.
+function comparableCaseFiles(item,label) {
+    let logs=[];try{logs=JSON.parse(item.note||'[]');}catch(_){}
+    const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[],seen=new Set();
+    return getCaseFiles(item).flatMap((file,index)=>{
+        const doc=metadata.find(doc=>doc.url===file.url);
+        if(!doc||doc.label!==label||!Number.isInteger(Number(doc.version))||Number(doc.version)<1||!isPrivateDriveUrl(file.url)||seen.has(file.url))return [];
+        seen.add(file.url);return [{...file,index,version:Number(doc.version),fileName:String(doc.fileName||file.label)}];
+    }).sort((a,b)=>a.version-b.version);
+}
+async function compareCaseDocuments(label,oldIndex=null,newIndex=null) {
+    const item=currentCase();if(!item||!['admin','mhs'].includes(currentUser.role))return;
+    const versions=comparableCaseFiles(item,label);if(versions.length<2)return;
+    const before=versions.find(file=>file.index===oldIndex)||versions.at(-2),after=versions.find(file=>file.index===newIndex)||versions.at(-1);
+    if(before.url===after.url){showToast(uxText('Pilih dua versi berkas yang berbeda.','Choose two different file versions.'),'error');return;}
+    clearCaseBlobUrls();const epoch=sessionEpoch,id=String(item.id),context=caseDocumentEpoch,request=++documentRequestVersion;
+    const panel=document.getElementById('case-file-preview');panel.hidden=false;panel.querySelector('p').textContent=uxText('Bandingkan isi dua versi. Tampilan ini tidak menilai atau menyetujui perubahan secara otomatis.','Compare the two versions. This view does not evaluate or approve changes automatically.');
+    const shell=document.createElement('div');shell.className='document-comparison';
+    for(const [side,file] of [['before',before],['after',after]]){
+        const column=document.createElement('section');column.className='comparison-column';
+        const heading=document.createElement('h4');heading.dataset.documentId=side==='before'?'Versi Pembanding':'Versi yang Ditinjau';heading.dataset.documentEn=side==='before'?'Comparison Version':'Version Being Reviewed';heading.textContent=uxText(heading.dataset.documentId,heading.dataset.documentEn);
+        const select=document.createElement('select');select.dataset.compareSide=side;select.dataset.preserveCase='true';select.setAttribute('aria-label',heading.textContent);
+        for(const version of versions){const option=document.createElement('option');option.value=String(version.index);option.dataset.documentId='Versi '+version.version+' · '+version.fileName;option.dataset.documentEn='Version '+version.version+' · '+version.fileName;option.textContent=uxText(option.dataset.documentId,option.dataset.documentEn);option.selected=version.index===file.index;select.append(option);}
+        const viewer=document.createElement('div');viewer.className='comparison-panel';viewer.innerHTML='<p class="field-helper"></p>';
+        viewer.querySelector('p').textContent=uxText('Memuat berkas melalui sesi IPCOS…','Loading the file through your IPCOS session…');column.append(heading,select,viewer);shell.append(column);
+        select.addEventListener('change',()=>compareCaseDocuments(label,Number(shell.querySelector('[data-compare-side=before]').value),Number(shell.querySelector('[data-compare-side=after]').value)));
+    }
+    const close=document.createElement('button');close.type='button';close.className='btn-secondary comparison-tools';close.dataset.documentId='Tutup Perbandingan';close.dataset.documentEn='Close Comparison';close.textContent=uxText(close.dataset.documentId,close.dataset.documentEn);close.addEventListener('click',()=>{clearCaseBlobUrls();panel.hidden=true;document.querySelector('[data-compare-label]')?.focus();});
+    panel.prepend(close,shell);document.getElementById('modal-case-detail').classList.add('has-document-comparison');window.IPCOSReviewTools?.previewReady();
+    const active=()=>epoch===sessionEpoch&&selectedCaseId===id&&context===caseDocumentEpoch&&request===documentRequestVersion&&shell.isConnected&&document.getElementById('modal-case-detail').style.display!=='none';
+    // Sequential fetches avoid doubling Apps Script requests and peak decoding memory.
+    for(const [index,file] of [before,after].entries()){
+        const target=shell.children[index].querySelector('.comparison-panel');
+        try{
+            const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'get_document',id,url:file.url}),headers:{'Content-Type':'text/plain;charset=utf-8'}}),result=await readApiResult(response);
+            if(!active())return;if(result.status!=='success')throw new Error(result.message||uxText('Berkas belum dapat dibaca.','The file could not be read.'));
+            if(typeof result.base64!=='string'||result.base64.length>13981016)throw new Error(uxText('Ukuran berkas tidak valid.','Invalid file size.'));
+            const bytes=Uint8Array.from(atob(result.base64),char=>char.charCodeAt(0));if(!bytes.length)throw new Error(uxText('Berkas kosong.','The file is empty.'));
+            const mime=window.IPCOSDocuments.trustedMime(bytes,String(result.mimeType||'application/octet-stream'),result.fileName),url=URL.createObjectURL(new Blob([bytes],{type:mime}));caseBlobUrls.add(url);
+            window.IPCOSDocuments.render(target,url,mime,String(result.fileName||file.fileName).replace(/[\\/\x00-\x1f]/g,'_'));
+        }catch(error){if(active())target.querySelector('p').textContent=systemText(error.message||uxText('Berkas gagal dimuat. Pilih ulang versi untuk mencoba lagi.','The file failed to load. Select the version again to retry.'));}
+    }
+}
+document.addEventListener('click',event=>{const button=event.target.closest('[data-compare-label]');if(button)compareCaseDocuments(button.dataset.compareLabel);});

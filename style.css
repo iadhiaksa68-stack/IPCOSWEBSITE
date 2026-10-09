@@ -198,17 +198,6 @@ body {
     padding: 12px;
 }
 
-#doodle-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    pointer-events: none;
-    opacity: 0.25;
-}
-
 /* FORMS, BUTTONS & INPUT FIELDS */
 .login-tabs {
     display: flex;
@@ -1334,22 +1323,6 @@ body.dark-mode .deadline-tag {
     color: var(--heading-color);
 }
 
-/* EASTER EGG */
-#easter-cat {
-    position: fixed;
-    bottom: -150px;
-    right: 10%;
-    width: 70px;
-    height: 70px;
-    cursor: pointer;
-    z-index: 9999;
-    transition: bottom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-#easter-cat.peek {
-    bottom: -5px;
-}
-
 /* WHATSAPP FLOATING */
 .wa-float-container {
     position: fixed;
@@ -2123,7 +2096,6 @@ dialog.overlay-dialog[open] {
     .receipt-list { grid-template-columns:100px minmax(0,1fr); }
 }
 
-body.transaction-view #easter-cat { display:none; }
 
 .toast-container { pointer-events:none; }
 body:has(#modal-case-detail[style*="display: flex"]) .toast-container { top:auto; bottom:20px; }

@@ -19,13 +19,13 @@ Static academic portal with the existing Google Apps Script backend. Login and t
 
 Requires Node.js 24. Run `npm ci --include=dev`, then `npm run build`.
 
-Twelve browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
+Thirteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
 
 On macOS the tests use installed Google Chrome; on Linux they use the pinned bundled headless Chromium. For other environments set `IPCOS_TEST_BROWSER` to an installed Chrome/Chromium executable.
 
-GitHub Actions runs eleven browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
+GitHub Actions runs thirteen browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
 
-Vercel installs no browser dependencies. Build output contains only the twenty-four website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
+Vercel installs no browser dependencies. Build output contains only the explicitly allowed website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
 
 Tests cover the supported scenarios, not a guarantee against every possible bug. Backend releases must also run their own Apps Script checks because the backend is deployed separately.
 
@@ -56,3 +56,11 @@ The admin queue keeps search/status and result chips ahead of the table; advance
 - SOP authoring shows missing English titles, introductions, bodies and link labels with links to the relevant input. Completion indicates coverage, not translation accuracy, and does not automatically translate admin-authored content.
 - `get_review_capabilities` gates the new write controls. On the old backend these controls remain unavailable while existing transactions and previews continue to function. Publish the updated private `Next.gs` on the existing Apps Script deployment to activate them; no `Kode.gs` routing change is required because it already uses `NEXT_ACTIONS`.
 - The release checks use renderable single/multi-page PDFs and inspect actual canvas pixels/text, not only successful blob creation. They also verify access, replay, conflicts, language, lifecycle cleanup and backend compatibility using simulated transactions.
+
+## Review recovery and document tools (9 October 2026)
+
+- Admin file notes and correction-action text are saved automatically in private sessionStorage. Recovery is offered explicitly after reload or reopening a request, for up to 24 hours during that tab session. Logout or another login clears drafts. Closing a tab requires browser session restoration; drafts are not cloud backups or available in a new device/tab. No automatic academic writes or decisions occur. Older request versions retain read-only draft text instead of overwriting current records. Confirmed review clears only the review draft; a separate action draft remains.
+- PDF tools include page entry, rotation, fullscreen and bounded local text search. Advanced tools disclose to keep document content visible. Search finds matching pages with snippets, supports text PDFs (not OCR), and caps scanning at 300 pages or two million characters. Canvas resizing is debounced and avoids redundant redraws.
+- Version comparison uses only historical/current links attached to an accessible request, through the existing session-authorized file API. Two selected versions render side by side on desktop and stack on phones. One failed file does not prevent viewing the other. Word/archive versions provide downloads. Switching requests, closing, logout and delayed responses clean up readers and object URLs.
+- Decorative hidden cat/doodle elements, their timers and unused styles were removed. Missing template URLs show availability text rather than nonfunctional Download links. Default compression guidance stays on the student's device. Share metadata uses the current portal name/domain without an unrelated thumbnail URL.
+- The thirteenth browser suite covers these flows with simulated APIs, actual PDF pixels/text, revision history, drafts, language and lifecycle cleanup. Existing role/backend gates stay in place. No backend deployment is required for these three frontend improvements.

@@ -226,7 +226,7 @@ const contentEnglish = {
     'Daftar Berkas':'Documents', 'Logbook Magang (.docx)':'Internship logbook (.docx)',
     'Lembar Pengesahan Skripsi (.docx)':'Thesis approval sheet (.docx)', 'Form Bebas Pustaka (.pdf)':'Library clearance form (.pdf)',
     'Daftar Pertanyaan':'Questions', 'Bagaimana jika file PDF saya lebih dari 10MB?':'What if my PDF exceeds 10 MB?',
-    'Silakan kompres file Anda terlebih dahulu menggunakan layanan gratis seperti ilovepdf.com sebelum diunggah ke sistem.':'Compress your PDF before uploading it, for example using a free service such as ilovepdf.com.',
+    'Ekspor ulang dokumen dengan ukuran PDF yang lebih kecil, pastikan teks tetap terbaca, lalu periksa kembali sebelum mengunggah.':'Export a smaller PDF, make sure the text remains readable, and check it again before uploading.',
     'Kapan batas waktu revisi proposal?':'What is the deadline for proposal corrections?',
     'Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan.':'The deadline for proposal corrections is one month after the exam.',
 };

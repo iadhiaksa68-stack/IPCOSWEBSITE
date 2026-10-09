@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>IPCOS UMY - Portal Kewajiban & Akademik Mahasiswa</title>
+    <title>Portal Akademik IPCOS UMY</title>
 
     <!-- Mobile & PWA Theme Meta -->
     <meta name="theme-color" content="#1A1614">
@@ -12,11 +12,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
 
-    <meta property="og:title" content="IPCOS UMY - Portal Kewajiban & Akademik Mahasiswa">
+    <meta property="og:title" content="Portal Akademik IPCOS UMY">
     <meta property="og:description"
         content="Sistem portal akademik terpadu untuk pendaftaran ujian, skripsi, magang, dan pelacakan progres mahasiswa Ilmu Komunikasi UMY.">
-    <meta property="og:image" content="https://raw.githubusercontent.com/ipcos-umy/assets/main/thumbnail.jpg">
-    <meta property="og:url" content="https://ipcos.umy.ac.id">
+    <meta property="og:url" content="https://ipcoswebsite.vercel.app/">
     <meta property="og:type" content="website">
 
     <!-- Font Plus Jakarta Sans -->
@@ -84,24 +83,6 @@
         </div>
     </div>
     <div id="toast-container" class="toast-container"></div>
-
-    <!-- Easter Egg -->
-    <svg id="easter-cat" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" onclick="hideCat()">
-        <g id="cat-head">
-            <path class="cat-fill" d="M10 50 L20 10 L45 35 L55 35 L80 10 L90 50 L90 100 L10 100 Z" fill="#F4B324" />
-            <circle cx="30" cy="55" r="8" fill="#FFF" />
-            <circle cx="70" cy="55" r="8" fill="#FFF" />
-            <circle cx="30" cy="55" r="4" fill="#1A1A1A" />
-            <circle cx="70" cy="55" r="4" fill="#1A1A1A" />
-            <polygon points="45,68 55,68 50,74" fill="#FF8DA1" />
-            <path d="M50 74 Q40 84 30 72" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round" fill="none" />
-            <path d="M50 74 Q60 84 70 72" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round" fill="none" />
-            <line x1="25" y1="65" x2="5" y2="60" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
-            <line x1="25" y1="70" x2="5" y2="70" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
-            <line x1="75" y1="65" x2="95" y2="60" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
-            <line x1="75" y1="70" x2="95" y2="70" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" />
-        </g>
-    </svg>
 
     <!-- Modals -->
     <div id="modal-case-detail" class="overlay" style="display:none; z-index:2050;" role="dialog" aria-modal="true" aria-labelledby="case-detail-title">
@@ -309,7 +290,6 @@
 
     <!-- Login Area -->
     <div id="welcome-modal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="login-title">
-        <canvas id="doodle-canvas" aria-hidden="true"></canvas>
         <div class="login-shell">
             <aside class="login-story" aria-label="IPCOS Portal Akademik">
                 <div class="brand-lockup"><span class="brand-symbol" aria-hidden="true"><img src="/favicon.svg?v=2" alt="" width="40" height="40"></span><span>IPCOS <small>ILMU KOMUNIKASI · UMY</small></span></div>
@@ -1055,6 +1035,7 @@
     <script src="next-workflow.js" defer></script>
     <script src="polish.js" defer></script>
     <script src="review-tools.js" defer></script>
+    <script src="admin-review-drafts.js" defer></script>
 </body>
 
 </html>
