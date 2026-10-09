@@ -19,13 +19,13 @@ Static academic portal with the existing Google Apps Script backend. Login and t
 
 Requires Node.js 24. Run `npm ci --include=dev`, then `npm run build`.
 
-Thirteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
+Fourteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
 
 On macOS the tests use installed Google Chrome; on Linux they use the pinned bundled headless Chromium. For other environments set `IPCOS_TEST_BROWSER` to an installed Chrome/Chromium executable.
 
-GitHub Actions runs thirteen browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
+GitHub Actions runs fourteen browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
 
-Vercel installs no browser dependencies. Build output contains only the explicitly allowed website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
+Vercel installs only the pinned esbuild production dependency and no browser dependencies. The build combines the deferred scripts and styles in their original order, preserves global handler names, minifies the output, and emits content-hashed files. SOP and CSV scripts remain lazy. All browser suites run against this production output. Only allowlisted website assets enter `public/`; backend source, tests, dependencies, environment files and source maps are excluded.
 
 Tests cover the supported scenarios, not a guarantee against every possible bug. Backend releases must also run their own Apps Script checks because the backend is deployed separately.
 
@@ -64,3 +64,13 @@ The admin queue keeps search/status and result chips ahead of the table; advance
 - Version comparison uses only historical/current links attached to an accessible request, through the existing session-authorized file API. Two selected versions render side by side on desktop and stack on phones. One failed file does not prevent viewing the other. Word/archive versions provide downloads. Switching requests, closing, logout and delayed responses clean up readers and object URLs.
 - Decorative hidden cat/doodle elements, their timers and unused styles were removed. Missing template URLs show availability text rather than nonfunctional Download links. Default compression guidance stays on the student's device. Share metadata uses the current portal name/domain without an unrelated thumbnail URL.
 - The thirteenth browser suite covers these flows with simulated APIs, actual PDF pixels/text, revision history, drafts, language and lifecycle cleanup. Existing role/backend gates stay in place. No backend deployment is required for these three frontend improvements.
+
+## Audit and production optimization (9 October 2026)
+
+- Five unreachable legacy modals and their handlers were removed. Existing review, supervisor assignment, correction, private preview and history flows continue through the case workspace. PDF.js character maps/fonts/decoders and their licenses are retained because they are loaded on demand for real documents.
+- Production requests for local CSS/JavaScript fall from 23 to 2. Fingerprinted portal/SOP/CSV assets can cache immutably; HTML revalidates. Vercel adds MIME sniffing, referrer and framing protections. This CSP does not yet restrict scripts because inline handlers still exist.
+- Empty/hash/unsafe template URLs show availability text. The academic countdown and its reminder use the nearest valid admin-edited calendar deadline at the end of that day in WIB, advance after expiry, and stop while logged out, hidden or offscreen. This is display/reminder behavior, not a new submission deadline rule.
+- Repeated refresh clicks share one in-flight read for the same session. API deadlines cover response bodies as well as headers. Date filtering, waiting, timelines and notification ages consistently interpret timezone-less server timestamps as WIB.
+- Large student/lecturer/history tables use one DOM commit per render. Master rendering preserves its input array. Checklist rendering indexes original content once instead of repeatedly parsing it for every item.
+- Login makes background workspace controls inert, login errors announce through alert regions, and the WhatsApp widget uses a keyboard-accessible link.
+- The fourteenth suite tests the emitted production files, edited/expired calendar boundaries, downloaded reminder dates, template availability, timezone behavior, duplicate reads, stalled response bodies, stable table ordering, output exclusion and session cleanup. Tests use synthetic accounts and intercepted APIs. No Apps Script deployment or academic data migration is required for this frontend release.

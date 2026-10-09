@@ -42,6 +42,9 @@
     }
     function refresh() {
         const auth = authenticated(); document.body.classList.toggle('workspace-authenticated',auth);
+        for (const selector of ['#main-workspace','#main-sidebar','.mobile-nav-toggle','#wa-float-btn']) {
+            const node = document.querySelector(selector); if (node) node.inert = !auth;
+        }
         const profile = document.getElementById('workspace-profile'); profile.hidden = !auth;
         if (auth) {
             const name = String(currentUser.nama || text('Akun','Account'));
@@ -94,8 +97,8 @@
         const backdrop = document.getElementById('nav-backdrop'); if (!backdrop) return;
         const previouslyOpen = !backdrop.hidden; backdrop.hidden = !open;
         document.body.classList.toggle('nav-drawer-open',open);
-        document.getElementById('main-workspace').inert = open;
-        document.getElementById('student-bottom-nav').inert = open;
+        document.getElementById('main-workspace').inert = !authenticated() || open;
+        document.getElementById('student-bottom-nav').inert = !authenticated() || open;
         document.querySelectorAll('.mobile-nav-toggle,[data-bottom-target="menu"]').forEach(button => button.setAttribute('aria-expanded',String(open)));
         document.querySelector('[data-bottom-target="menu"]').setAttribute('aria-controls','main-sidebar');
         document.getElementById('btn-toggle-sidebar').setAttribute('aria-expanded',String(!sidebar.classList.contains('collapsed')));

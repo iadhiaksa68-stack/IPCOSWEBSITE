@@ -45,7 +45,7 @@ async function layout(page,label) {
 }
 (async()=>{
     const browser=await chromium.launch(),student=await login(browser);await student.bringToFront();
-    assert(!assets.includes('/sop.js'));assert(!assets.includes('/admin-export.js'));
+    assert(!assets.some(url=>/^\/sop(?:-[a-f0-9]+)?\.js$/.test(url)));assert(!assets.some(url=>/^\/admin-export(?:-[a-f0-9]+)?\.js$/.test(url)));
     await student.evaluate(()=>switchTab(null,'pendaftaran'));await student.selectOption('#reg-jenis-utama','Outline');await student.fill('#reg-judul','Original student title: eCommerce & IPCOS');
     await student.evaluate(()=>IPCOSNext.flushDraft());await student.waitForFunction(()=>document.getElementById('form-draft-status').textContent.includes('tersimpan di cloud'));
     assert.equal(saved().fields['reg-judul'],'Original student title: eCommerce & IPCOS');assert.equal(saved().revision,1);
@@ -62,7 +62,7 @@ async function layout(page,label) {
     pass('A lost save acknowledgement retains the draft and retries the same request without another revision');
 
     await second.setInputFiles('#file-transkrip',{name:'Transcript eCommerce.pdf',mimeType:'application/pdf',buffer:pdf('transcript')});await second.setInputFiles('#file-proposal',{name:'Original Proposal.pdf',mimeType:'application/pdf',buffer:pdf('proposal')});
-    await second.click('#file-proposal-guidance [data-guide="sop-tugas-akhir"]');await second.waitForSelector('#sop_tugas_akhir-view .sop-section');assert(assets.includes('/sop.js'));assert.equal((await second.locator('#sop_tugas_akhir-view h1').textContent()).trim(),'SOP tugas akhir asli admin');
+    await second.click('#file-proposal-guidance [data-guide="sop-tugas-akhir"]');await second.waitForSelector('#sop_tugas_akhir-view .sop-section');assert(assets.some(url=>/^\/sop(?:-[a-f0-9]+)?\.js$/.test(url)));assert.equal((await second.locator('#sop_tugas_akhir-view h1').textContent()).trim(),'SOP tugas akhir asli admin');
     await second.click('[data-guide-return]');assert.equal(await second.inputValue('#reg-judul'),'Retry without duplicate draft');assert.equal(await second.locator('#file-transkrip').evaluate(input=>input.files[0].name),'Transcript eCommerce.pdf');
     await second.click('#file-transkrip-guidance [data-guide="templates-faq"]');await second.click('[data-guide-return]');assert.equal(await second.locator('#file-proposal').evaluate(input=>input.files[0].name),'Original Proposal.pdf');
     pass('Contextual SOP/template detours load SOP on demand and return to the same form with selected files and authored guidance unchanged');
@@ -85,7 +85,7 @@ async function layout(page,label) {
 
     const admin=await login(browser,'admin');await admin.bringToFront();await admin.evaluate(()=>switchTab(null,'admin-data'));assert.equal(await admin.locator('#queue-advanced').evaluate(el=>el.open),false);assert.equal(await admin.locator('#queue-tools').evaluate(el=>el.open),false);assert.equal(await admin.locator('label[for="admin-search-input"]').count(),1);await admin.selectOption('#admin-status-filter','ALL');await admin.evaluate(()=>document.getElementById('queue-advanced').open=true);await admin.selectOption('#admin-type-filter','Proposal');await admin.fill('#admin-date-from','2026-10-01');await admin.fill('#admin-date-to','2026-10-09');await admin.selectOption('#admin-queue-order','oldest');await admin.click('#queue-tools>summary');await admin.click('.data-management>summary');
     const filtered=await admin.evaluate(()=>adminFilteredData.map(item=>item.id));assert(filtered.includes('fields'));assert(!filtered.includes('queue-12'));assert(!filtered.includes('queue-1'));assert((await admin.locator('#queue-date-error').textContent()).trim()==='');
-    let download=admin.waitForEvent('download');await admin.evaluate(()=>exportAdminDataCSV());let csv=fs.readFileSync(await (await download).path(),'utf8');assert(assets.includes('/admin-export.js'));assert.equal(csv.split('\r\n').length,filtered.length+1);for(const id of filtered)assert(csv.includes('"'+id+'"'));assert(!csv.includes('"queue-12"'));assert(csv.includes('Menunggu (Hari)'));
+    let download=admin.waitForEvent('download');await admin.evaluate(()=>exportAdminDataCSV());let csv=fs.readFileSync(await (await download).path(),'utf8');assert(assets.some(url=>/^\/admin-export(?:-[a-f0-9]+)?\.js$/.test(url)));assert.equal(csv.split('\r\n').length,filtered.length+1);for(const id of filtered)assert(csv.includes('"'+id+'"'));assert(!csv.includes('"queue-12"'));assert(csv.includes('Menunggu (Hari)'));
     await admin.selectOption('#admin-export-scope','all');download=admin.waitForEvent('download');await admin.evaluate(()=>exportAdminDataCSV());csv=fs.readFileSync(await (await download).path(),'utf8');assert.equal(csv.split('\r\n').length,f.rows.length);assert(csv.includes('"other"'));
     await admin.selectOption('#admin-queue-order','overdue');const scores=await admin.evaluate(()=>adminFilteredData.map(item=>{const wait=caseWaiting(item);return wait?wait.days-wait.target:-Infinity;}));assert(scores.every((score,index)=>index===0||score<=scores[index-1]));
     await admin.reload();await admin.waitForFunction(()=>syncPhase==='success');await admin.evaluate(()=>switchTab(null,'admin-data'));assert.equal(await admin.inputValue('#admin-queue-order'),'overdue');assert.equal(await admin.inputValue('#admin-date-to'),'2026-10-09');

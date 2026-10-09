@@ -8,6 +8,7 @@ function escapeHtml(value) {
 }
 
 function safeUrl(value) {
+    if (!String(value ?? '').trim() || String(value).trim().startsWith('#')) return '#';
     try {
         const url = new URL(String(value), window.location.href);
         return ['http:', 'https:'].includes(url.protocol) ? url.href : '#';
@@ -131,10 +132,10 @@ function formatDateTime(dateString) {
 }
 
 function timeAgo(dateString) {
-    const safeDate = typeof dateString === 'string' ? dateString.replace(' ', 'T') : dateString;
-    const date = new Date(safeDate);
+    const date = displayDate(dateString);
+    if (isNaN(date)) return '-';
     const now = new Date();
-    const seconds = Math.round((now - date) / 1000);
+    const seconds = Math.max(0, Math.round((now - date) / 1000));
     const minutes = Math.round(seconds / 60);
     const hours = Math.round(minutes / 60);
     const days = Math.round(hours / 24);
@@ -266,6 +267,7 @@ let loginBusy = false;
 const apiRequestContexts = new WeakMap();
 const modalCloseTimers = new Map();
 let isDbLoaded = false;
+let databaseSync = null;
 
 function getSessionToken() {
     if (currentUser.token) return currentUser.token;
@@ -287,12 +289,17 @@ function apiPost(url, options) {
     payload.token = context.token;
     const controller=new AbortController();let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;controller.abort();},120000);
     const abort=()=>controller.abort();if(options.signal?.aborted)abort();else options.signal?.addEventListener('abort',abort,{once:true});
-    return fetch(url, { ...options, signal:controller.signal, body: JSON.stringify(payload) }).then(response => { apiRequestContexts.set(response, context); return response; }).catch(error=>{if(context.epoch===sessionEpoch)window.IPCOSNext?.report(timedOut?'api_timeout':'network',context.action);throw error;}).finally(()=>{clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);});
+    context.cleanup=()=>{clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);};
+    context.timedOut=()=>timedOut;
+    // fetch resolves at response headers. Keep its deadline alive until JSON has
+    // also arrived, so a stalled response body cannot leave controls locked.
+    return fetch(url, { ...options, signal:controller.signal, body: JSON.stringify(payload) }).then(response => { apiRequestContexts.set(response, context); return response; }).catch(error=>{context.cleanup();if(context.epoch===sessionEpoch)window.IPCOSNext?.report(timedOut?'api_timeout':'network',context.action);throw error;});
 }
 async function readApiResult(response) {
     const context = apiRequestContexts.get(response);let result;
     try {result=await response.json();if(!result||typeof result!=='object'||Array.isArray(result))throw Error('Invalid API response');}
-    catch(error){if(context&&context.epoch===sessionEpoch)window.IPCOSNext?.report('api_response',context.action);throw error;}
+    catch(error){if(context&&context.epoch===sessionEpoch)window.IPCOSNext?.report(context.timedOut()?'api_timeout':'api_response',context.action);throw error;}
+    finally{context?.cleanup();}
     if (context && !['student_login', 'admin_login', 'logout'].includes(context.action)) {
         if (context.epoch !== sessionEpoch || context.token !== getSessionToken()) throw staleRequestError();
         if (result.status === 'error' && /sesi|session|token/i.test(result.message || '')) expireSession();
@@ -409,6 +416,7 @@ function clearPrivateCache() {
     const backupFolder = document.getElementById('backup-folder'); if (backupFolder) { backupFolder.hidden = true; backupFolder.removeAttribute('href'); }
     const serviceFields = document.getElementById('service-settings'); if (serviceFields) serviceFields.innerHTML = '';
     sessionEpoch++; readVersion++;
+    clearTimeout(countdownTimer); countdownTimer = null;
     ['ipcos_students', 'ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft', 'ipcos_pending_submission'].forEach(key => sessionStorage.removeItem(key));
     DB_MAHASISWA = {}; isDbLoaded = false; selectedCaseId = ''; lastSubmittedCaseId = '';
     currentAdminPage = 1; adminFilteredData = []; currentNotificationIds = [];
@@ -425,13 +433,13 @@ function clearPrivateCache() {
     document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; el.ipcosNotice=null; });
     document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); if(document.getElementById(el.id+'-format'))el.setAttribute('aria-describedby',el.id+'-format');else el.removeAttribute('aria-describedby'); });
     document.querySelectorAll('.overlay, .overlay-dialog').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
-    ['archive-list','archive-feedback','archive-count','table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    ['archive-list','archive-feedback','archive-count','table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     document.querySelectorAll('.admin-only, .student-only').forEach(el => { el.style.display = 'none'; });
     document.querySelectorAll('.chk-magang, .chk-skripsi').forEach(el => { el.checked = false; });
     renderAcademicStages();
     document.getElementById('admin-search-input').value = ''; document.getElementById('admin-status-filter').value = 'ACTION_REQUIRED';
-    ['archive-from','archive-to','archive-search','archive-reason','archive-service','input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama','input-rev-note','input-reply-note','input-reply-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['archive-from','archive-to','archive-search','archive-reason','archive-service','input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     editorTempData = [];
     window.IPCOSReview?.reset();
     window.IPCOSExperience?.reset();
@@ -445,6 +453,7 @@ function renderCachedTransactions() {
 
 function syncDatabase() {
     if (!getSessionToken()) return Promise.resolve();
+    if (databaseSync?.epoch === sessionEpoch) return databaseSync.promise;
     if (isOffline) {
         renderSyncStatus();
         const cachedRegs = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
@@ -461,7 +470,7 @@ function syncDatabase() {
         renderTableSkeleton('table-my-status', 3, 5);
         renderTimelineSkeleton('activity-timeline-container', 3);
     }
-    return apiRead()
+    const promise = apiRead()
         .then(data => {
 
             applyDatabaseSnapshot(data);
@@ -471,7 +480,9 @@ function syncDatabase() {
             setSyncPhase('error');
             renderCachedTransactions();
             showToast(uxText('Gagal menyegarkan data. Data terakhir tetap ditampilkan.', 'Refresh failed. Showing the last available data.'), 'error');
-        });
+        }).finally(() => { if (databaseSync?.promise === promise) databaseSync = null; });
+    databaseSync = {epoch:sessionEpoch, promise};
+    return promise;
 }
 
 function applyDatabaseSnapshot(data) {
@@ -493,7 +504,6 @@ function applyDatabaseSnapshot(data) {
                 sessionStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
                 if (currentUser.role === 'admin') {
                     renderDosenTable();
-                    populateDospemDropdown();
                 }
             }
 
@@ -689,7 +699,7 @@ function logoutUser() {
     if (confirm(msg + ((registrationDirty || caseEditorDirty() || isSubmittingRegistration || isPreparingCorrection) ? uxText(' Isian yang belum dikirim akan ditinggalkan.',' Unsent inputs will be discarded.') : ''))) {
         loginAttempt++; loginBusy = false; resetLoginButtons();
         sessionStorage.removeItem('ipcos_session');
-        apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(() => {});
+        apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).then(readApiResult).catch(() => {});
         currentUser = { nim: '', nama: '', role: '', token: '' };
         clearPrivateCache();
         renderTaskHome();
@@ -744,7 +754,7 @@ function renderNotifications() {
         });
     });
 
-    notifs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    notifs.sort((a, b) => displayDate(b.date).getTime() - displayDate(a.date).getTime());
     currentNotificationIds = notifs.map(n => n.key);
     const readIds = getReadNotificationIds();
     const unreadCount = notifs.filter(n => !readIds.includes(n.key)).length;
@@ -828,7 +838,7 @@ function renderActivityTimeline(records) {
     }
 
     let html = '';
-    myRecords.sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0, 5).forEach(r => {
+    myRecords.sort((a,b) => displayDate(getCaseEventTime(b))-displayDate(getCaseEventTime(a))).slice(0, 5).forEach(r => {
         let text = '';
         const stat = String(r.status).trim().toLowerCase();
 
@@ -1113,8 +1123,8 @@ function renderTaskHome() {
     const records = admin ? all : all.filter(item => String(item.nim) === String(currentUser.nim));
     const priority = item => { const status = String(item.status).toLowerCase(); return admin ? ({resubmitted:0,pending:1,revision:2,accepted:3}[status] ?? 4) : ({revision:0,resubmitted:1,pending:2,accepted:3}[status] ?? 4); };
     const actionable = records.filter(item => admin ? ['pending','resubmitted'].includes(String(item.status).toLowerCase()) : String(item.status).toLowerCase() !== 'accepted');
-    actionable.sort((a,b) => priority(a)-priority(b) || new Date(getCaseEventTime(a))-new Date(getCaseEventTime(b)));
-    const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0,1);
+    actionable.sort((a,b) => priority(a)-priority(b) || displayDate(getCaseEventTime(a))-displayDate(getCaseEventTime(b)));
+    const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => displayDate(getCaseEventTime(b))-displayDate(getCaseEventTime(a))).slice(0,1);
     const revisions = records.filter(item => String(item.status).toLowerCase() === 'revision').length;
     const title = admin ? uxText('Antrean kerja Anda', 'Your review queue') : uxText('Pengajuan Anda', 'Your requests');
     const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Di beranda, perbaikan masuk didahulukan, lalu aktivitas paling lama. Pilih urutan lain di Antrean.', actionable.length === 1 ? 'request needs review. Home shows corrections first, then oldest activity. Choose another order in the Queue.' : 'requests need review. Home shows corrections first, then oldest activity. Choose another order in the Queue.')}`
@@ -1371,7 +1381,7 @@ async function submitForm(e) {
     let finalDetail = `<b>Judul:</b> ${document.getElementById('reg-judul').value}`;
 
     try {
-        showLoader(currentLang === 'id' ? 'Mengompresi & Memproses Berkas...' : 'Compressing & Processing Files...');
+        showLoader(currentLang === 'id' ? 'Menyiapkan & Memeriksa Berkas...' : 'Preparing & Checking Files...');
 
         if (jenisUjian === "Outline") {
             const fTranskrip = document.getElementById('file-transkrip').files[0];
@@ -1601,13 +1611,15 @@ function renderDynamicContent() {
         const container = document.getElementById(containerId);
         if (!container) return;
 
+        const originalGroups = getChecklistData(type);
+        const originalItems = new Map(originalGroups.flatMap(group => group.items || []).map(item => [item.id, item]));
         const data = displayChecklistData(type).map(group => ({
             title: escapeHtml(group.title),
-            rawTitle: String(getChecklistData(type).find(original => original.items?.[0]?.id === group.items?.[0]?.id)?.title ?? group.title ?? ''),
+            rawTitle: String(originalGroups.find(original => original.items?.[0]?.id === group.items?.[0]?.id)?.title ?? group.title ?? ''),
             items: (group.items || []).map(item => ({
                 id: String(item.id ?? '').replace(/[^a-zA-Z0-9_-]/g, ''),
                 text: escapeHtml(item.text),
-                rawText: String(getChecklistData(type).flatMap(group=>group.items || []).find(original=>original.id===item.id)?.text ?? item.text ?? ''),
+                rawText: String(originalItems.get(item.id)?.text ?? item.text ?? ''),
                 sub: type === 'template_berkas' ? escapeHtml(safeUrl(item.sub)) : escapeHtml(item.sub)
             }))
         }));
@@ -1693,6 +1705,7 @@ function renderDynamicContent() {
         }
         container.innerHTML = html;
     });
+    startCountdownWidget();
 
     if (currentUser && currentUser.role === 'mhs') {
         loadProgressData();
@@ -2087,13 +2100,13 @@ function loadStudentStatus() {
             <span class="lang" data-id="Anda belum mengajukan pendaftaran apapun." data-en="You have not submitted any registration.">${currentLang === 'id' ? 'Anda belum mengajukan pendaftaran apapun.' : 'You have not submitted any registration.'}</span>
         </td></tr>`;
     } else {
-        myRecords.reverse().forEach(item => {
+        tbody.innerHTML = myRecords.reverse().map(item => {
             const stat = String(item.status).trim().toLowerCase();
             if (stat === 'revision') hasRevision = true;
 
             let actionButtons = `<button type="button" class="btn-chat-log" data-case-id="${escapeHtml(item.id)}">${systemText('Lihat Detail & Riwayat')}</button>`;
             if (stat === 'revision') {
-                actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
+                actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal(${escapeHtml(JSON.stringify(String(item.id)))})" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
             }
 
             let detailText = localizedDetailHtml(item.detail);
@@ -2116,14 +2129,14 @@ function loadStudentStatus() {
                 detailText += `<br><br><b style="color:var(--umy-maroon);">${uxText('Catatan Revisi Admin:', 'Admin correction notes:')}</b><br><span style="color:var(--text-muted);">${escapeHtml(latestRevNote)}</span>`;
             }
 
-            tbody.innerHTML += `<tr>
+            return `<tr>
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
                 <td style="vertical-align:top;"><b>${escapeHtml(systemText(item.jenis))}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${detailText}</td>
                 <td style="text-align:center; vertical-align:top;">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}</td>
                 <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
             </tr>`;
-        });
+        }).join('');
     }
 
     const mobileList = document.getElementById('student-mobile-list');
@@ -2184,7 +2197,7 @@ function filterAdminData() {
         const type = document.getElementById('admin-type-filter')?.value || '';
         const overdueOnly = document.getElementById('admin-overdue-filter')?.checked;
         const from=document.getElementById('admin-date-from').value,to=document.getElementById('admin-date-to').value;
-        const submitted=new Date(item.date),day=Number.isFinite(submitted.getTime())?submitted.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';
+        const submitted=displayDate(item.date),day=Number.isFinite(submitted.getTime())?submitted.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';
         return matchSearch && matchFilter && (!type || item.jenis === type) && (!overdueOnly || caseWaiting(item)?.overdue) && (!from || day>=from) && (!to || day<=to) && (!from || !to || from<=to);
     });
 
@@ -2196,7 +2209,7 @@ function filterAdminData() {
             const waitA=caseWaiting(a),waitB=caseWaiting(b);
             const score=wait=>wait ? wait.days-(order==='overdue'?wait.target:0) : -Infinity;
             if(score(waitA)!==score(waitB))return score(waitB)-score(waitA);
-            return (Date.parse(a.date)||0)-(Date.parse(b.date)||0);
+            return (displayDate(a.date).getTime()||0)-(displayDate(b.date).getTime()||0);
         }
         if (filterVal === 'ACTION_REQUIRED') {
             const priority = item => String(item.status).toLowerCase() === 'resubmitted' ? 0 : 1;
@@ -2205,8 +2218,8 @@ function filterAdminData() {
         const safeDateA = getCaseEventTime(a).replace(' ', 'T');
         const safeDateB = getCaseEventTime(b).replace(' ', 'T');
 
-        const dateA = safeDateA ? (new Date(safeDateA).getTime() || 0) : 0;
-        const dateB = safeDateB ? (new Date(safeDateB).getTime() || 0) : 0;
+        const dateA = safeDateA ? (displayDate(safeDateA).getTime() || 0) : 0;
+        const dateB = safeDateB ? (displayDate(safeDateB).getTime() || 0) : 0;
 
         return isAdminSortDesc ? (dateB - dateA) : (dateA - dateB);
     });
@@ -2295,80 +2308,41 @@ function openDocPreview(url) {
     if(selectedCaseId===String(item.id))previewCaseFile(getCaseFiles(item).findIndex(file=>file.url===url));
 }
 
+let countdownTimer = null;
+function nearestAcademicDeadline(now = Date.now()) {
+    const deadlines = [];
+    for (const group of getChecklistData('kalender')) for (const item of group.items || []) {
+        const date = academicCalendarDate(item.text);
+        if (!date) continue;
+        const day = date.toISOString().slice(0,10), end = Date.parse(day+'T23:59:59+07:00');
+        if (end >= now) deadlines.push({day, end, title:group.title, titleEn:group.titleEn});
+    }
+    return deadlines.sort((a,b) => a.end-b.end)[0] || null;
+}
+function renderAcademicCountdown(now = Date.now()) {
+    const deadline = nearestAcademicDeadline(now);
+    const missing = uxText('Belum ada jadwal berikutnya','No upcoming schedule');
+    document.querySelectorAll('[data-countdown-label]').forEach(el => {
+        el.textContent = deadline ? contentText(deadline.title,deadline.titleEn)+' · '+formatDate(deadline.day)+' WIB' : missing;
+    });
+    const remaining = deadline ? Math.max(0,Math.floor((deadline.end-now)/1000)) : 0;
+    const display = deadline ? `${Math.floor(remaining/86400)}d : ${Math.floor(remaining%86400/3600)}h : ${Math.floor(remaining%3600/60)}m : ${remaining%60}s` : '—';
+    document.querySelectorAll('.countdown-timer-display, #countdown-timer-display').forEach(el => { if (el.textContent !== display) el.textContent = display; });
+    document.querySelectorAll('[data-countdown-reminder]').forEach(button => { button.disabled = !deadline; });
+}
 function startCountdownWidget() {
-    const targetDate = new Date("October 19, 2026 23:59:59").getTime();
-
-    setInterval(() => {
-        const now = new Date().getTime();
-        const distance = targetDate - now;
-
-        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-        const textDisplay = (distance < 0)
-            ? systemText('DITUTUP')
-            : `${days}d : ${hours}h : ${minutes}m : ${seconds}s`;
-
-        document.querySelectorAll('.countdown-timer-display, #countdown-timer-display').forEach(el => {
-            if (el) el.innerText = textDisplay;
-        });
-    }, 1000);
+    clearTimeout(countdownTimer); countdownTimer = null;
+    renderAcademicCountdown();
+    if (document.hidden || !getSessionToken() || ![...document.querySelectorAll('.countdown-timer-display, #countdown-timer-display')].some(el => el.getClientRects().length)) return;
+    countdownTimer = setTimeout(startCountdownWidget,1000);
 }
-
-function openChatTimeline(id) {
-    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
-    const target = records.find(r => r.id === id);
-    const container = document.getElementById('chat-timeline-container');
-    container.innerHTML = '';
-
-    if (!target) return;
-
-    let logs = [];
-    if (target.note && target.note.trim() !== '') {
-        try {
-            logs = JSON.parse(target.note);
-        } catch (e) {
-            logs = [{ sender: 'Sistem', role: 'system', time: target.date, message: target.note }];
-        }
-    }
-
-    const stat = String(target.status).trim().toLowerCase();
-    if ((target.jenis === 'Outline' || target.jenis === 'Pergantian Pembimbing') && stat === 'accepted' && target.dospem) {
-        const hasDospemLog = logs.some(log => log.message.includes('Dosen Pembimbing'));
-
-        if (!hasDospemLog) {
-            logs.push({
-                sender: 'Admin IPCOS',
-                role: 'admin',
-                time: target.date,
-                message: currentLang === 'id'
-                    ? `Selamat! Pengajuan Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda adalah:<br><b style='color:#E03F4F; font-size:15px;'>${target.dospem}</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya.`
-                    : `Congratulations! Your Submission is <b>ACCEPTED</b>.<br><br>Your Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>${target.dospem}</b><br><br>Please contact them for further guidance.`
-            });
-        }
-    }
-
-    if (logs.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:var(--text-muted);" class="lang" data-id="Belum ada riwayat catatan." data-en="No note history yet.">${currentLang === 'id' ? 'Belum ada riwayat catatan.' : 'No note history yet.'}</p>`;
-    } else {
-        logs.forEach(log => {
-            const isMhs = log.role === 'mhs';
-            container.innerHTML += `<div class="chat-bubble ${isMhs ? 'chat-mhs' : 'chat-admin'}">
-                    <div class="chat-sender"><span>${escapeHtml(log.sender)} (${escapeHtml(String(log.role).toUpperCase())})</span><span style="opacity:0.7; font-weight:normal;">${formatDate(log.time)}</span></div>
-                    <div style="white-space:pre-line;">${sanitizeRichHtml(log.message)}</div></div>`;
-        });
-    }
-
-    const modal = document.getElementById('modal-chat-timeline');
-    modal.style.display = 'flex';
-    setTimeout(() => { modal.style.opacity = '1'; }, 10);
+function downloadNearestAcademicReminder() {
+    const deadline = nearestAcademicDeadline();
+    if (!deadline) { showToast(uxText('Belum ada jadwal berikutnya','No upcoming schedule'),'error'); return; }
+    downloadICS(contentText(deadline.title,deadline.titleEn),deadline.day);
 }
+document.addEventListener('visibilitychange',startCountdownWidget);
 
-// ==========================================
-// 13. UPDATE DATA & REVISI PERBAIKAN
-// ==========================================
 const activeUpdateIds = new Set();
 async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = null, correctedFields = null) {
     if (activeUpdateIds.has(id)) return false;
@@ -2447,45 +2421,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
     }
 }
 
-function acceptSubmission(id) { openCaseDetail(id); caseDetailAction('accept'); }
-function openRevisionModal(id) { openCaseDetail(id); caseDetailAction('revision'); }
-function openDospemModal(id) { openCaseDetail(id); caseDetailAction('dospem'); }
-
-function submitAdminDospem() {
-    const id = document.getElementById('hidden-dospem-id').value;
-    const dospem = document.getElementById('input-dospem-select').value;
-
-    if (dospem === "") {
-        showToast(currentLang === 'id' ? "Pilih Dosen Pembimbing terlebih dahulu!" : "Please select a Supervisor!", "error");
-        return;
-    }
-    closeModal('modal-dospem');
-
-    const note = currentLang === 'id'
-        ? `Selamat! Pengajuan Anda telah <b>DITERIMA</b>.<br><br>Dosen Pembimbing Anda (yang baru) adalah:<br><b style='color:#E03F4F; font-size:15px;'>${dospem}</b><br><br>Silakan segera menghubungi beliau untuk proses bimbingan selanjutnya.`
-        : `Congratulations! Your Submission is <b>ACCEPTED</b>.<br><br>Your (New) Supervisor is:<br><b style='color:#E03F4F; font-size:15px;'>${dospem}</b><br><br>Please contact them for further guidance.`;
-
-    sendUpdateRequest(id, 'Accepted', note, [], dospem);
-}
-
-function submitAdminRevision() {
-    const id = document.getElementById('hidden-rev-id').value; const note = document.getElementById('input-rev-note').value.trim();
-    if (note === "") { showToast(currentLang === 'id' ? "Pesan revisi tidak boleh kosong!" : "Revision note cannot be empty!", "error"); return; }
-    closeModal('modal-revision'); sendUpdateRequest(id, 'Revision', note);
-}
-
 function openReplyModal(id) { openCaseDetail(id); caseDetailAction('reply'); }
-
-async function submitStudentReply() {
-    const id = document.getElementById('hidden-reply-id').value; const note = document.getElementById('input-reply-note').value.trim();
-    const fileInput = document.getElementById('input-reply-file').files[0];
-    if (!note || !fileInput) { showToast(currentLang === 'id' ? "Catatan dan Berkas Revisi Baru wajib diisi!" : "Note and new revision file are required!", "error"); return; }
-    try {
-        const base64Data = await fileToBase64(fileInput); closeModal('modal-reply');
-        const fileData = [{ fileName: fileInput.name, mimeType: fileInput.type, base64: base64Data }];
-        sendUpdateRequest(id, 'Resubmitted', note, fileData);
-    } catch (err) { showToast(err.message, "error"); }
-}
 
 function closeModal(modalId, force = false) {
     if (modalId === 'modal-sop-editor' && !force) { window.IPCOSSop?.cancel(); return; }
@@ -2497,7 +2433,6 @@ function closeModal(modalId, force = false) {
     clearTimeout(modalCloseTimers.get(modalId));
     if (modal.tagName && modal.tagName.toLowerCase() === 'dialog') {
         if (modal.open) modal.close();
-        if (modalId === 'modal-doc-preview') { document.getElementById('iframe-doc-viewer').src = 'about:blank'; document.getElementById('btn-download-direct').removeAttribute('href'); }
         return;
     }
     if (force) { modal.style.display = 'none'; modal.style.opacity = '0'; return; }
@@ -2549,6 +2484,7 @@ function switchTab(event, tabId) {
     if (tabId === 'sop-magang') window.IPCOSSop?.open('sop_magang');
     if (tabId === 'sop-tugas-akhir') window.IPCOSSop?.open('sop_tugas_akhir');
 
+    startCountdownWidget();
     if (tabId === 'pendaftaran') {
         loadFormDraft();
         const form = document.getElementById('pendaftaran');
@@ -2765,12 +2701,12 @@ async function postAnnouncement(customMsg = null, customType = null) {
 // ==========================================
 function renderMasterMahasiswa(students) {
     const tbody = document.getElementById('table-master-mhs');
-    if (!tbody) return; tbody.innerHTML = '';
-    students.reverse().forEach(s => {
+    if (!tbody) return;
+    tbody.innerHTML = [...students].reverse().map(s => {
         const statusMhs = s.Status || s.status || "Aktif"; let badgeClass = "badge-accepted";
         if (statusMhs.toLowerCase() === "tidak aktif") badgeClass = "badge-revision"; else if (statusMhs.toLowerCase() === "lulus") badgeClass = "badge-resubmitted";
-        tbody.innerHTML += `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(systemText(statusMhs))}</span></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">${uxText('Hapus','Delete')}</button></td></tr>`;
-    });
+        return `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(systemText(statusMhs))}</span></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">${uxText('Hapus','Delete')}</button></td></tr>`;
+    }).join('');
 }
 
 async function addStudent() {
@@ -2821,7 +2757,6 @@ function closeAnnouncementModal() {
 function renderDosenTable() {
     const tbody = document.getElementById('table-admin-dosen');
     if (!tbody) return;
-    tbody.innerHTML = '';
 
     const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
 
@@ -2831,7 +2766,7 @@ function renderDosenTable() {
         return sisaB - sisaA;
     });
 
-    dosens.forEach(d => {
+    tbody.innerHTML = dosens.map(d => {
         const nama = d.Nama;
         const terpakai = parseInt(d.Terpakai) || 0;
         const maksimal = parseInt(d.Maksimal) || 0;
@@ -2841,7 +2776,7 @@ function renderDosenTable() {
         if (sisa <= 0) statusBadge = `<span class="status-badge badge-revision">${uxText('Penuh','Full')}</span>`;
         else if (sisa <= 2) statusBadge = `<span class="status-badge badge-pending">${uxText('Hampir Penuh','Nearly full')}</span>`;
 
-        tbody.innerHTML += `
+        return `
             <tr>
                 <td><b>${escapeHtml(nama)}</b></td>
                 <td style="text-align: center; font-size: 16px; font-weight: bold;">${terpakai}</td>
@@ -2853,26 +2788,7 @@ function renderDosenTable() {
                 </td>
             </tr>
         `;
-    });
-}
-
-function populateDospemDropdown() {
-    const select = document.getElementById('input-dospem-select');
-    if (!select) return;
-
-    const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
-    let html = '<option value="">-- Pilih Dosen Pembimbing --</option>';
-
-    dosens.sort((a, b) => a.Nama.localeCompare(b.Nama));
-
-    dosens.forEach(d => {
-        const sisa = parseInt(d.Maksimal) - parseInt(d.Terpakai);
-        const disabled = sisa <= 0 ? 'disabled' : '';
-        const warn = sisa <= 0 ? '(PENUH)' : `(Sisa Kuota: ${sisa})`;
-        html += `<option value="${escapeHtml(d.Nama)}" ${disabled}>${escapeHtml(d.Nama)} ${warn}</option>`;
-    });
-
-    select.innerHTML = html;
+    }).join('');
 }
 
 function openEditDosen(nama, terpakai, maksimal) {
@@ -2971,6 +2887,7 @@ document.querySelectorAll('.overlay').forEach(overlay => {
 const secondaryDashboard = document.querySelector('.dashboard-secondary');
 if (secondaryDashboard) secondaryDashboard.addEventListener('toggle', () => {
     if (secondaryDashboard.open) showDashboardCharts();
+    startCountdownWidget();
 });
 document.addEventListener('keydown', event => {
     const login = document.getElementById('welcome-modal');

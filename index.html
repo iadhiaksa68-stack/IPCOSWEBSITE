@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>Portal Akademik IPCOS UMY</title>
 
-    <!-- Mobile & PWA Theme Meta -->
+    <meta name="description" content="Portal akademik IPCOS UMY untuk pengajuan dokumen, pemantauan magang dan skripsi, serta panduan mahasiswa Ilmu Komunikasi.">
+
+    <!-- Mobile Theme Meta -->
     <meta name="theme-color" content="#1A1614">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -101,88 +103,6 @@
             <button type="button" class="btn-primary" onclick="goToSubmittedCase()">Lihat Status Pengajuan</button>
         </div>
     </div>
-    <div id="modal-chat-timeline" class="overlay" style="display: none; z-index: 2000;">
-        <div class="modal-card" style="max-width: 550px; text-align: left;">
-            <h2 class="lang" data-id="Riwayat Percakapan Revisi" data-en="Revision History Log">Riwayat Percakapan
-                Revisi</h2>
-            <div id="chat-timeline-container"
-                style="max-height: 350px; overflow-y: auto; padding: 10px; background: var(--bg-color); border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--item-border);">
-            </div>
-            <button class="btn-primary lang" style="background-color: var(--umy-maroon);"
-                onclick="closeModal('modal-chat-timeline')" data-id="Tutup" data-en="Close">Tutup</button>
-        </div>
-    </div>
-
-    <!-- HTML5 Native Dialog for Document Preview -->
-    <dialog id="modal-doc-preview" class="overlay-dialog" style="z-index: 2100;">
-        <div class="modal-card" style="max-width: 800px; width: 95%; text-align: left; padding: 25px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin:0; color:var(--heading-color);" class="lang" data-id="Preview Berkas Dokumen"
-                    data-en="Document File Preview">Preview Berkas Dokumen</h3>
-                <button aria-label="Tutup Modal" onclick="closeModal('modal-doc-preview')"
-                    style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-color); padding: 5px 10px;">X</button>
-            </div>
-            <div
-                style="height: 400px; width: 100%; background: #222; border-radius: 14px; overflow: hidden; -webkit-overflow-scrolling: touch;">
-                <iframe id="iframe-doc-viewer" src="" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-            <div style="text-align: center; margin-top: 10px;">
-                <p style="font-size: 13px; color: #ff5722;" class="lang"
-                    data-id="Jika dokumen tidak muncul, klik tombol 'Buka di Tab Baru'."
-                    data-en="If document not showing, click 'Open in New Tab'.">Jika dokumen tidak muncul, klik tombol
-                    'Buka di Tab Baru'.</p>
-            </div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 15px; gap: 10px; flex-wrap: wrap;">
-                <a id="btn-download-direct" href="#" target="_blank" class="btn-primary lang"
-                    style="background-color: var(--umy-green); text-decoration: none; width: auto; padding: 12px 20px;"
-                    data-id="Buka di Tab Baru" data-en="Open in New Tab">Buka di Tab Baru</a>
-                <button class="btn-secondary lang" style="width: auto; padding: 12px 20px;"
-                    onclick="closeModal('modal-doc-preview')" data-id="Tutup" data-en="Close">Tutup</button>
-            </div>
-        </div>
-    </dialog>
-
-    <!-- Admin Modals -->
-    <div id="modal-revision" class="overlay" style="display: none; z-index: 2000;">
-        <div class="modal-card">
-            <h2 class="lang" data-id="Pesan Revisi" data-en="Revision Note">Pesan Revisi</h2>
-            <label for="input-rev-note" class="lang"
-                style="font-size: 15px; margin-bottom: 15px; color: var(--text-color); display:block;"
-                data-id="Ketikkan detail revisi:" data-en="Enter revision details:">Ketikkan detail revisi untuk
-                mahasiswa:</label>
-            <textarea id="input-rev-note" rows="4" placeholder="Misal: Transkrip belum terstempel resmi..."></textarea>
-            <input type="hidden" id="hidden-rev-id">
-            <div style="display: flex; gap: 12px; margin-top: 15px;">
-                <button class="btn-secondary lang" onclick="closeModal('modal-revision')" data-id="Batal"
-                    data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" onclick="submitAdminRevision()" data-id="Kirim Revisi"
-                    data-en="Send Revision">Kirim Revisi</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-dospem" class="overlay" style="display: none; z-index: 2000;">
-        <div class="modal-card">
-            <h2 class="lang" data-id="Tunjuk Dosen Pembimbing" data-en="Assign Supervisor">Tunjuk Dosen Pembimbing</h2>
-            <label for="input-dospem-select" class="lang"
-                style="font-size: 14px; margin-bottom: 12px; color: var(--text-color); display:block;"
-                data-id="Pilih dosen pembimbing:" data-en="Select supervisor:">Pilih dosen pembimbing untuk outline
-                mahasiswa ini:</label>
-            <div class="form-group" style="text-align: left;">
-                <select id="input-dospem-select" style="border-color: var(--item-border); border-width: 2px;">
-                    <option value="">-- Memuat Data Dosen... --</option>
-                </select>
-            </div>
-            <input type="hidden" id="hidden-dospem-id">
-            <div style="display: flex; gap: 12px; margin-top: 15px;">
-                <button class="btn-secondary lang" onclick="closeModal('modal-dospem')" data-id="Batal"
-                    data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" style="background-color: var(--umy-green);"
-                    onclick="submitAdminDospem()" data-id="Tunjuk & Terima" data-en="Assign & Accept">Tunjuk &
-                    Terima</button>
-            </div>
-        </div>
-    </div>
 
     <!-- MODAL EDIT KUOTA DOSEN -->
     <div id="modal-edit-dosen" class="overlay" style="display: none; z-index: 2500;">
@@ -212,42 +132,6 @@
     </div>
 
     <!-- Mhs Modals -->
-    <div id="modal-reply" class="overlay" style="display: none; z-index: 2000;">
-        <div class="modal-card">
-            <h2 class="lang" data-id="Kirim Perbaikan" data-en="Submit Correction">Kirim Perbaikan</h2>
-            <p class="lang" style="font-size: 14px; margin-bottom: 20px; color: var(--text-color);"
-                data-id="Upload file baru dan catatan." data-en="Upload new file and notes.">Upload berkas baru Anda dan
-                berikan catatan perbaikan.</p>
-            <div style="text-align: left; margin-bottom: 15px;">
-                <label for="input-reply-file"
-                    style="font-size: 13px; font-weight: bold; color: var(--heading-color); display:block; margin-bottom: 6px;">Upload
-                    Berkas Revisi (PDF / DOCX) *</label>
-                <div class="dropzone" onclick="document.getElementById('input-reply-file').click()"
-                    ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)"
-                    ondrop="handleDropZone(event, this, 'input-reply-file', 'name-reply-file')" tabindex="0">
-                    <div class="dz-message"><span class="lang" data-id="Klik atau seret berkas ke sini"
-                            data-en="Click or drag file here">Klik atau seret berkas ke sini</span></div>
-                    <div id="name-reply-file" class="dz-file-name"></div>
-                    <input type="file" id="input-reply-file" accept=".pdf,.doc,.docx" required style="display:none;"
-                        onchange="validateFile(this, 'name-reply-file')">
-                </div>
-            </div>
-            <div style="text-align: left;">
-                <label for="input-reply-note"
-                    style="font-size: 13px; font-weight: bold; color: var(--heading-color); display:block; margin-bottom: 6px;">Catatan
-                    / Pesan Balasan *</label>
-                <textarea id="input-reply-note" rows="3" placeholder="Misal: Saya sudah mengupload transkrip baru..."
-                    required style="margin-top: 5px;"></textarea>
-            </div>
-            <input type="hidden" id="hidden-reply-id">
-            <div style="display: flex; gap: 12px; margin-top: 15px;">
-                <button class="btn-secondary lang" onclick="closeModal('modal-reply')" data-id="Batal"
-                    data-en="Cancel">Batal</button>
-                <button class="btn-primary lang" style="background-color: var(--umy-gold); color: #1a1a1a;"
-                    onclick="submitStudentReply()" data-id="Kirim Ulang" data-en="Resubmit">Kirim Ulang</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Content Editor -->
     <div id="modal-edit-content" class="overlay" style="display: none; z-index: 2500;">
@@ -313,7 +197,7 @@
                     data-en="Admin">Admin</button>
             </div>
             <form id="form-mhs" onsubmit="event.preventDefault(); loginMhs();">
-                <p id="error-msg-mhs" class="error-msg"></p>
+                <p id="error-msg-mhs" class="error-msg" role="alert"></p>
                 <label for="input-nim"
                     style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
                     class="lang" data-id="NIM / Student ID" data-en="NIM / Student ID">NIM / Student ID</label>
@@ -325,7 +209,7 @@
             <form id="form-admin" style="display:none;" onsubmit="event.preventDefault(); loginAdmin();">
                 <p class="lang" style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;"
                     data-id="Masukkan akun admin Anda." data-en="Enter your admin account.">Masukkan akun admin Anda.</p>
-                <p id="error-msg-admin" class="error-msg"></p>
+                <p id="error-msg-admin" class="error-msg" role="alert"></p>
                 <label for="input-admin-user"
                     style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
                     class="lang" data-id="Username admin" data-en="Admin username">Username admin</label>
@@ -346,14 +230,14 @@
     </div>
 
     <!-- Sidebar & Nav -->
-    <button type="button" class="mobile-nav-toggle" onclick="toggleSidebar()" aria-label="Buka menu navigasi" aria-controls="main-sidebar">
+    <button type="button" class="mobile-nav-toggle" inert onclick="toggleSidebar()" aria-label="Buka menu navigasi" aria-controls="main-sidebar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M3 12h18M3 6h18M3 18h18" />
         </svg>
         <span>Menu</span>
     </button>
 
-    <nav class="sidebar" id="main-sidebar" aria-label="Navigasi utama">
+    <nav class="sidebar" id="main-sidebar" inert aria-label="Navigasi utama">
         <!-- 10. Penyegaran Identitas Visual dengan Logo Baru (Abstract Concept) -->
         <div class="logo-area" style="display: flex; align-items: center; gap: 12px; margin-bottom: 30px;">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -389,7 +273,7 @@
     </nav>
 
     <!-- Main Workspace -->
-    <main class="main-content" id="main-workspace">
+    <main class="main-content" id="main-workspace" inert>
         <!-- Header Actions -->
         <div class="workspace-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
             <button class="btn-toggle-sidebar" id="btn-toggle-sidebar" onclick="toggleDesktopSidebar()"
@@ -510,7 +394,7 @@
                     </div>
                     <div class="bento-body-center">
                         <div style="font-size: 13px; font-weight: 700; color: #fff; opacity: 0.8; margin-bottom: 5px;">
-                            Periode II</div>
+                            <span data-countdown-label></span></div>
                         <div id="countdown-timer-display" class="bento-timer-text">Memuat...</div>
                     </div>
                 </div>
@@ -577,8 +461,7 @@
                 <div class="bento-card bento-col-1 bento-card-dark" style="text-align: center;">
                     <div style="font-size: 12px; font-weight: 700; color: var(--umy-gold); text-transform: uppercase;">
                         Yudisium Terdekat</div>
-                    <div style="font-size: 14px; font-weight: 600; color: #fff; margin: 10px 0;">Periode II (Oktober
-                        2026)</div>
+                    <div style="font-size: 14px; font-weight: 600; color: #fff; margin: 10px 0;" data-countdown-label></div>
                     <div class="countdown-timer-display bento-timer-text" style="font-size: 24px;">Memuat...</div>
                 </div>
 
@@ -948,13 +831,12 @@
                 style="width: 100%; padding: 24px 20px; margin-bottom: 24px; text-align: center;">
                 <div style="font-size: 12px; font-weight: 700; color: var(--umy-gold); text-transform: uppercase;">
                     Countdown Batas Yudisium Terdekat</div>
-                <div style="font-size: 14px; font-weight: 600; color: #ffffff; opacity: 0.9; margin-top: 5px;">Periode
-                    II - Batas: 19 Oktober 2026</div>
+                <div style="font-size: 14px; font-weight: 600; color: #ffffff; opacity: 0.9; margin-top: 5px;" data-countdown-label></div>
                 <div class="countdown-timer-display bento-timer-text"
                     style="font-size: 28px; font-weight: 800; margin-top: 8px;">Memuat...</div>
                 <button class="btn-primary"
                     style="background: var(--umy-green); width: fit-content; margin: 15px auto 0; font-size: 13px;"
-                    onclick="downloadICS('Yudisium Terdekat', '2026-10-19')">🔔 Pasang Reminder di HP</button>
+                    data-countdown-reminder onclick="downloadNearestAcademicReminder()">🔔 Pasang Reminder di HP</button>
             </div>
             <button class="btn-primary admin-only" onclick="openContentEditor('kalender')"
                 style="margin-bottom: 20px; width: auto;">Edit Kalender TA</button>
@@ -998,7 +880,7 @@
             <div class="card" style="text-align: center; padding: 30px 20px;">
                 <h2 style="margin-top: 0;">Hubungi Tim IPCOS</h2>
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                    <a href="https://wa.me/6285172228960" target="_blank" class="btn-contact btn-whatsapp">WhatsApp
+                    <a href="https://wa.me/6285172228960" target="_blank" rel="noopener noreferrer" class="btn-contact btn-whatsapp">WhatsApp
                         Mincos</a>
                 </div>
             </div>
@@ -1007,7 +889,7 @@
     </main>
 
     <!-- WhatsApp Floating Widget -->
-    <div id="wa-float-btn" class="wa-float-container" onclick="window.open('https://wa.me/6285172228960', '_blank')">
+    <a id="wa-float-btn" inert class="wa-float-container" href="https://wa.me/6285172228960" target="_blank" rel="noopener noreferrer" aria-label="Hubungi Mincos">
         <div class="wa-bumper lang" data-id="Hubungi Mincos" data-en="Contact Mincos">Hubungi Mincos</div>
         <div class="wa-icon-circle">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
@@ -1015,7 +897,7 @@
                     d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766 0 1.011.263 1.996.763 2.862l-.815 2.977 3.047-.8c.84.463 1.79.707 2.77.707h.001c3.18 0 5.767-2.586 5.767-5.766 0-3.18-2.587-5.767-5.765-5.767zm0 10.428c-.854 0-1.69-.229-2.42-.662l-.174-.103-1.8.472.483-1.753-.113-.18c-.475-.758-.727-1.638-.727-2.548 0-2.651 2.156-4.807 4.808-4.807 2.651 0 4.808 2.156 4.808 4.808 0 2.652-2.157 4.808-4.809 4.808z" />
             </svg>
         </div>
-    </div>
+    </a>
 
     <!-- Confetti Canvas untuk Status Selesai 100% -->
     <canvas id="confetti-canvas"

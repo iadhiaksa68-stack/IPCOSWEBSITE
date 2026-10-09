@@ -166,7 +166,7 @@
         if(!interfaceReady)return;
         const selectors='h1,h2,h3,h4,summary,button,label,option,th';
         document.querySelectorAll(selectors).forEach(el=>{
-            if(el.closest('[data-preserve-case],#welcome-modal,#workspace-profile,#faq-content-container,#template_berkas-content-container,#kalender-content-container,#kurikulum-content-container,#remidial-content-container,#input-dospem-select,#case-supervisor,.sop-page,#modal-sop-editor,.case-content-block,.case-timeline,.case-file-row,.academic-stage,.journey-stage')||el.matches('#edit-dosen-name-display,[data-case-id],[data-requirement-field],[data-clear-filter]'))return;
+            if(el.closest('[data-preserve-case],#welcome-modal,#workspace-profile,#faq-content-container,#template_berkas-content-container,#kalender-content-container,#kurikulum-content-container,#remidial-content-container,#case-supervisor,.sop-page,#modal-sop-editor,.case-content-block,.case-timeline,.case-file-row,.academic-stage,.journey-stage')||el.matches('#edit-dosen-name-display,[data-case-id],[data-requirement-field],[data-clear-filter]'))return;
             const nodes=[...el.childNodes,...[...el.children].filter(child=>child.matches('span')).flatMap(child=>[...child.childNodes])];
             nodes.filter(node=>node.nodeType===Node.TEXT_NODE).forEach(node=>{const value=labelCase(node.textContent);if(value!==node.textContent)node.textContent=value;});
         });
