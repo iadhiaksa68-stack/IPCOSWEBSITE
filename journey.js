@@ -179,7 +179,7 @@ function journeySyncText() {
 }
 function journeyRecords(nim) {
     if (currentUser.role !== 'admin' && (currentUser.role !== 'mhs' || String(nim) !== String(currentUser.nim))) return [];
-    return readStoredJSON(sessionStorage,'ipcos_registrations',[]).filter(item=>String(item.nim) === String(nim)).sort((a,b)=>(Date.parse(getCaseEventTime(b))||0)-(Date.parse(getCaseEventTime(a))||0));
+    return readStoredJSON(sessionStorage,'ipcos_registrations',[]).filter(item=>String(item.nim) === String(nim)).sort((a,b)=>(displayDate(getCaseEventTime(b)).getTime()||0)-(displayDate(getCaseEventTime(a)).getTime()||0));
 }
 function journeyStageHtml(type,records) {
     const cases = records.filter(item=>item.jenis===type);

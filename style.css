@@ -1325,6 +1325,8 @@ body.dark-mode .deadline-tag {
 
 /* WHATSAPP FLOATING */
 .wa-float-container {
+    text-decoration: none;
+    color: inherit;
     position: fixed;
     bottom: 24px;
     right: 20px;
@@ -1975,12 +1977,6 @@ dialog.overlay-dialog[open] {
     }
 }
 
-/* Perbaikan Tinggi Preview Dokumen di HP */
-@media screen and (max-width: 480px) {
-    #modal-doc-preview > div > div:nth-child(2) {
-        height: 60vh !important; 
-    }
-}
 
 /* Perbaikan Layout Panel Admin di HP */
 @media screen and (max-width: 480px) {

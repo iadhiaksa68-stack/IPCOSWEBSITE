@@ -85,7 +85,7 @@
     function archiveCandidates(){
         const from=el('archive-from')?.value||'',to=el('archive-to')?.value||'',type=el('archive-service')?.value||'';
         if(!from||!to||from>to)return [];
-        return readStoredJSON(sessionStorage,'ipcos_registrations',[]).filter(item=>{const date=new Date(item.date),day=Number.isFinite(date.getTime())?date.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';return String(item.status).toLowerCase()==='accepted'&&!archived(item)&&(!type||item.jenis===type)&&day&&day>=from&&day<=to;});
+        return readStoredJSON(sessionStorage,'ipcos_registrations',[]).filter(item=>{const date=displayDate(item.date),day=Number.isFinite(date.getTime())?date.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';return String(item.status).toLowerCase()==='accepted'&&!archived(item)&&(!type||item.jenis===type)&&day&&day>=from&&day<=to;});
     }
     function renderArchives(){
         const root=el('archive-list');if(!root||currentUser.role!=='admin')return;
@@ -93,7 +93,7 @@
         el('archive-period-button').disabled=archiveBusy||supported!==true;
         el('archive-availability').textContent=supported===false?t('Arsip dan pemulihan menunggu aktivasi backend. Data belum diubah.','Archive and restore are awaiting backend activation. No data has been changed.'):supported===null?t('Memeriksa ketersediaan arsip…','Checking archive availability…'):'';
         const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]).filter(archived),search=(el('archive-search')?.value||'').trim().toLowerCase();
-        const filtered=records.filter(item=>[item.id,item.nama,item.nim,item.jenis,new Date(item.date).getFullYear()].some(value=>String(value).toLowerCase().includes(search)));
+        const filtered=records.filter(item=>[item.id,item.nama,item.nim,item.jenis,displayDate(item.date).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric'})].some(value=>String(value).toLowerCase().includes(search)));
         el('archive-count').textContent=records.length+' '+t('Pengajuan di Arsip','Archived Requests');
         el('archive-preview-count').textContent=archiveCandidates().length+' '+t('Pengajuan Selesai Sesuai Periode','Completed Requests in This Period');
         root.innerHTML=filtered.length?filtered.map(item=>`<div class="archive-item"><div><strong>${escapeHtml(item.nama)} · ${escapeHtml(systemText(item.jenis))}</strong><p>${escapeHtml(item.id)} · ${escapeHtml(formatDate(item.date))}</p><small>${t('Alasan: ','Reason: ')}${escapeHtml(archive(item).reason||'')}</small></div><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${t('Buka','Open')}</button><button type="button" class="btn-secondary" data-restore-request="${escapeHtml(item.id)}" ${archiveBusy||supported!==true?'disabled':''}>${t('Pulihkan','Restore')}</button></div>`).join(''):`<p>${t('Tidak ada arsip yang cocok.','No matching archived requests.')}</p>`;
