@@ -17,7 +17,7 @@
         const filters=document.createElement('div');filters.id='queue-filter-summary';filters.className='queue-filter-summary';filters.setAttribute('aria-live','polite');advanced.after(filters);
         const utilities=document.createElement('details');utilities.id='queue-tools';utilities.className='queue-tools';
         utilities.innerHTML='<summary class="lang" data-id="Rekap & Kesehatan Layanan" data-en="Reports & Service Health">Rekap & Kesehatan Layanan</summary><div class="queue-tools-content"></div>';
-        card.append(utilities);utilities.querySelector('div').append(card.querySelector('.data-management'),card.querySelector('.health-management'));
+        card.append(utilities);utilities.querySelector('div').append(card.querySelector('.data-management'),el('admin-archives'),card.querySelector('.health-management'));
         const presets=document.createElement('div');presets.className='queue-presets';
         presets.innerHTML=[['review','Perlu Ditinjau','Needs Review'],['corrections','Perbaikan Masuk','Corrections Received'],['overdue','Lewat Target','Past Target']].map(([key,id,en])=>`<button type="button" class="btn-secondary lang" data-queue-preset="${key}" data-id="${id}" data-en="${en}">${text(id,en)}</button>`).join('');
         controls.before(presets);

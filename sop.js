@@ -195,9 +195,33 @@
         const fold = document.getElementById('sop-fold-sections');
         if (fold) fold.textContent = editor.draft.sections.every(section=>editor.collapsed.has(section.id)) ? t('Buka semua','Expand all') : t('Ringkas semua','Collapse all');
     }
+    function translationFields(doc) {
+        const fields=[['sop-title',t('Judul SOP','SOP title'),doc.title,doc.titleEn],['sop-intro',t('Pengantar','Introduction'),doc.intro,doc.introEn]];
+        doc.sections.forEach((section,index)=>{
+            const label=t('Bagian ','Section ')+(index+1);
+            fields.push(['sop-'+section.id+'-title',label+' · '+t('Judul','Title'),section.title,section.titleEn]);
+            fields.push(['sop-'+section.id+'-body',label+' · '+t('Isi','Content'),section.body,section.bodyEn]);
+            section.links.forEach((link,i)=>fields.push(['sop-'+section.id+'-'+link.id+'-label',label+' · '+t('Tautan ','Link ')+(i+1),link.label,link.labelEn]));
+        });
+        return fields.filter(([,label,original,english])=>original.trim() || english.trim());
+    }
+    function translationCoverage() {
+        const fields=translationFields(editor.draft),missing=fields.filter(([,label,original,english])=>original.trim()&&!english.trim());
+        let box=document.getElementById('sop-translation-coverage');
+        if(!box){box=document.createElement('section');box.id='sop-translation-coverage';box.className='translation-coverage';document.getElementById('sop-editor-fields').prepend(box);}
+        box.innerHTML='<strong>'+t('Kelengkapan English','English Coverage')+' · '+(fields.length-missing.length)+'/'+fields.length+'</strong><p>'+ (missing.length?t('Bagian berikut masih memakai teks Indonesia untuk mahasiswa internasional. Klik untuk melengkapi.','These parts still use Indonesian text for international students. Select a part to translate it.'):t('Seluruh bagian yang berisi teks memiliki versi English. Tetap periksa ketepatan terjemahannya.','All text sections have an English version. Please check translation accuracy.'))+'</p>'+(missing.length?'<ul>'+missing.map(([id,label])=>'<li><button type="button" data-translation-target="'+escapeHtml(id)+'">'+escapeHtml(label)+'</button></li>').join('')+'</ul>':'');
+        box.onclick=event=>{
+            const button=event.target.closest('[data-translation-target]');if(!button)return;
+            const original=document.getElementById(button.dataset.translationTarget);const section=original?.closest('[data-section-id]');
+            if(section){editor.collapsed.delete(section.dataset.sectionId);updateCollapsedSections();}
+            const englishId=button.dataset.translationTarget==='sop-title'?'sop-title-en':button.dataset.translationTarget==='sop-intro'?'sop-intro-en':button.dataset.translationTarget.replace(/-(title|body|label)$/,'-$1En');
+            const target=document.getElementById(englishId);const details=target?.closest('details');if(details)details.open=true;target?.focus();target?.scrollIntoView({block:'nearest'});
+        };
+    }
     function updateEditorState() {
         if (!editor) return;
         updateCollapsedSections();
+        translationCoverage();
         document.getElementById('sop-preview').textContent = editor.preview ? t('Kembali mengedit','Back to editing') : t('Pratinjau','Preview');
         document.getElementById('sop-save').textContent = editor.busy ? t('Menyimpan…','Saving…') : t('Simpan & Terbitkan','Save & Publish');
         document.getElementById('sop-editor-fields').hidden = editor.preview;

@@ -231,6 +231,9 @@ const contentEnglish = {
     'Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan.':'The deadline for proposal corrections is one month after the exam.',
 };
 
+interfaceEnglish['Pemeriksaan per berkas disimpan.']='Per-document review saved.';
+interfaceEnglish['Pengajuan dipindahkan ke arsip.']='Request moved to the archive.';
+interfaceEnglish['Pengajuan dipulihkan dari arsip.']='Request restored from the archive.';
 // One display glossary; stored service enums remain canonical.
 const serviceLabels = {
     Outline:['Pengajuan Outline Skripsi','Thesis Outline'],
@@ -399,5 +402,5 @@ function localizedSystemNote(source) {
     const assignment = text.match(/^Pengajuan disetujui\. Dosen Pembimbing: (.+)\. Silakan hubungi dosen untuk tahapan bimbingan berikutnya\.$/);
     if (assignment) return escapeHtml('Request approved. Supervisor: ' + assignment[1] + '. Contact your supervisor for the next supervision stage.');
     if (text === 'Berkas telah disetujui dan terverifikasi.') return escapeHtml(systemText(text));
-    return safe;
+    return interfaceEnglish[text]?escapeHtml(systemText(text)):safe;
 }

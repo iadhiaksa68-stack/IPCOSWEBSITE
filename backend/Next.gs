@@ -1,5 +1,5 @@
 // Optional workflow extensions. No new spreadsheet, column, credential or public file.
-const NEXT_ACTIONS = ['get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health'];
+const NEXT_ACTIONS = ['get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health','get_review_capabilities','get_document_review','save_document_review','archive_request','restore_request'];
 const NEXT_DRAFT_FIELDS = ['reg-jenis-utama','reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti'];
 function nextHash(value) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(value)).map(b=>('0'+((b+256)%256).toString(16)).slice(-2)).join(''); }
 function nextRequestId(value) { if(typeof value!=='string' || !/^[A-Za-z0-9_-]{8,80}$/.test(value)) throw new Error('ID penyimpanan tidak valid.'); return value; }
@@ -128,13 +128,76 @@ function nextHealthRead(session) {
 }
 function nextDispatch(data) {
   const session=getSession(data.token); if(!session || !['mhs','admin'].includes(session.role)) throw new Error('Sesi tidak valid atau berakhir.');
+  if(data.action==='get_review_capabilities')return {status:'success',documentReviewSupported:true,archiveSupported:true};
   if(data.action==='get_form_draft') { nextOwner(session);return {status:'success',draft:nextDraftRead(session.nim)}; }
   if(data.action==='save_form_draft') return nextDraftSave(session,data);
   if(data.action==='get_revision_form') return nextRevisionForm(session,data);
   if(data.action==='revise_request') return nextRevise(session,data);
   if(data.action==='report_health') return nextHealthReport(session,data);
   if(data.action==='get_health') return nextHealthRead(session);
+  if(['get_document_review','save_document_review','archive_request','restore_request'].includes(data.action)) return nextReviewDispatch(session,data);
   throw new Error('Aksi tidak valid.');
+}
+
+// Review and archival events use the existing request history, so backups retain
+// them and no sheets, columns, accounts or file permissions need to change.
+function nextReviewRow(session,id) {
+  const sheet=SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_REGISTRASI);
+  if(!sheet)throw new Error('Pengajuan belum tersedia.');
+  const rows=sheet.getDataRange().getValues(),headers=rows[0]||[];
+  if(['id','nim','status','note','link'].some(key=>!headers.includes(key)))throw new Error('Struktur pengajuan belum dapat dibaca.');
+  const index=rows.findIndex((row,i)=>i>0&&String(row[headers.indexOf('id')])===String(id));
+  if(index<1)throw new Error('Pengajuan tidak ditemukan.');
+  const row=rows[index].slice(),item=Object.fromEntries(headers.map((key,i)=>[key,row[i]]));
+  if(session.role!=='admin'&&(String(item.nim).trim()!==String(session.nim).trim()||!auditStudent(String(session.nim))))throw new Error('Akses pengajuan ditolak.');
+  return {sheet:sheet,index:index,headers:headers,row:row,item:item};
+}
+function nextReviewState(item) {
+  const logs=featureLogs(item.note),last=logs.slice().reverse().find(log=>log.kind==='document_review'),archive=logs.slice().reverse().find(log=>log.kind==='archive');
+  const links=featureLinkUrls(item.link),metadata=logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]);
+  const latest=new Map();metadata.forEach(doc=>{if(links.includes(doc.url)&&(!latest.has(doc.label)||Number(doc.version)>Number(latest.get(doc.label).version)))latest.set(doc.label,doc);});
+  const review=last&&Array.isArray(last.reviews)?last.reviews.filter(review=>links.includes(review.url)&&(!latest.has(review.label)||latest.get(review.label).url===review.url)):[];
+  return {version:nextRevisionVersion(item),reviews:review,archived:!!(archive&&archive.archived),archive:archive||null};
+}
+function nextReviewDispatch(session,data) {
+  if(data.action==='get_document_review') {const record=nextReviewRow(session,data.id);return Object.assign({status:'success'},nextReviewState(record.item));}
+  if(session.role!=='admin')throw new Error('Hanya admin dapat menyimpan pemeriksaan atau mengelola arsip.');
+  const requestId=nextRequestId(data.requestId);
+  return nextLock(()=>{
+    const record=nextReviewRow(session,data.id),item=record.item,logs=featureLogs(item.note),state=nextReviewState(item);
+    if(!logs.length&&String(item.note||'').trim()&&String(item.note).trim()!=='[]')logs.push({role:'system',sender:'Sistem',time:String(item.date||new Date().toISOString()),message:String(item.note)});
+    const signature=nextHash(JSON.stringify([data.action,data.reviews||null,data.reason||'']));
+    const replay=logs.find(log=>log.reviewRequestId===requestId);
+    if(replay){if(replay.reviewSignature!==signature)throw new Error('ID penyimpanan sudah digunakan untuk perubahan berbeda.');return Object.assign({status:'success',note:item.note},state);}
+    if(data.version!==state.version)throw new Error('Pengajuan berubah. Segarkan sebelum menyimpan.');
+    const event={kind:data.action==='save_document_review'?'document_review':'archive',sender:String(session.nama||'Admin'),role:'system',time:new Date().toISOString(),reviewRequestId:requestId,reviewSignature:signature};
+    if(data.action==='save_document_review') {
+      if(!['Pending','Resubmitted'].includes(String(item.status))||state.archived)throw new Error('Pemeriksaan hanya dapat disimpan untuk pengajuan yang menunggu admin.');
+      if(!Array.isArray(data.reviews)||!data.reviews.length||data.reviews.length>20)throw new Error('Daftar pemeriksaan tidak valid.');
+      const links=featureLinkUrls(item.link),seen=new Set(),metadata=logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]);
+      event.reviews=data.reviews.map(review=>{
+        if(!review||typeof review.url!=='string'||!links.includes(review.url)||seen.has(review.url)||!['pending','accepted','revision'].includes(review.status))throw new Error('Berkas pemeriksaan tidak termasuk pengajuan atau status tidak valid.');
+        seen.add(review.url);const label=nextText(review.label,255),note=nextText(review.note||'',2000);
+        if(!label||(review.status==='revision'&&!note))throw new Error('Lengkapi alasan untuk setiap berkas yang perlu diperbaiki.');
+        const doc=metadata.find(doc=>doc.url===review.url);
+        if(doc&&doc.label!==label)throw new Error('Jenis berkas pemeriksaan tidak cocok.');
+        const latest=metadata.filter(doc=>doc.label===label).sort((a,b)=>Number(b.version)-Number(a.version))[0];
+        if(latest&&latest.url!==review.url)throw new Error('Periksa versi berkas terbaru.');
+        return {url:review.url,label:label,status:review.status,note:note};
+      });event.message='Pemeriksaan per berkas disimpan.';
+    } else {
+      if(String(item.status)!=='Accepted')throw new Error('Hanya pengajuan selesai yang dapat diarsipkan atau dipulihkan.');
+      event.archived=data.action==='archive_request';
+      if(state.archived===event.archived)throw new Error(event.archived?'Pengajuan sudah berada di arsip.':'Pengajuan sudah aktif.');
+      event.reason=nextText(data.reason||'',500);if(!event.reason)throw new Error('Isi alasan perubahan arsip.');
+      event.message=event.archived?'Pengajuan dipindahkan ke arsip.':'Pengajuan dipulihkan dari arsip.';
+    }
+    logs.push(event);const note=JSON.stringify(logs);if(Utilities.newBlob(note).getBytes().length>45000)throw new Error('Riwayat terlalu panjang. Hubungi pengelola.');
+    record.row[record.headers.indexOf('note')]=note;
+    try {record.sheet.getRange(record.index+1,1,1,record.row.length).setValues([record.row]);}
+    catch(error){const saved=nextReviewRow(session,data.id).item;if(!featureLogs(saved.note).some(log=>log.reviewRequestId===requestId&&log.reviewSignature===signature))throw error;}
+    return Object.assign({status:'success',note:note},nextReviewState(Object.assign({},item,{note:note})));
+  });
 }
 function verifyNextDeployment() {
   let denied=0;for(const action of NEXT_ACTIONS) try { nextDispatch({action:action,token:''}); } catch(_) { denied++; }

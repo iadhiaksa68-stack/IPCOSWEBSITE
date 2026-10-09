@@ -549,6 +549,7 @@ function clearPrivateCache() {
     documentInspections = new WeakMap(); preflightBusy = false;
     resetWorkflowSession();
     clearCaseBlobUrls();
+    window.IPCOSReviewTools?.reset();
     ratioChartInstance?.destroy(); typeChartInstance?.destroy();
     ratioChartInstance = null; typeChartInstance = null;
     const chartStatus = document.getElementById('chart-load-status'); if (chartStatus) { chartStatus.hidden = true; chartStatus.textContent = ''; }
@@ -560,7 +561,7 @@ function clearPrivateCache() {
     ['ipcos_students', 'ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft', 'ipcos_pending_submission'].forEach(key => sessionStorage.removeItem(key));
     DB_MAHASISWA = {}; isDbLoaded = false; selectedCaseId = ''; lastSubmittedCaseId = '';
     currentAdminPage = 1; adminFilteredData = []; currentNotificationIds = [];
-    isSubmittingRegistration = false; isPreparingCorrection = false; activeUpdateIds.clear(); postingAnnouncement = false; hideLoader();
+    isSubmittingRegistration = false; isPreparingCorrection = false; isPreparingReviewDecision = false; activeUpdateIds.clear(); postingAnnouncement = false; hideLoader();
     ['btn-submit-registration', 'btn-edit-registration'].forEach(id => { const button = document.getElementById(id); if (button) button.disabled = false; });
     document.getElementById('btn-submit-registration').textContent = uxText('Konfirmasi & Kirim', 'Confirm & Send');
     document.getElementById('dynamic-exam-form').reset();
@@ -573,13 +574,13 @@ function clearPrivateCache() {
     document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; el.ipcosNotice=null; });
     document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); if(document.getElementById(el.id+'-format'))el.setAttribute('aria-describedby',el.id+'-format');else el.removeAttribute('aria-describedby'); });
     document.querySelectorAll('.overlay, .overlay-dialog').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
-    ['table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    ['archive-list','archive-feedback','archive-count','table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     document.querySelectorAll('.admin-only, .student-only').forEach(el => { el.style.display = 'none'; });
     document.querySelectorAll('.chk-magang, .chk-skripsi').forEach(el => { el.checked = false; });
     renderAcademicStages();
     document.getElementById('admin-search-input').value = ''; document.getElementById('admin-status-filter').value = 'ACTION_REQUIRED';
-    ['input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama','input-rev-note','input-reply-note','input-reply-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['archive-from','archive-to','archive-search','archive-reason','archive-service','input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama','input-rev-note','input-reply-note','input-reply-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     editorTempData = [];
     window.IPCOSReview?.reset();
     window.IPCOSExperience?.reset();
@@ -635,6 +636,7 @@ function applyDatabaseSnapshot(data) {
             renderNotifications();
             refreshServiceAvailability();
             window.IPCOSNext?.refresh();
+            window.IPCOSReviewTools?.refresh();
 
             if (data.dosens) {
                 sessionStorage.setItem('ipcos_dosens', JSON.stringify(data.dosens));
@@ -1220,13 +1222,14 @@ function renderRegistrationReview() {
         ${detail.map(([label,id]) => `<dt>${escapeHtml(systemText(label))}</dt><dd>${escapeHtml(document.getElementById(id).value.trim())}</dd>`).join('')}</dl>
         <h4>${uxText('Berkas siap dikirim', 'Files ready to send')}</h4><ul class="review-files">${registrationSpecs(jenis).map(([id,label]) => {
             const f = document.getElementById(id).files[0];
-            return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span></li>`;
+            return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span><button type="button" class="btn-secondary" data-local-preview="${id}">${uxText('Periksa Isi Berkas','Preview File Contents')}</button></li>`;
         }).join('')}</ul>${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p>${uxText('Format dasar berkas sudah diperiksa. Isi, tanda tangan, dan kelayakan akademik tetap diverifikasi admin.', 'Basic file formats have been checked. Admin will verify the contents, signatures and academic eligibility.')}</p><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
         <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration()">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
 }
 
 function editRegistration() {
     if (isSubmittingRegistration) return;
+    window.IPCOSDocuments?.clearLocal();
     document.getElementById('registration-fields').hidden = false;
     document.getElementById('reg-jenis-utama').disabled = false;
     document.getElementById('registration-review').hidden = true;
@@ -1298,9 +1301,11 @@ function previewCaseFile(index) {
     if (isPrivateDriveUrl(file.url)) { accessCaseDocument(index,true); return; }
     const preview = document.getElementById('case-file-preview');
     preview.hidden = false;
-    const iframe = preview.querySelector('iframe');
+    window.IPCOSDocuments?.reset(preview);
+    const iframe = preview.querySelector('iframe');iframe.hidden=false;
     iframe.src = file.url.includes('drive.google.com') ? file.url.replace(/\/view.*$/, '/preview').replace(/\/edit.*$/, '/preview') : file.url;
     iframe.title = uxText('Pratinjau: ', 'Preview: ') + documentText(file.label);
+    window.IPCOSReviewTools?.previewReady();
     preview.querySelector('p').textContent = uxText('Jika pratinjau tidak muncul, gunakan Buka Berkas di atas.', 'If the preview does not load, use Open File above.');
 }
 function supervisorOptions() {
@@ -1346,6 +1351,8 @@ function caseDetailAction(action) {
     if (reply) reply.addEventListener('change', () => {
         document.getElementById('case-reply-file-list').innerHTML = [...reply.files].map(file => `<p>${escapeHtml(file.name)} · ${formatFileSize(file.size)}${fileProblem(file, reply.accept) ? `<span class="field-error">${escapeHtml(fileProblem(file, reply.accept))}</span>` : ''}</p>`).join('');
     });
+    window.IPCOSReviewTools?.prepareDecision(action);
+    if(document.getElementById('modal-case-detail').classList.contains('has-document-preview')){document.getElementById('modal-case-detail').dataset.workspaceView='review';document.querySelector('#workspace-view-toggle button[data-workspace-view=review]')?.click();}
     (panel.querySelector('textarea, select, input') || panel.querySelector('button')).focus();
     if(action === 'reply') window.IPCOSNext?.revisionFields(item,panel);
     window.IPCOSReview?.actionsChanged();
@@ -1360,9 +1367,10 @@ function cancelCaseAction() {
     window.IPCOSReview?.actionsChanged();
 }
 let isPreparingCorrection = false;
+let isPreparingReviewDecision = false;
 async function submitCaseAction() {
     const item = currentCase();
-    if (!item || activeUpdateIds.has(item.id) || isPreparingCorrection) return;
+    if (!item || activeUpdateIds.has(item.id) || isPreparingCorrection || isPreparingReviewDecision) return;
     const panel = document.getElementById('case-action-panel');
     const action = panel.dataset.action;
     const feedback = document.getElementById('case-action-feedback');
@@ -1370,6 +1378,9 @@ async function submitCaseAction() {
     const fail = (message,field=null) => { feedback.textContent = systemText(message); field?.focus(); return false; };
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
+    const reviewEpoch=sessionEpoch;isPreparingReviewDecision=true;
+    try { if(window.IPCOSReviewTools && !await window.IPCOSReviewTools.beforeDecision(action))return; } catch(error) { if(!error.staleSession && reviewEpoch===sessionEpoch)fail(systemText(error.message)); return; } finally {if(reviewEpoch===sessionEpoch)isPreparingReviewDecision=false;}
+    if(reviewEpoch!==sessionEpoch || selectedCaseId!==String(item.id))return;
     let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [], correctedFields=null;
     if (action === 'revision') {
         const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
@@ -2078,6 +2089,7 @@ function toggleLanguage() {
     if (selectedCaseId && document.getElementById('modal-case-detail').style.display === 'flex') openCaseDetail(selectedCaseId,true);
     if (document.getElementById('modal-global-search').style.display === 'flex') renderSearchResults(document.getElementById('global-search-input').value);
     window.IPCOSNext?.refresh();
+            window.IPCOSReviewTools?.renderArchives();
     window.IPCOSPolish?.refresh();
 }
 
@@ -2135,7 +2147,7 @@ function caseTimelineHtml(item) {
     if (!Array.isArray(logs) || !logs.length) return `<p>${uxText('Belum ada catatan.', 'No notes yet.')}</p>`;
     return logs.map(log => `<div class="case-timeline-item"><strong>${escapeHtml(log.sender === 'Sistem' || !log.sender ? uxText('Sistem','System') : log.sender)}</strong>
         <small>${escapeHtml(formatDateTime(log.time || item.date).replace(/<[^>]*>/g, ' '))}</small>
-        <div class="preserve-lines">${localizedSystemNote(log.message || '')}</div>${window.IPCOSNext?.fieldHistory(log) || ''}</div>`).join('');
+        <div class="preserve-lines">${localizedSystemNote(log.message || '')}</div>${window.IPCOSNext?.fieldHistory(log) || ''}${window.IPCOSReviewTools?.historyHtml(log) || ''}</div>`).join('');
 }
 
 function openCaseDetail(id, languageRefresh = false) {
@@ -2152,7 +2164,7 @@ function openCaseDetail(id, languageRefresh = false) {
     const savedDetailsOpen=languageRefresh?document.querySelector('.case-academic-details')?.open:undefined;
     const savedPanel = languageRefresh && document.getElementById('case-action-panel');
     const savedPreview = languageRefresh && document.getElementById('case-file-preview');
-    if (!languageRefresh) clearCaseBlobUrls();
+    if (!languageRefresh) { clearCaseBlobUrls(); window.IPCOSDocuments?.clearLocal(); }
     selectedCaseId = String(item.id);
     const isAdmin = currentUser.role === 'admin';
     const status = String(item.status || '').trim().toLowerCase();
@@ -2172,8 +2184,8 @@ function openCaseDetail(id, languageRefresh = false) {
         ${isAdmin ? `<dt>${uxText('Mahasiswa','Student')}</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
         <dt>${uxText('Nomor','ID')}</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
         <h3>${uxText('Berkas','Documents')}</h3><div class="case-content-block case-documents">${caseFileListHtml(item)}</div>
-        <details class="case-academic-details" open><summary>${uxText('Detail Pengajuan','Request Details')}</summary><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div></details>
         <div id="case-file-preview" hidden><iframe title="${uxText('Pratinjau berkas','Document preview')}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
+        <details class="case-academic-details" open><summary>${uxText('Detail Pengajuan','Request Details')}</summary><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div></details>
         <button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
         <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
@@ -2191,6 +2203,7 @@ function openCaseDetail(id, languageRefresh = false) {
     modal.style.opacity = '1';
     if (!languageRefresh) modal.querySelector('.case-close').focus();
     window.IPCOSReview?.opened(item,{languageRefresh});
+    window.IPCOSReviewTools?.opened(item,{languageRefresh});
     if (restoreFocus?.node.isConnected && !restoreFocus.node.disabled) {
         restoreFocus.node.focus({preventScroll:true});
         if (typeof restoreFocus.start==='number') restoreFocus.node.setSelectionRange(restoreFocus.start,restoreFocus.end,restoreFocus.direction || 'none');
@@ -2315,6 +2328,7 @@ function filterAdminData() {
         <button type="button" onclick="setAdminQueueFilter('Revision')"><strong>${counts.revision}</strong><span>${uxText('Menunggu Mahasiswa','Awaiting Student')}</span></button>`;
 
     adminFilteredData = records.filter(item => {
+        if(window.IPCOSReviewTools?.archived(item))return false;
         const matchSearch = String(item.nama || '').toLowerCase().includes(searchVal) || String(item.nim || '').toLowerCase().includes(searchVal);
         const stat = String(item.status || '').trim().toLowerCase();
         const matchFilter = filterVal === 'ALL' || (filterVal === 'ACTION_REQUIRED' ? ['pending', 'resubmitted'].includes(stat) : stat === filterVal.toLowerCase());
@@ -2419,59 +2433,17 @@ function changeAdminPage(direction) {
 
 
 function deleteAllRegistrations() {
-    if (isOffline) {
-        showToast(currentLang === 'id' ? "Tidak dapat menghapus saat offline." : "Cannot delete while offline.", "error");
-        return;
-    }
-
-    const confirmMsg = currentLang === 'id'
-        ? "PERINGATAN BAHAYA!\nApakah Anda yakin ingin MENGHAPUS SELURUH DATA PENDAFTAR secara permanen?\nTindakan ini tidak dapat dibatalkan!"
-        : "DANGER WARNING!\nAre you sure you want to PERMANENTLY DELETE ALL REGISTRATION DATA?\nThis action cannot be undone!";
-
-    if (!confirm(confirmMsg)) return;
-
-    const promptText = currentLang === 'id' ? "Ketik 'HAPUS' (tanpa tanda kutip) untuk mengonfirmasi:" : "Type 'DELETE' to confirm:";
-    const confirmInput = prompt(promptText);
-    const requiredWord = currentLang === 'id' ? 'HAPUS' : 'DELETE';
-    if (confirmInput !== requiredWord) {
-        showToast(currentLang === 'id' ? "Proses dibatalkan." : "Process cancelled.", "error");
-        return;
-    }
-
-    showLoader(currentLang === 'id' ? 'Menghapus Seluruh Data...' : 'Deleting All Data...');
-
-    apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'delete_all_registrations' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } })
-        .then(res => readApiResult(res))
-        .then(result => {
-            if (result.status === "success") {
-                showToast(currentLang === 'id' ? "Seluruh data pendaftar berhasil dikosongkan!" : "All registration data cleared successfully!", "success");
-                sessionStorage.setItem('ipcos_registrations', '[]');
-                adminFilteredData = [];
-                syncDatabase();
-            } else {
-                showToast("Gagal menghapus data: " + (result.message || "Error tidak diketahui"), "error");
-            }
-        })
-        .catch(err => {
-            showToast(currentLang === 'id' ? "Terjadi kesalahan jaringan." : "Network error occurred.", "error");
-        })
-        .finally(() => {
-            hideLoader();
-        });
+    if(currentUser.role!=='admin')return;
+    const section=document.getElementById('admin-archives');const utilities=document.getElementById('queue-tools');if(utilities)utilities.open=true;section.open=true;section.scrollIntoView({block:'start',behavior:'smooth'});document.getElementById('archive-from').focus();
 }
 
 function openDocPreview(url) {
-    const iframe = document.getElementById('iframe-doc-viewer');
-    const directBtn = document.getElementById('btn-download-direct');
-    let previewUrl = url;
-    if (url.includes('drive.google.com')) previewUrl = url.replace(/\/view.*$/, '/preview').replace(/\/edit.*$/, '/preview');
-    iframe.src = previewUrl; directBtn.href = url;
-    const modal = document.getElementById('modal-doc-preview');
-    if (modal.tagName && modal.tagName.toLowerCase() === 'dialog') {
-        modal.showModal();
-    } else {
-        modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
-    }
+    // Old callers use the same authorized case preview instead of embedding Drive.
+    const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]);
+    const item=records.find(record=>(currentUser.role==='admin' || (currentUser.role==='mhs' && String(record.nim)===String(currentUser.nim))) && getCaseFiles(record).some(file=>file.url===url));
+    if(!item){showToast(uxText('Berkas tidak termasuk pengajuan yang dapat Anda akses.','This file does not belong to an accessible request.'),'error');return;}
+    openCaseDetail(item.id);
+    if(selectedCaseId===String(item.id))previewCaseFile(getCaseFiles(item).findIndex(file=>file.url===url));
 }
 
 function startCountdownWidget() {

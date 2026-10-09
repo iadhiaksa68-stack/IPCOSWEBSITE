@@ -56,3 +56,14 @@ Rute baru memakai validasi sesi dan lock sendiri. Jalankan `verifyNextDeployment
 Draf teks menggunakan `IPCOS_DRAFT_<hash NIM>`: batas 8 KB, 14 hari, allowlist kolom, CAS revision dan ID retry. Tidak menyimpan berkas. Kunci kedaluwarsa dipangkas pada penyimpanan baru. Revisi isian memakai satu commit pada baris pengajuan yang sama, versi detail/status/catatan/link, pemeriksaan pemilik dan izin revisi admin, validasi unggahan serta rollback berkas baru jika commit gagal. Data akademik tidak dimigrasi.
 
 Ringkasan gangguan menggunakan `IPCOS_HEALTH_YYYY-MM-DD`, agregat tanpa pesan/stack/URL/NIM/nama berkas/token; hanya admin dapat membacanya. Retensi tujuh hari, cache rate limit dan bucket terbatas. Draft dan ringkasan ini tidak dimasukkan ke cadangan catatan akademik; keduanya data sementara.
+
+
+## Pemeriksaan per berkas dan arsip (9 Oktober 2026)
+
+Ganti hanya isi `Next.gs` dengan sumber lokal terbaru. `doPost` sudah meneruskan seluruh `NEXT_ACTIONS`, sehingga tidak perlu mengubah `Kode.gs`, `Features.gs`, kredensial, endpoint atau skema spreadsheet. Terbitkan versi baru pada deployment lama setelah izin akses backend tersedia.
+
+Rute baru: `get_review_capabilities`, `get_document_review`, `save_document_review`, `archive_request`, `restore_request`. Semua memvalidasi sesi. Pembacaan hasil pemeriksaan hanya untuk admin atau mahasiswa aktif pemilik pengajuan; penyimpanan dan pengelolaan arsip hanya untuk admin. Mutasi memakai lock, versi snapshot, ID retry dan pemeriksaan hasil commit jika respons penulisan terputus.
+
+Hasil per berkas disimpan dalam event `kind:document_review`, role `system`, sehingga tidak menggantikan instruksi revisi admin yang digunakan validasi lama. Event arsip `kind:archive` mempertahankan seluruh baris, lampiran, status dan kuota. Hanya status `Accepted` dapat diarsipkan/dipulihkan. Keduanya memakai kolom `note` yang sudah ada, ikut cadangan spreadsheet, dan mempertahankan catatan lama berbentuk teks. Tidak ada migrasi atau pengarsipan otomatis pada data produksi.
+
+Frontend memeriksa kapabilitas terlebih dahulu. Jika backend lama masih aktif, kontrol mutasi baru tidak tersedia. Perbaikan PDF, pratinjau mahasiswa, penataan panel dan indikator bahasa SOP tetap dapat diterbitkan secara mandiri.

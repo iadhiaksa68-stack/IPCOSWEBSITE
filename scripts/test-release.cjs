@@ -4,13 +4,13 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const assets = require('./assets.cjs');
-const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud', 'language-layout', 'sop', 'experience', 'next'];
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud', 'language-layout', 'sop', 'experience', 'next', 'review-tools'];
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.mjs':'text/javascript', '.wasm':'application/wasm', '.txt':'text/plain' };
 // Whitelisted files and mocked API routes make these tests independent of live data.
 const server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
     if (!assets.includes(name)) { res.writeHead(404).end(); return; }
-    res.writeHead(200, { 'Content-Type': types[path.extname(name)] });
+    res.writeHead(200, { 'Content-Type': types[path.extname(name)] || 'application/octet-stream' });
     res.end(readFileSync(path.join(root, name)));
 });
 async function run(file, args = []) {
@@ -28,6 +28,7 @@ async function run(file, args = []) {
     await run('tests/backend-journey.cjs', ['--test']);
     await run('tests/backend-sop.cjs', ['--test']);
     await run('tests/backend-next.cjs', ['--test']);
+    await run('tests/backend-review.cjs', ['--test']);
     mkdirSync(path.join(root, 'test-results'), { recursive: true });
     await run('tests/backend-transactions.cjs');
     await run('tests/backups.cjs');

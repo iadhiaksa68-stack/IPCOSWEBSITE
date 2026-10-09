@@ -35,6 +35,7 @@
     <link rel="stylesheet" href="sop-ui.css">
     <link rel="stylesheet" href="next-ui.css">
     <link rel="stylesheet" href="polish.css">
+    <link rel="stylesheet" href="review-tools.css">
 </head>
 
 <body class="transaction-view">
@@ -813,7 +814,17 @@
                 <details class="data-management"><summary>Pengelolaan data</summary>
                     <p>Unduh rekap atau kelola seluruh data pendaftaran.</p>
                     <div class="export-controls"><div><label for="admin-export-scope" class="lang" data-id="Data Rekap" data-en="Export Scope">Data Rekap</label><select id="admin-export-scope"><option value="filtered" class="lang" data-id="Hasil Filter Saat Ini" data-en="Current Filter Results">Hasil Filter Saat Ini</option><option value="all" class="lang" data-id="Semua Pengajuan" data-en="All Requests">Semua Pengajuan</option></select></div><button type="button" class="btn-secondary lang" onclick="exportAdminDataCSV()" data-id="Unduh Rekap CSV" data-en="Download CSV Report">Unduh Rekap CSV</button></div><div class="button-row">
-                    <button type="button" class="btn-secondary danger-action" onclick="deleteAllRegistrations()">Kosongkan Data</button></div>
+                    <button type="button" class="btn-secondary lang" onclick="deleteAllRegistrations()" data-id="Arsip & Pemulihan" data-en="Archive & Restore">Arsip & Pemulihan</button></div>
+                </details>
+
+                <details id="admin-archives" class="archive-management">
+                    <summary class="lang" data-id="Arsip & Pemulihan" data-en="Archive & Restore">Arsip & Pemulihan</summary>
+                    <p class="lang" data-id="Arsipkan pengajuan selesai berdasarkan periode tanggal kirim (WIB). Data, berkas, status akademik dan kuota dosen tetap tersedia. Pengajuan aktif tidak dapat diarsipkan." data-en="Archive completed requests by submission period (WIB). Data, files, academic status and supervisor quotas are preserved. Active requests cannot be archived.">Arsipkan pengajuan selesai berdasarkan periode tanggal kirim (WIB). Data, berkas, status akademik dan kuota dosen tetap tersedia. Pengajuan aktif tidak dapat diarsipkan.</p>
+                    <div class="archive-controls"><label for="archive-from"><span class="lang" data-id="Dikirim Mulai" data-en="Submitted From">Dikirim Mulai</span><input type="date" id="archive-from"></label><label for="archive-to"><span class="lang" data-id="Dikirim Sampai" data-en="Submitted Until">Dikirim Sampai</span><input type="date" id="archive-to"></label><label for="archive-service"><span class="lang" data-id="Jenis Layanan" data-en="Service Type">Jenis Layanan</span><select id="archive-service"><option value="" class="lang" data-id="Semua Layanan" data-en="All Services">Semua Layanan</option><option value="Outline">Outline</option><option value="Proposal">Proposal</option><option value="Pendadaran">Pendadaran</option><option value="Skripsi Jurnal">Skripsi Jurnal</option><option value="Pergantian Pembimbing">Pergantian Pembimbing</option></select></label></div>
+                    <p id="archive-availability" role="status"></p><p id="archive-preview-count" role="status"></p>
+                    <label for="archive-reason" class="lang" data-id="Alasan Arsip" data-en="Archive Reason">Alasan Arsip</label><input id="archive-reason" type="text" maxlength="500">
+                    <button type="button" class="btn-secondary lang" id="archive-period-button" data-id="Arsipkan Pengajuan Selesai" data-en="Archive Completed Requests">Arsipkan Pengajuan Selesai</button><p id="archive-feedback" role="status"></p>
+                    <h3 id="archive-count"></h3><label for="archive-search" class="lang" data-id="Cari Arsip · Nama, NIM, Nomor, Layanan atau Tahun" data-en="Search Archive · Name, Student ID, Request ID, Service or Year">Cari Arsip · Nama, NIM, Nomor, Layanan atau Tahun</label><input id="archive-search" type="search"><div id="archive-list"></div>
                 </details>
                 <details class="health-management"><summary class="lang" data-id="Kesehatan Layanan" data-en="Service Health">Kesehatan Layanan</summary><p class="lang" data-id="Ringkasan gangguan selama 7 hari. Tidak mencatat isi dokumen, NIM, atau kredensial. Jumlah ini menunjukkan gangguan yang dilaporkan, bukan seluruh kejadian." data-en="Issues reported over 7 days. Document contents, student IDs and credentials are not recorded. Counts represent reported issues, not every occurrence.">Ringkasan gangguan selama 7 hari. Tidak mencatat isi dokumen, NIM, atau kredensial. Jumlah ini menunjukkan gangguan yang dilaporkan, bukan seluruh kejadian.</p><button type="button" class="btn-secondary lang" data-health-refresh data-id="Muat Ringkasan" data-en="Load Summary">Muat Ringkasan</button><div id="health-results" role="status"></div></details>
                 <div id="admin-mobile-list" class="case-mobile-list"></div>
@@ -1033,6 +1044,7 @@
     <script src="i18n.js" defer></script>
     <script src="script.js" defer></script>
     <script src="features.js" defer></script>
+    <script src="document-preview.js" defer></script>
     <script src="workflow.js" defer></script>
     <script src="journey.js" defer></script>
     <script src="document-checks.js" defer></script>
@@ -1042,6 +1054,7 @@
     <script src="experience.js" defer></script>
     <script src="next-workflow.js" defer></script>
     <script src="polish.js" defer></script>
+    <script src="review-tools.js" defer></script>
 </body>
 
 </html>

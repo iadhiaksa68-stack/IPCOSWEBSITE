@@ -81,7 +81,7 @@ function renderProcessNotice(el) {
 }
 function caseEditorDirty() {
     const panel=document.getElementById('case-action-panel');
-    return !!panel && !panel.hidden && panel.dataset.dirty==='true' && document.getElementById('modal-case-detail').style.display!=='none';
+    return ((!!panel && !panel.hidden && panel.dataset.dirty==='true') || !!window.IPCOSReviewTools?.dirty()) && document.getElementById('modal-case-detail').style.display!=='none';
 }
 function confirmLeaveCase() {
     if (isPreparingCorrection || activeUpdateIds.has(selectedCaseId)) { showToast(uxText('Tunggu konfirmasi pengiriman sebelum menutup.','Wait for submission confirmation before closing.'),'error');return false; }
