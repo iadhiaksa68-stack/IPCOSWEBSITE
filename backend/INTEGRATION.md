@@ -67,3 +67,9 @@ Rute baru: `get_review_capabilities`, `get_document_review`, `save_document_revi
 Hasil per berkas disimpan dalam event `kind:document_review`, role `system`, sehingga tidak menggantikan instruksi revisi admin yang digunakan validasi lama. Event arsip `kind:archive` mempertahankan seluruh baris, lampiran, status dan kuota. Hanya status `Accepted` dapat diarsipkan/dipulihkan. Keduanya memakai kolom `note` yang sudah ada, ikut cadangan spreadsheet, dan mempertahankan catatan lama berbentuk teks. Tidak ada migrasi atau pengarsipan otomatis pada data produksi.
 
 Frontend memeriksa kapabilitas terlebih dahulu. Jika backend lama masih aktif, kontrol mutasi baru tidak tersedia. Perbaikan PDF, pratinjau mahasiswa, penataan panel dan indikator bahasa SOP tetap dapat diterbitkan secara mandiri.
+
+## Patch konflik komentar admin — 10 Oktober 2026
+
+`SessionData.gs` berisi salinan fungsi `getDataForSession` dari `Kode.gs` yang aktif, tanpa kredensial. Ganti fungsi itu saja di tempat yang sama; jangan menambahkan file/fungsi duplikat. Baris baru menghitung `r.reviewVersion = nextRevisionVersion(r)` sebelum `r.detail` dirapikan untuk tampilan. Terbitkan versi baru deployment lama, lalu deploy frontend yang sudah lulus tes.
+
+Frontend menggunakan token tersebut untuk review dan arsip serta menyimpan versi baru dari respons simpan. Validasi versi server tidak dihapus atau dilonggarkan. Struktur database, login, endpoint dan izin tetap.

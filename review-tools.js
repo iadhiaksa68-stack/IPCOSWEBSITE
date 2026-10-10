@@ -17,6 +17,9 @@
     }
     const statusName=status=>status==='accepted'?t('Sudah Sesuai','Meets Requirements'):status==='revision'?t('Perlu Perbaikan','Needs Corrections'):t('Belum Diperiksa','Not Reviewed');
     async function version(item) {
+        // The data endpoint formats detail/status for display. Use its raw-row
+        // snapshot token so presentation changes cannot create false conflicts.
+        if(typeof item.reviewVersion==='string'&&/^[a-f0-9]{64}$/.test(item.reviewVersion))return item.reviewVersion;
         const bytes=new TextEncoder().encode(JSON.stringify([String(item.id),String(item.status),String(item.detail),String(item.note),String(item.link)]));
         return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(byte=>byte.toString(16).padStart(2,'0')).join('');
     }
@@ -26,9 +29,9 @@
         if(result.status!=='success')throw new Error(result.message||t('Perubahan belum tersimpan.','The change was not saved.'));
         return result;
     }
-    function updateNote(id,note) {
+    function updateNote(id,note,reviewVersion) {
         if(typeof note!=='string')throw new Error(t('Konfirmasi penyimpanan tidak lengkap. Segarkan data.','The save confirmation is incomplete. Refresh the data.'));
-        const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]),item=records.find(item=>String(item.id)===String(id));if(item)item.note=note;
+        const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]),item=records.find(item=>String(item.id)===String(id));if(item){item.note=note;if(typeof reviewVersion==='string'&&/^[a-f0-9]{64}$/.test(reviewVersion))item.reviewVersion=reviewVersion;else delete item.reviewVersion;}
         sessionStorage.setItem('ipcos_registrations',JSON.stringify(records));return item;
     }
     function renderReviews(item,preserve=false) {
@@ -54,7 +57,7 @@
             const expectedVersion=await version(baseRecord);
             if(!retry||retry.snapshot!==snapshot||retry.payload?.action!=='save_document_review'||String(retry.payload.id)!==id||retry.payload.version!==expectedVersion||JSON.stringify(retry.payload.reviews)!==snapshot)retry={snapshot,payload:{action:'save_document_review',id,version:expectedVersion,requestId:crypto.randomUUID(),reviews:JSON.parse(snapshot)}};
             window.IPCOSAdminDrafts?.rememberReview(item,baseRecord,draft,retry);
-            const result=await api(retry.payload,epoch);baseRecord={...updateNote(id,result.note)};dirty=false;retry=null;window.IPCOSAdminDrafts?.reviewSaved(baseRecord);
+            const result=await api(retry.payload,epoch);baseRecord={...updateNote(id,result.note,result.version)};dirty=false;retry=null;window.IPCOSAdminDrafts?.reviewSaved(baseRecord);
             if(editingId===id&&el('document-review-feedback'))el('document-review-feedback').textContent=t('Pemeriksaan tersimpan. Pilih tindakan pengajuan ketika sudah siap.','Review saved. Choose a request action when you are ready.');
             return true;
         } finally {
@@ -100,7 +103,7 @@
     }
     async function changeArchive(item,restore=false,reason='') {
         const epoch=sessionEpoch,id=String(item.id),action=restore?'restore_request':'archive_request';
-        const result=await api({action,id,reason,version:await version(item),requestId:crypto.randomUUID()},epoch);updateNote(id,result.note);
+        const result=await api({action,id,reason,version:await version(item),requestId:crypto.randomUUID()},epoch);updateNote(id,result.note,result.version);
     }
     async function archivePeriod(){
         if(currentUser.role!=='admin'||archiveBusy||supported!==true)return;

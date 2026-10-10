@@ -41,3 +41,22 @@ test('Closed requests cannot receive new review metadata and student-facing stat
 });
 
 test('Archiving a legacy plain-text history preserves the original note and backup-compatible row',()=>{f.rows[1][7]='Accepted';f.rows[1][8]='Legacy note must stay';const result=f.ctx.nextDispatch({action:'archive_request',token:'admin',id:'fields',version:state().version,requestId:'archive-legacy-123',reason:'Semester archive'});assert.equal(JSON.parse(result.note)[0].message,'Legacy note must stay');assert.equal(f.rows[1][7],'Accepted');});
+
+function sessionData(){
+    const fs=require('node:fs'),vm=require('node:vm');Object.assign(f.ctx,{SHEET_MAHASISWA:'Mahasiswa',SHEET_PENGUMUMAN:'Pengumuman',SHEET_KONTEN:'KontenWeb',journeySnapshot:()=>({}),featureBackupStatus:()=>null});vm.runInContext(fs.readFileSync('backend/SessionData.gs','utf8'),f.ctx);return f.ctx.getDataForSession(f.ctx.getSession('admin'));
+}
+test('Session data emits a raw-row version before removing the supervisor display suffix',()=>{
+    f.rows[1][5]+="<br><br><b style='color:#E03F4F;'>Dosen Pembimbing:</b> Supervisor";
+    const before=f.rows[1].slice(),raw=f.records()[0],item=sessionData().registrations[0];
+    assert.equal(item.reviewVersion,f.ctx.nextRevisionVersion(raw));assert.equal(item.detail,'<b>Judul:</b> Judul awal');assert.equal(item.dospem,'Supervisor');
+    const result=f.ctx.nextDispatch({...review(),version:item.reviewVersion});assert.equal(result.status,'success');f.rows[1].forEach((value,i)=>{if(i!==8)assert.equal(value,before[i]);});
+});
+test('Raw versions still detect changes hidden by display formatting and status whitespace',()=>{
+    f.rows[1][7]='Resubmitted';f.rows[1][5]+="<br><br><b style='color:#E03F4F;'>Dosen Pembimbing:</b> Supervisor";
+    const token=sessionData().registrations[0].reviewVersion;f.rows[1][5]=f.rows[1][5].replace('Supervisor','Changed supervisor');
+    assert.throws(()=>f.ctx.nextDispatch({...review(),version:token}),/berubah/);assert.notEqual(sessionData().registrations[0].reviewVersion,token);
+    f.rows[1][7]='Pending ';assert.equal(sessionData().registrations[0].reviewVersion,f.ctx.nextRevisionVersion(f.records()[0]));
+});
+test('Student session tokens describe only that student’s visible requests',()=>{
+    sessionData();const scoped=f.ctx.getDataForSession(f.ctx.getSession('student-A'));assert.equal(scoped.registrations.length,1);assert.equal(scoped.registrations[0].id,'fields');assert.equal(scoped.students.length,0);assert(!JSON.stringify(scoped.registrations).includes('Data mahasiswa lain'));
+});

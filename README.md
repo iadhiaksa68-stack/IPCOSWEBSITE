@@ -19,11 +19,11 @@ Static academic portal with the existing Google Apps Script backend. Login and t
 
 Requires Node.js 24. Run `npm ci --include=dev`, then `npm run build`.
 
-Thirteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
+Fourteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
 
 On macOS the tests use installed Google Chrome; on Linux they use the pinned bundled headless Chromium. For other environments set `IPCOS_TEST_BROWSER` to an installed Chrome/Chromium executable.
 
-GitHub Actions runs thirteen browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
+GitHub Actions runs fourteen browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
 
 Vercel installs no browser dependencies. Build output contains only the explicitly allowed website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
 
@@ -64,3 +64,9 @@ The admin queue keeps search/status and result chips ahead of the table; advance
 - Version comparison uses only historical/current links attached to an accessible request, through the existing session-authorized file API. Two selected versions render side by side on desktop and stack on phones. One failed file does not prevent viewing the other. Word/archive versions provide downloads. Switching requests, closing, logout and delayed responses clean up readers and object URLs.
 - Decorative hidden cat/doodle elements, their timers and unused styles were removed. Missing template URLs show availability text rather than nonfunctional Download links. Default compression guidance stays on the student's device. Share metadata uses the current portal name/domain without an unrelated thumbnail URL.
 - The thirteenth browser suite covers these flows with simulated APIs, actual PDF pixels/text, revision history, drafts, language and lifecycle cleanup. Existing role/backend gates stay in place. No backend deployment is required for these three frontend improvements.
+
+## Admin comment conflict fix (10 October 2026)
+
+- The session response emits reviewVersion from the raw request before extracting the supervisor and formatting detail. Per-file saves and archives use this token, and confirmed saves update it for the next edit. Genuine concurrent changes still conflict; private recovery drafts include the server version.
+- backend/SessionData.gs mirrors only the existing getDataForSession function in Kode.gs. Replace that function in place; do not add another same-named function or change spreadsheet rows/columns. Publish the existing Apps Script deployment before the frontend.
+- The fourteenth browser suite uses the actual response function and transaction backend to verify a Resubmitted legacy record with a supervisor suffix: the admin file note saves, the correction instruction sends once, and the student receives both with read-only review controls.

@@ -2,7 +2,7 @@
 (() => {
     const key='ipcos_admin_review_drafts',ttl=24*60*60*1000;
     const t=(id,en)=>uxText(id,en);
-    const stamp=item=>JSON.stringify([String(item.id),String(item.status),String(item.detail),String(item.note),String(item.link)]);
+    const stamp=item=>JSON.stringify([String(item.id),String(item.status),String(item.detail),String(item.note),String(item.link),String(item.reviewVersion||'')]);
     function read(){
         try{const value=JSON.parse(sessionStorage.getItem(key)||'{}');if(!value||typeof value!=='object'||Array.isArray(value))return {};for(const id of Object.keys(value)){const entry=value[id];if(!entry||!Number.isFinite(entry.savedAt)||Date.now()-entry.savedAt>ttl||entry.savedAt>Date.now()+60000){delete value[id];continue;}if(entry.review&&(!Array.isArray(entry.review.reviews)||entry.review.reviews.length>20||typeof entry.review.stamp!=='string'||entry.review.reviews.some(review=>!review||typeof review.url!=='string'||typeof review.label!=='string'||typeof review.note!=='string'||review.note.length>2000||!['pending','accepted','revision'].includes(review.status))))delete entry.review;if(entry.action&&(typeof entry.action.stamp!=='string'||!['revision','dospem'].includes(entry.action.action)||typeof entry.action.note!=='string'||!Array.isArray(entry.action.documents)||entry.action.documents.some(label=>typeof label!=='string')||typeof entry.action.supervisor!=='string'))delete entry.action;if(!entry.review&&!entry.action)delete value[id];}return value;}catch(_){return {};}
     }
