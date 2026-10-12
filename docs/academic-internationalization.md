@@ -6,7 +6,7 @@ An admin can correct an active Outline/Proposal/Pendadaran selection in the same
 
 Internationalization → Import and Data Source accepts XLSX up to 2 MB. Cohort sheets with NIM, Nama and Keterangan are supported, including adjacent class I/J tables and optional Status. Preview does not save; confirmation imports the source. Manual edits survive reimport. Use Source Notes restores source values while retaining edit history.
 
-Students receive aggregate cohort/class totals only. Names, NIM, activity notes and source links are restricted to admins. Blank notes mean not recorded. Each student counts once; source abbreviations and countries are not inferred.
+Internationalization records, aggregate totals and source links are available to admins only. Students cannot open the page or call any internationalization API. The editor is loaded only when an admin opens the page. Blank notes mean not recorded. Each student counts once; source abbreviations and countries are not inferred.
 
 Students from 2024 onward are included from the master roster and any verified private roster supplied by the owner, with blank activity notes. Private screenshot rosters remain available after Excel reimport and manual resets. They do not create login accounts or infer enrolment/payment status. Add missing students through Master Data, then refresh Internationalization. Names and NIM must come from the institution; no placeholder student records are created.
 

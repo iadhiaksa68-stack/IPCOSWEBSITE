@@ -120,6 +120,6 @@ function workflowDirtyInput(event) {
     if(panel && event.target.matches('input,textarea,select')) panel.dataset.dirty='true';
 }
 window.addEventListener('beforeunload',event=>{
-    if (!getSessionToken() || !(registrationDirty || caseEditorDirty() || isSubmittingRegistration || isPreparingCorrection || activeUpdateIds.size || Object.keys(journeyCloud.pending).length)) return;
+    if (!getSessionToken() || !(registrationDirty || caseEditorDirty() || contentEditorDirty() || window.IPCOSInternational?.dirty() || window.IPCOSInternational?.busy() || isSubmittingRegistration || isPreparingCorrection || activeUpdateIds.size || Object.keys(journeyCloud.pending).length)) return;
     event.preventDefault();event.returnValue='';
 });

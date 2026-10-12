@@ -688,7 +688,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
 
 function logoutUser() {
     const msg = currentLang === 'id' ? "Apakah Anda yakin ingin keluar?" : "Are you sure you want to log out?";
-    if (confirm(msg + ((registrationDirty || caseEditorDirty() || isSubmittingRegistration || isPreparingCorrection) ? uxText(' Isian yang belum dikirim akan ditinggalkan.',' Unsent inputs will be discarded.') : ''))) {
+    if (confirm(msg + ((registrationDirty || caseEditorDirty() || contentEditorDirty() || window.IPCOSInternational?.dirty() || isSubmittingRegistration || isPreparingCorrection) ? uxText(' Isian yang belum dikirim akan ditinggalkan.',' Unsent inputs will be discarded.') : ''))) {
         loginAttempt++; loginBusy = false; resetLoginButtons();
         sessionStorage.removeItem('ipcos_session');
         apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(() => {});
@@ -1704,11 +1704,15 @@ function renderDynamicContent() {
 
 // EDITOR KONTEN UI
 let editorTempData = [];
-let editorCurrentType = 'magang';
+let editorCurrentType = 'magang', contentSaving = false, contentEditorOriginal = '';
+function contentEditorDirty(){return document.getElementById('modal-edit-content').style.display === 'flex' && JSON.stringify(editorTempData)!==contentEditorOriginal;}
+window.addEventListener('ipcos:logout',()=>{editorTempData=[];contentSaving=false;contentEditorOriginal='';document.getElementById('editor-ui-container').replaceChildren();closeModal('modal-edit-content',true);});
 
 function openContentEditor(type) {
+    if(currentUser.role!=='admin'||contentSaving||!['magang','skripsi','kurikulum','remidial','kalender','template_berkas','faq'].includes(type))return;
     editorCurrentType = type;
     editorTempData = JSON.parse(JSON.stringify(getChecklistData(type)));
+    contentEditorOriginal=JSON.stringify(editorTempData);
 
     const titles = {
         'magang': 'Edit Konten Magang',
@@ -1733,20 +1737,20 @@ function renderEditorUI() {
     editorTempData.forEach((group, gIdx) => {
         html += `<div class="card" style="padding: 15px; margin-bottom: 15px; box-shadow:none; border:1px solid var(--item-border);">
             <div style="display:flex; justify-content:space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <input type="text" value="${escapeHtml(group.title)}" onchange="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="${uxText('Judul Kategori Utama','Category title')}">
+                <input type="text" value="${escapeHtml(group.title)}" oninput="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="${uxText('Judul Kategori Utama','Category title')}">
                 <button class="action-btn btn-rev" onclick="removeContentGroup(${gIdx})">${uxText('Hapus Kategori','Delete category')}</button>
             </div>
-            <label class="editor-translation-label">${uxText('Judul kategori dalam English (opsional)', 'Category title in English (optional)')}<input type="text" value="${escapeHtml(group.titleEn || '')}" onchange="editorTempData[${gIdx}].titleEn = this.value"></label>
+            <label class="editor-translation-label">${uxText('Judul kategori dalam English (opsional)', 'Category title in English (optional)')}<input type="text" value="${escapeHtml(group.titleEn || '')}" oninput="editorTempData[${gIdx}].titleEn = this.value"></label>
             <div style="margin-left: 10px; border-left: 2px solid var(--item-border); padding-left: 10px;">`;
 
         group.items.forEach((item, iIdx) => {
             html += `<div style="display:flex; gap:8px; margin-bottom: 10px; align-items:center;">
                 <div style="flex-grow:1;">
-                    <input type="text" value="${escapeHtml(item.text)}" placeholder="${uxText('Data Utama','Main text')}" onchange="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
-                    <input type="text" value="${escapeHtml(item.sub)}" placeholder="${uxText('Deskripsi/Detail','Description / Details')}" onchange="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
+                    <input type="text" value="${escapeHtml(item.text)}" placeholder="${uxText('Data Utama','Main text')}" oninput="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
+                    <input type="text" value="${escapeHtml(item.sub)}" placeholder="${uxText('Deskripsi/Detail','Description / Details')}" oninput="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
                 </div>
                 <button class="action-btn btn-rev" onclick="removeContentItem(${gIdx}, ${iIdx})" style="height: 40px; padding: 0 12px;">X</button>
-            </div><details class="editor-translations"><summary>${uxText('English untuk mahasiswa internasional (opsional)', 'English for international students (optional)')}</summary><div class="details-content"><label>${uxText('Teks English','English text')}<input type="text" value="${escapeHtml(item.textEn || '')}" onchange="editorTempData[${gIdx}].items[${iIdx}].textEn = this.value"></label>${editorCurrentType !== 'template_berkas' ? `<label>${uxText('Detail English','English details')}<textarea rows="2" onchange="editorTempData[${gIdx}].items[${iIdx}].subEn = this.value">${escapeHtml(item.subEn || '')}</textarea></label>` : ''}</div></details>`;
+            </div><details class="editor-translations"><summary>${uxText('English untuk mahasiswa internasional (opsional)', 'English for international students (optional)')}</summary><div class="details-content"><label>${uxText('Teks English','English text')}<input type="text" value="${escapeHtml(item.textEn || '')}" oninput="editorTempData[${gIdx}].items[${iIdx}].textEn = this.value"></label>${editorCurrentType !== 'template_berkas' ? `<label>${uxText('Detail English','English details')}<textarea rows="2" oninput="editorTempData[${gIdx}].items[${iIdx}].subEn = this.value">${escapeHtml(item.subEn || '')}</textarea></label>` : ''}</div></details>`;
         });
 
         html += `<button class="action-btn btn-acc" onclick="addContentItem(${gIdx})" style="width:auto; margin-top:5px;">${uxText('+ Tambah Item','+ Add item')}</button>
@@ -1765,6 +1769,8 @@ function addContentItem(gIdx) { editorTempData[gIdx].items.push({ id: Date.now()
 function removeContentItem(gIdx, iIdx) { editorTempData[gIdx].items.splice(iIdx, 1); renderEditorUI(); }
 
 async function saveContentChanges() {
+    if(currentUser.role!=='admin'||contentSaving)return;
+    const epoch=sessionEpoch,type=editorCurrentType;
     if (document.activeElement && document.activeElement.tagName === 'INPUT') { document.activeElement.blur(); }
 
     if (isOffline) {
@@ -1773,26 +1779,29 @@ async function saveContentChanges() {
     }
 
     const jsonString = JSON.stringify(editorTempData);
+    contentSaving=true;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea').forEach(el=>el.disabled=true);
 
     showLoader(currentLang === 'id' ? 'Menyimpan & Mensinkronisasi...' : 'Saving & Syncing...');
 
     try {
-        const payload = { action: 'update_content', type: editorCurrentType, content: jsonString };
+        const payload = { action: 'update_content', type, content: jsonString };
         const res = await apiPost(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         const result = await readApiResult(res);
 
+        if(epoch!==sessionEpoch)return;
         if (result.status === "success") {
-            localStorage.setItem(`ipcos_content_${editorCurrentType}`, jsonString);
-            closeModal('modal-edit-content');
+            localStorage.setItem(`ipcos_content_${type}`, jsonString);
+            contentEditorOriginal=jsonString;
+            closeModal('modal-edit-content',true);
             showToast("Konten berhasil diperbarui untuk semua pengguna!", "success");
             renderDynamicContent();
         } else {
             showToast("Gagal tersimpan di database: " + result.message, "error");
         }
     } catch (e) {
-        showToast("Terjadi kesalahan jaringan saat menyimpan.", "error");
+        if(epoch===sessionEpoch)showToast(uxText("Terjadi kesalahan jaringan saat menyimpan.","A network error occurred while saving."), "error");
     } finally {
-        hideLoader();
+        if(epoch===sessionEpoch){contentSaving=false;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea').forEach(el=>el.disabled=false);hideLoader();}
     }
 }
 
@@ -2492,6 +2501,7 @@ async function submitStudentReply() {
 }
 
 function closeModal(modalId, force = false) {
+    if(modalId==='modal-edit-content'&&!force){if(contentSaving)return;if(contentEditorDirty()&&!confirm(uxText('Tutup tanpa menyimpan perubahan?','Close without saving changes?')))return;}
     if (modalId === 'modal-sop-editor' && !force) { window.IPCOSSop?.cancel(); return; }
     if (!force && modalId === 'modal-case-detail' && !confirmLeaveCase()) return;
     if (!force && modalId === 'modal-case-detail' && (isPreparingCorrection || activeUpdateIds.has(selectedCaseId))) return;
@@ -2529,7 +2539,7 @@ function toggleSidebar() { document.getElementById('main-sidebar').classList.tog
 function canAccessTab(tabId) {
     if (['sop-magang','sop-tugas-akhir'].includes(tabId)) return ['mhs','admin'].includes(currentUser.role);
     if (tabId === 'academic-journey') return ['mhs','admin'].includes(currentUser.role);
-    if (tabId === 'internationalization') return ['mhs','admin'].includes(currentUser.role);
+    if (tabId === 'internationalization') return currentUser.role === 'admin';
     if (['pendaftaran','student-status'].includes(tabId)) return currentUser.role === 'mhs';
     if (['admin-data','admin-dosen','admin-master'].includes(tabId)) return currentUser.role === 'admin';
     return true;

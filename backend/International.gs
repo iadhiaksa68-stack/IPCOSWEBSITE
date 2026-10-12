@@ -1,4 +1,4 @@
-// Source workbook and manual records are private; students receive counts only.
+// Internationalization records and summaries are restricted to administrators.
 const INTERNATIONAL_ACTIONS=['get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
 function intlMeta(){const raw=PropertiesService.getScriptProperties().getProperty('IPCOS_INTL_META');return raw?JSON.parse(raw):{exists:false,revision:0,parts:0,generation:'',updatedAt:''};}
 function intlSource(){const meta=intlMeta(),props=PropertiesService.getScriptProperties(),rows=[];for(let i=0;i<meta.parts;i++){const raw=props.getProperty('IPCOS_INTL_ROWS_'+meta.generation+'_'+i);if(!raw)throw new Error('Data internasionalisasi belum lengkap. Coba muat ulang.');const part=JSON.parse(raw);if(!Array.isArray(part))throw new Error('Data internasionalisasi tidak valid.');rows.push(...part);}return {meta:meta,rows:rows};}
@@ -12,7 +12,7 @@ function intlRows(){
  const rows=[...map.values()].map(row=>Object.assign({manual:false,editRevision:0},row));rows.sort((a,b)=>b.angkatan-a.angkatan||a.kelas.localeCompare(b.kelas)||a.nim.localeCompare(b.nim));return {meta:source.meta,rows:rows};
 }
 function intlSummary(rows){const groups=new Map();for(const row of rows){const key=row.angkatan+':'+row.kelas;if(!groups.has(key))groups.set(key,{angkatan:row.angkatan,kelas:row.kelas,total:0,withNotes:0});const group=groups.get(key);group.total++;if(row.keterangan.trim())group.withNotes++;}return [...groups.values()].sort((a,b)=>b.angkatan-a.angkatan||a.kelas.localeCompare(b.kelas));}
-function intlResponse(session){const data=intlRows(),result={status:'success',meta:{exists:data.meta.exists===true,revision:data.meta.revision,updatedAt:data.meta.updatedAt},summary:intlSummary(data.rows)};if(session.role==='admin'){result.rows=data.rows;result.meta.fileName=data.meta.fileName||'';result.meta.sourceUrl=data.meta.sourceUrl||'';}return result;}
+function intlResponse(session){if(session.role!=='admin')throw new Error('Data internasionalisasi hanya dapat diakses admin.');const data=intlRows(),result={status:'success',meta:{exists:data.meta.exists===true,revision:data.meta.revision,updatedAt:data.meta.updatedAt},summary:intlSummary(data.rows)};if(session.role==='admin'){result.rows=data.rows;result.meta.fileName=data.meta.fileName||'';result.meta.sourceUrl=data.meta.sourceUrl||'';}return result;}
 function intlNormalizeRows(rows){
  if(!Array.isArray(rows)||!rows.length||rows.length>600)throw new Error('Data harus berisi 1–600 mahasiswa.');const seen=new Set();
  return rows.map(row=>{if(!row||typeof row!=='object')throw new Error('Baris data tidak valid.');const nim=nextText(String(row.nim||''),30),nama=nextText(row.nama||'',200),kelas=nextText(row.kelas||'',10),angkatan=Number(row.angkatan),keterangan=nextText(row.keterangan||'',1500),status=nextText(row.status||'',100);if(!/^[A-Za-z0-9_-]+$/.test(nim)||!nama||!Number.isInteger(angkatan)||angkatan<2000||angkatan>2100||!['','I','J'].includes(kelas)||seen.has(nim))throw new Error('NIM duplikat, nama, kelas, atau angkatan tidak valid.');seen.add(nim);return {nim:nim,nama:nama,angkatan:angkatan,kelas:kelas,keterangan:keterangan,status:status};});
@@ -61,8 +61,8 @@ function intlSave(session,data){
  });
 }
 function internationalDispatch(session,data){
- if(data.action==='get_internationalization'){if(session.role==='mhs')nextOwner(session);return intlResponse(session);}
- if(session.role!=='admin')throw new Error('Hanya admin dapat mengimpor atau mengubah data.');
+ if(session.role!=='admin')throw new Error('Data internasionalisasi hanya dapat diakses admin.');
+ if(data.action==='get_internationalization')return intlResponse(session);
  if(data.action==='save_international_record')return intlSave(session,data);
  const rows=intlParseExcel(data);if(data.action==='preview_international_excel')return {status:'success',rows:rows,summary:intlSummary(rows),signature:nextHash(JSON.stringify(rows))};return intlImportRows(session,data,rows);
 }
