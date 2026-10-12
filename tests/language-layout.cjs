@@ -49,6 +49,17 @@ async function layout(page,label) {
     await page.fill('#input-nim','invalid'); await page.locator('#input-nim').press('Enter'); await page.waitForFunction(()=>!loginBusy);
     assert((await page.locator('#error-msg-mhs').textContent()).includes('student ID is not registered'));
     pass('Icon-only theme is accessible; landing language survives reload and login errors are in English');
+    assert.equal(await page.getAttribute('#tab-mhs','aria-pressed'),'true');
+    await page.click('#tab-admin'); assert.equal(await page.getAttribute('#tab-admin','aria-pressed'),'true');
+    assert.equal(await page.getAttribute('#tab-mhs','aria-pressed'),'false');
+    await page.click('#tab-mhs'); await page.fill('#input-nim',' '); await page.locator('#input-nim').press('Enter');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'input-nim');
+    assert.equal(await page.getAttribute('#input-nim','aria-invalid'),'true');
+    await page.click('#login-language-toggle'); assert((await page.locator('#error-msg-mhs').textContent()).includes('Mohon masukkan'));
+    await page.click('#login-language-toggle'); assert((await page.locator('#error-msg-mhs').textContent()).includes('Please enter'));
+    await page.fill('#input-nim','A'); assert.equal(await page.locator('#error-msg-mhs').textContent(),'');
+    pass('Role selection is announced; missing login input receives focus and its error follows the chosen language');
+
     for (const width of [320,390,768,1365]) {
         await page.setViewportSize({width,height:width===320?568:900});
         for (const dark of [false,true]) { await page.evaluate(dark=>document.body.classList.toggle('dark-mode',dark),dark); await layout(page,'landing '+width+' '+dark); }
@@ -64,12 +75,38 @@ async function layout(page,label) {
     await page.locator('#academic-journey [data-start-service="Proposal"]').click(); assert.equal(await page.inputValue('#reg-jenis-utama'),'Proposal');
     await page.evaluate(()=>{document.getElementById('reg-jenis-utama').value='';toggleExamForm();});
     pass('English academic guidance and journey shortcuts keep canonical service values');
+    await page.selectOption('#reg-jenis-utama','Outline'); await page.fill('#reg-judul','');
+    await page.click('#btn-review-registration');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-judul');
+    assert.equal(await page.getAttribute('#reg-judul','aria-invalid'),'true');
+    assert((await page.getAttribute('#reg-judul','aria-describedby')).includes('reg-judul-error'));
+    await page.fill('#reg-judul','Thesis outline title');
+    assert.equal(await page.getAttribute('#reg-judul','aria-invalid'),'false');
+    assert((await page.locator('#reg-judul-hint').textContent()).includes('20 / 500 characters'));
+    assert((await page.getAttribute('#reg-judul','aria-describedby')).includes('reg-judul-hint'));
+    assert.equal(await page.locator('#file-transkrip').evaluate(el=>el.required),true);
+    await page.fill('#reg-judul','X'.repeat(501)); await page.click('#btn-review-registration');
+    assert.equal(await page.getAttribute('#reg-judul','aria-invalid'),'true');
+    await page.evaluate(()=>toggleLanguage()); assert.equal(await page.inputValue('#reg-judul'),'X'.repeat(501));
+    assert((await page.locator('#reg-judul-hint').textContent()).includes('501 / 500 karakter'));
+    await page.evaluate(()=>toggleLanguage()); await page.selectOption('#reg-jenis-utama','Pergantian Pembimbing');
+    assert.equal(await page.locator('#reg-judul').evaluate(el=>el.required),false);
+    assert.equal(await page.getAttribute('#reg-judul','aria-invalid'),'false');
+    assert.equal(await page.locator('#file-transkrip').evaluate(el=>el.required),false);
+    assert.equal(await page.locator('#reg-alasan-ganti').evaluate(el=>el.required),true);
+    await page.fill('#reg-dosen-lama','Supervisor A'); await page.fill('#reg-dosen-baru','Supervisor A');
+    await page.fill('#reg-alasan-ganti','A reason for requesting a different supervisor.'); await page.click('#btn-review-registration');
+    assert.equal(await page.getAttribute('#reg-dosen-baru','aria-invalid'),'true');
+    await page.fill('#reg-dosen-lama','Supervisor B'); assert.equal(await page.getAttribute('#reg-dosen-baru','aria-invalid'),'false');
+    pass('Text errors clear when corrected, limits are visible, long drafts remain intact, and required fields follow the selected service');
+
     for (const type of ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing']) {
         await page.selectOption('#reg-jenis-utama',type);
         if (type === 'Pergantian Pembimbing') { await page.fill('#reg-dosen-lama','Dosen Lama Asli'); await page.fill('#reg-dosen-baru','Dosen Baru Asli'); await page.fill('#reg-alasan-ganti','Alasan mahasiswa tetap asli'); }
         else await page.fill('#reg-judul','Judul asli mahasiswa tetap utuh');
         const specs = await page.evaluate(()=>registrationSpecs(document.getElementById('reg-jenis-utama').value));
         for (const [id,label] of specs) await page.setInputFiles('#'+id,{name:id+'.pdf',mimeType:'application/pdf',buffer:pdf(label)});
+        if(type === 'Outline') await page.locator('#pendaftaran').screenshot({path:'test-results/polished-student-form.png'});
         await page.click('#btn-review-registration'); assert(await page.locator('#registration-review').isVisible());
         const text = await page.locator('#registration-review').textContent();
         assert(text.includes('Review Before Sending')); assert(!/Dosen sekarang|Usulan dosen|Draft Jurnal|Berkas Pendadaran|Surat Permohonan/.test(text));
@@ -124,6 +161,14 @@ async function layout(page,label) {
     await admin.evaluate(()=>closeModal('modal-case-detail',true));
     await admin.evaluate(()=>switchTab(null,'admin-master')); await admin.locator('.service-management').first().locator('summary').click(); await admin.fill('#service-admin-0','19'); await admin.evaluate(()=>toggleLanguage()); await admin.evaluate(()=>toggleLanguage()); assert.equal(await admin.inputValue('#service-admin-0'),'19');
     pass('Admin correction drafts and unsaved service settings survive language changes');
+    await admin.evaluate(()=>openCaseDetail('created')); await admin.evaluate(()=>caseDetailAction('dospem'));
+    assert((await admin.locator('#case-action-panel h3').textContent()).includes('Assign Supervisor & Approve'));
+    assert((await admin.locator('#btn-case-submit').textContent()).includes('Confirm Approval'));
+    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Konfirmasi Persetujuan'));
+    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Confirm Approval'));
+    await admin.evaluate(()=>closeModal('modal-case-detail',true));
+    pass('Approval labels describe request approval and remain translated without changing the academic stage');
+
     await admin.evaluate(()=>openContentEditor('faq'));
     await admin.locator('.editor-translation-label input').fill('English FAQ');
     await admin.locator('.editor-translations summary').first().click();

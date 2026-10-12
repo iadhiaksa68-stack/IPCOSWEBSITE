@@ -19,11 +19,11 @@ Static academic portal with the existing Google Apps Script backend. Login and t
 
 Requires Node.js 24. Run `npm ci --include=dev`, then `npm run build`.
 
-Fourteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
+Fifteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings and academic preparation. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
 
 On macOS the tests use installed Google Chrome; on Linux they use the pinned bundled headless Chromium. For other environments set `IPCOS_TEST_BROWSER` to an installed Chrome/Chromium executable.
 
-GitHub Actions runs fourteen browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
+GitHub Actions runs fifteen browser suites, backend transaction/access/backup checks, structural document checks and eight release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
 
 Vercel installs no browser dependencies. Build output contains only the explicitly allowed website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
 
@@ -70,3 +70,11 @@ The admin queue keeps search/status and result chips ahead of the table; advance
 - The session response emits reviewVersion from the raw request before extracting the supervisor and formatting detail. Per-file saves and archives use this token, and confirmed saves update it for the next edit. Genuine concurrent changes still conflict; private recovery drafts include the server version.
 - backend/SessionData.gs mirrors only the existing getDataForSession function in Kode.gs. Replace that function in place; do not add another same-named function or change spreadsheet rows/columns. Publish the existing Apps Script deployment before the frontend.
 - The fourteenth browser suite uses the actual response function and transaction backend to verify a Resubmitted legacy record with a supervisor suffix: the admin file note saves, the correction instruction sends once, and the student receives both with read-only review controls.
+
+## Form and review polish (12 October 2026)
+
+- Existing pages, navigation and transaction flow are retained. Text fields show the existing 500/2,000-character limits without truncating recovered drafts; corrected fields clear their stale errors, and required semantics follow the selected service.
+- Login role selection and validation feedback are accessible; translated error messages retain their source and follow language changes. The session/login scheme is unchanged.
+- Review textareas retain focus and selection across language changes. Missing revision notes have associated field errors that persist when translating and clear when corrected. Approval buttons describe request approval rather than exam completion.
+- Restoring a correction-action draft into an already open panel retains the existing action footer. Review/correction checkbox labels offer 44px targets, and service input spacing leaves more room on narrow phones. Dark success text has readable contrast; case notifications stay inline and survive language changes without covering action buttons.
+- Regression scenarios cover input recovery, limits, active requirements, translated approval labels, missing review notes, caret preservation and footer restoration. All use synthetic API fixtures. No backend/schema changes or actual academic writes.

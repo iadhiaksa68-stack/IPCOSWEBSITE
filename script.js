@@ -39,6 +39,8 @@ function sanitizeRichHtml(value) {
 // 1. SISTEM NOTIFIKASI TOAST & FORMAT TANGGAL
 // ==========================================
 function showToast(message, type = 'success') {
+    const overlay=[...document.querySelectorAll('.overlay,.overlay-dialog')].reverse().find(el=>el.id!=='welcome-modal'&&getComputedStyle(el).display!=='none');
+    if(overlay?.id==='modal-case-detail'&&window.IPCOSExperience?.feedback(message,type,overlay))return;
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -369,6 +371,7 @@ window.onload = function () {
     }
 
     initInterfaceLanguage();
+    syncRegistrationFields();
     applyDynamicLanguage();
     startCountdownWidget();
     renderDynamicContent();
@@ -423,7 +426,9 @@ function clearPrivateCache() {
     document.getElementById('registration-fields').hidden = false; document.getElementById('registration-review').hidden = true;
     document.getElementById('btn-review-registration').hidden = false; document.getElementById('btn-submit-registration').hidden = true;
     document.querySelectorAll('#registration-fields [id$="-badge"], .field-error, .form-submit-status, .form-draft-status').forEach(el => { el.textContent = ''; el.ipcosNotice=null; });
-    document.querySelectorAll('[aria-invalid="true"]').forEach(el => { el.removeAttribute('aria-invalid'); if(document.getElementById(el.id+'-format'))el.setAttribute('aria-describedby',el.id+'-format');else el.removeAttribute('aria-describedby'); });
+    document.querySelectorAll('#registration-fields [aria-invalid="true"]').forEach(el => setFieldError(el.id, ''));
+    document.querySelectorAll('#form-mhs input,#form-admin input').forEach(el => el.removeAttribute('aria-invalid'));
+    syncRegistrationFields();
     document.querySelectorAll('.overlay, .overlay-dialog').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
     ['archive-list','archive-feedback','archive-count','table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -561,6 +566,9 @@ function switchLoginMode(role) {
     loginAttempt++; loginBusy = false; resetLoginButtons();
     document.getElementById('error-msg-mhs').style.display = 'none';
     document.getElementById('error-msg-admin').style.display = 'none';
+    document.querySelectorAll('#form-mhs input,#form-admin input').forEach(input => input.removeAttribute('aria-invalid'));
+    document.getElementById('tab-mhs').setAttribute('aria-pressed', String(role !== 'admin'));
+    document.getElementById('tab-admin').setAttribute('aria-pressed', String(role === 'admin'));
 
     if (role === 'admin') {
         document.getElementById('tab-admin').classList.add('active');
@@ -580,6 +588,18 @@ function resetLoginButtons() {
     student.disabled = false; student.textContent = uxText('Masuk Portal', 'Enter Portal');
     admin.disabled = false; admin.textContent = uxText('Masuk sebagai Admin', 'Login as Admin');
 }
+function setLoginError(role, id, en) {
+    const error = document.getElementById(role === 'mhs' ? 'error-msg-mhs' : 'error-msg-admin');
+    error.ipcosLoginNotice = {id,en};
+    error.textContent = en ? uxText(id,en) : systemText(id);
+    error.style.display = 'block';
+}
+function refreshLoginErrors() {
+    ['error-msg-mhs','error-msg-admin'].forEach(id => {
+        const error = document.getElementById(id), notice = error.ipcosLoginNotice;
+        if (notice && error.style.display !== 'none') error.textContent = notice.en ? uxText(notice.id,notice.en) : systemText(notice.id);
+    });
+}
 async function performLogin(role) {
     if (loginBusy) return;
     const student = role === 'mhs';
@@ -588,10 +608,12 @@ async function performLogin(role) {
     const username = document.getElementById('input-admin-user').value.trim();
     const password = document.getElementById('input-admin-pass').value.trim();
     if (student ? !nim : !username || !password) {
-        errorMsg.textContent = student ? uxText('Mohon masukkan NIM Anda.', 'Please enter your student ID.') : uxText('Username dan password wajib diisi.', 'Username and password are required.');
-        errorMsg.style.display = 'block'; return;
+        if (student) setLoginError(role, 'Mohon masukkan NIM Anda.', 'Please enter your student ID.');
+        else setLoginError(role, 'Username dan password wajib diisi.', 'Username and password are required.');
+        const missing = document.getElementById(student ? 'input-nim' : !username ? 'input-admin-user' : 'input-admin-pass');
+        missing.setAttribute('aria-invalid', 'true'); missing.focus(); return;
     }
-    if (isOffline) { errorMsg.textContent = uxText('Login membutuhkan koneksi internet.', 'Login requires an internet connection.'); errorMsg.style.display = 'block'; return; }
+    if (isOffline) { setLoginError(role, 'Login membutuhkan koneksi internet.', 'Login requires an internet connection.'); return; }
     loginBusy = true; const attempt = ++loginAttempt;
     const button = document.querySelector(student ? '#form-mhs button' : '#form-admin button');
     button.disabled = true; button.textContent = uxText('Sedang masuk...', 'Logging in...'); errorMsg.style.display = 'none';
@@ -606,16 +628,25 @@ async function performLogin(role) {
         showToast(student ? uxText(`Selamat datang, ${user.nama}!`, `Welcome, ${user.nama}!`) : uxText('Berhasil login sebagai admin.', 'Logged in as admin.'), 'success');
     } catch (error) {
         if (attempt !== loginAttempt) return;
-        errorMsg.textContent = systemText(error.message) || uxText('Terjadi kesalahan jaringan. Coba kembali.', 'Network error. Try again.'); errorMsg.style.display = 'block';
+        if (error.message) setLoginError(role,error.message);
+        else setLoginError(role,'Terjadi kesalahan jaringan. Coba kembali.','Network error. Try again.');
     } finally { if (attempt === loginAttempt) { loginBusy = false; resetLoginButtons(); } }
 }
 function loginMhs() { return performLogin('mhs'); }
 function loginAdmin() { return performLogin('admin'); }
-document.querySelectorAll('#form-mhs input, #form-admin input').forEach(input => input.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' || event.isComposing) return;
-    event.preventDefault();
-    if (!loginBusy) input.form.requestSubmit();
-}));
+document.querySelectorAll('#form-mhs input, #form-admin input').forEach(input => {
+    input.addEventListener('invalid', () => input.setAttribute('aria-invalid', 'true'));
+    input.addEventListener('input', () => {
+        input.removeAttribute('aria-invalid');
+        const error = document.getElementById(input.form.id === 'form-mhs' ? 'error-msg-mhs' : 'error-msg-admin');
+        error.textContent = ''; error.style.display = 'none'; error.ipcosLoginNotice = null;
+    });
+    input.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' || event.isComposing) return;
+        event.preventDefault();
+        if (!loginBusy) input.form.requestSubmit();
+    });
+});
 
 function finalizeLogin(displayName, displayNim, role, token) {
     sessionEpoch++;
@@ -963,6 +994,7 @@ function loadFormDraft() {
         const indicator = document.getElementById('form-draft-status');
         registrationDirty = true;
         if (indicator) indicator.textContent = systemText('Draf isian dipulihkan. Pilih ulang berkas sebelum mengirim.');
+        refreshRegistrationFieldHints();
         renderRegistrationReadiness();
     } catch (e) { }
 }
@@ -1010,9 +1042,37 @@ function setFieldError(id, message) {
     error.textContent = message;
     error.hidden = !message;
     input.setAttribute('aria-invalid', message ? 'true' : 'false');
-    const descriptions=[document.getElementById(id+'-format')?id+'-format':'',message?errorId:''].filter(Boolean);
+    const descriptions=[document.getElementById(id+'-hint')?id+'-hint':'',document.getElementById(id+'-format')?id+'-format':'',message?errorId:''].filter(Boolean);
     if(descriptions.length)input.setAttribute('aria-describedby',descriptions.join(' '));else input.removeAttribute('aria-describedby');
 }
+function refreshRegistrationFieldHints() {
+    ['reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti'].forEach(id => {
+        const input = document.getElementById(id), hint = document.getElementById(id+'-hint');
+        if (!input || !hint) return;
+        const limit = id === 'reg-alasan-ganti' ? 2000 : 500;
+        hint.textContent = `${input.value.trim().length} / ${limit} ${uxText('karakter', 'characters')}`;
+    });
+}
+function syncRegistrationFields() {
+    const type = document.getElementById('reg-jenis-utama').value;
+    const active = new Set(type ? [...registrationTextSpecs(type), ...registrationSpecs(type)].map(([id]) => id) : []);
+    document.querySelectorAll('#registration-fields input,#registration-fields textarea').forEach(input => {
+        input.required = active.has(input.id);
+        if (!active.has(input.id) && input.getAttribute('aria-invalid') === 'true') setFieldError(input.id, '');
+    });
+    refreshRegistrationFieldHints();
+}
+function updateTextFieldFeedback(input) {
+    refreshRegistrationFieldHints();
+    const ids = registrationTextSpecs(document.getElementById('reg-jenis-utama').value).map(([id]) => id);
+    for (const id of ids) {
+        const field = document.getElementById(id);
+        if ((id === input.id || id === 'reg-dosen-baru' && input.id === 'reg-dosen-lama') && field.getAttribute('aria-invalid') === 'true') setFieldError(id, registrationTextIssue(id));
+    }
+}
+document.querySelectorAll('#registration-fields input[type="text"],#registration-fields textarea').forEach(input => {
+    input.addEventListener('input', () => updateTextFieldFeedback(input));
+});
 function validateRegistration() {
     if (!registrationServiceAllowed()) return false;
     const jenis = document.getElementById('reg-jenis-utama').value;
@@ -1173,10 +1233,10 @@ function caseDetailAction(action) {
     if (!item || activeUpdateIds.has(item.id)) return;
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') return;
-    window.IPCOSReview?.restoreActions();
     const panel = document.getElementById('case-action-panel');
     if(!panel.hidden&&panel.dataset.action===action)return;
     if(!panel.hidden&&panel.dataset.dirty==='true'&&!confirmLeaveCase())return;
+    window.IPCOSReview?.restoreActions();
     panel.dataset.action = action; panel.dataset.dirty = 'false';
     let html = '';
     if (action === 'revision') {
@@ -1184,16 +1244,16 @@ function caseDetailAction(action) {
         html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label></fieldset>
         ${revisionTemplateHtml()}<label for="case-revision-note">${uxText('Apa yang harus diperbaiki?','What needs correcting?')}</label><textarea id="case-revision-note" rows="4" placeholder="${uxText('Contoh: Unggah transkrip yang sudah disahkan.','Example: Upload an officially certified transcript.')}"></textarea>`;
     } else if (action === 'dospem') {
-        html = `<h3>${uxText('Tunjuk dosen & selesaikan', 'Assign Supervisor & Complete')}</h3><label for="case-supervisor">${uxText('Dosen pembimbing', 'Supervisor')}</label><select id="case-supervisor">${supervisorOptions()}</select><p>${uxText('Dosen terpilih akan dicatat saat pengajuan disetujui.','The selected supervisor will be recorded when this request is approved.')}</p>`;
+        html = `<h3>${uxText('Tunjuk Dosen & Setujui', 'Assign Supervisor & Approve')}</h3><label for="case-supervisor">${uxText('Dosen pembimbing', 'Supervisor')}</label><select id="case-supervisor">${supervisorOptions()}</select><p>${uxText('Dosen terpilih akan dicatat saat pengajuan disetujui.','The selected supervisor will be recorded when this request is approved.')}</p>`;
     } else if (action === 'accept') {
-        html = `<h3>${uxText('Selesaikan pengajuan', 'Complete Request')}</h3><p>${uxText('Pastikan seluruh berkas sudah diperiksa. Persetujuan akan terlihat oleh mahasiswa.', 'Confirm all documents have been reviewed. The student will see your approval.')}</p>`;
+        html = `<h3>${uxText('Setujui Pengajuan', 'Approve Request')}</h3><p>${uxText('Pastikan seluruh berkas sudah diperiksa. Persetujuan akan terlihat oleh mahasiswa.', 'Confirm all documents have been reviewed. The student will see your approval.')}</p>`;
     } else if (action === 'reply') {
         const rev = getRevisionInstructions(item);
         html = `<h3>${uxText('Kirim perbaikan Anda', 'Send Your Corrections')}</h3>${rev.files.length ? `<fieldset class="revision-file-options"><legend>${uxText('Konfirmasi yang sudah Anda perbaiki', 'Confirm Your Corrections')}</legend>${rev.files.map(label => `<label class="check-row"><input type="checkbox" name="correction-complete"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}</fieldset>` : ''}
         <label for="case-reply-files">${uxText('Berkas perbaikan · maksimal 10 MB per berkas', 'Corrected files · maximum 10 MB per file')}</label><input type="file" id="case-reply-files" multiple accept="${item.jenis === 'Pendadaran' ? '.pdf,.zip,.rar' : '.pdf,.doc,.docx'}"><p class="field-helper">${uxText('Pilih hingga 5 berkas dengan total maksimal 20 MB. Berkas lama tetap ada dalam riwayat.', 'Choose up to 5 files, 20 MB total. Previous files remain in the history.')}</p><div id="case-reply-file-list"></div><label for="case-reply-note">${uxText('Jelaskan perbaikan Anda', 'Describe Your Corrections')}</label><textarea id="case-reply-note" rows="3"></textarea>`;
     }
     if (!html) return;
-    panel.innerHTML = `${html}<p id="case-action-feedback" class="field-error" role="status"></p><div class="button-row"><button type="button" class="btn-secondary" onclick="cancelCaseAction()">${uxText('Batal','Cancel')}</button><button type="button" id="btn-case-submit" class="btn-primary" onclick="submitCaseAction()">${action === 'revision' ? uxText('Kirim Instruksi Revisi','Send Correction Request') : action === 'reply' ? uxText('Kirim Perbaikan','Send Corrections') : uxText('Konfirmasi & Selesaikan','Confirm & Complete')}</button></div>`;
+    panel.innerHTML = `${html}<p id="case-action-feedback" class="field-error" role="status"></p><div class="button-row"><button type="button" class="btn-secondary" onclick="cancelCaseAction()">${uxText('Batal','Cancel')}</button><button type="button" id="btn-case-submit" class="btn-primary" onclick="submitCaseAction()">${action === 'revision' ? uxText('Kirim Instruksi Revisi','Send Correction Request') : action === 'reply' ? uxText('Kirim Perbaikan','Send Corrections') : uxText('Konfirmasi Persetujuan','Confirm Approval')}</button></div>`;
     bindLanguageBlock(panel);
     panel.hidden = false;
     document.getElementById('case-detail-actions').hidden = true;
@@ -1305,6 +1365,7 @@ function toggleExamForm() {
     const jenisUjian = document.getElementById('reg-jenis-utama').value;
     const groupJudul = document.getElementById('group-judul');
     const inputJudul = document.getElementById('reg-judul');
+    syncRegistrationFields();
 
     document.getElementById('req-outline-only').style.display = 'none';
     document.getElementById('req-sempro-only').style.display = 'none';
@@ -1972,6 +2033,8 @@ function toggleLanguage() {
 
 function applyDynamicLanguage() {
     applyStaticLanguage();
+    refreshRegistrationFieldHints();
+    refreshLoginErrors();
     syncThemeControl();
     if (currentUser.role) document.getElementById('display-greeting').textContent = uxText('Halo','Hello') + ', ' + currentUser.nama.split(' ')[0] + '!';
     renderSyncStatus();
@@ -2041,6 +2104,9 @@ function openCaseDetail(id, languageRefresh = false) {
     const savedDetailsOpen=languageRefresh?document.querySelector('.case-academic-details')?.open:undefined;
     const savedPanel = languageRefresh && document.getElementById('case-action-panel');
     const savedPreview = languageRefresh && document.getElementById('case-file-preview');
+    const savedReviewTools = languageRefresh && document.getElementById('document-review-tools');
+    const savedFeedback = languageRefresh && document.querySelector('#modal-case-detail .operation-feedback');
+    if (!languageRefresh) document.getElementById('toast-container').replaceChildren();
     if (!languageRefresh) { clearCaseBlobUrls(); window.IPCOSDocuments?.clearLocal(); }
     selectedCaseId = String(item.id);
     const isAdmin = currentUser.role === 'admin';
@@ -2048,8 +2114,8 @@ function openCaseDetail(id, languageRefresh = false) {
     let actions = '';
     if (isAdmin && ['pending', 'resubmitted'].includes(status)) {
         if (item.jenis === 'Outline' || item.jenis === 'Pergantian Pembimbing') {
-            actions += `<button type="button" class="btn-primary" onclick="caseDetailAction('dospem')">${systemText('Tunjuk Dosen & Terima')}</button>`;
-        } else actions += `<button type="button" class="btn-primary" onclick="caseDetailAction('accept')">${systemText('Terima Pengajuan')}</button>`;
+            actions += `<button type="button" class="btn-primary" onclick="caseDetailAction('dospem')">${uxText('Tunjuk Dosen & Setujui','Assign Supervisor & Approve')}</button>`;
+        } else actions += `<button type="button" class="btn-primary" onclick="caseDetailAction('accept')">${uxText('Setujui Pengajuan','Approve Request')}</button>`;
         actions += `<button type="button" class="btn-secondary" onclick="caseDetailAction('revision')">${systemText('Minta Revisi')}</button>`;
     } else if (!isAdmin && status === 'revision') {
         actions = `<button type="button" class="btn-primary" onclick="caseDetailAction('reply')">${systemText('Upload Perbaikan')}</button>`;
@@ -2073,6 +2139,8 @@ function openCaseDetail(id, languageRefresh = false) {
     if(savedDetailsOpen!==undefined)content.querySelector('.case-academic-details').open=savedDetailsOpen;
     if (savedPanel) { content.querySelector('#case-action-panel').replaceWith(savedPanel); content.querySelector('#case-detail-actions').hidden = !savedPanel.hidden; }
     if (savedPreview) content.querySelector('#case-file-preview').replaceWith(savedPreview);
+    if (savedReviewTools) content.querySelector('#case-action-panel').before(savedReviewTools);
+    if (savedFeedback) content.appendChild(savedFeedback);
     content.querySelectorAll('[data-preview-index]').forEach(button => button.addEventListener('click', () => previewCaseFile(Number(button.dataset.previewIndex))));
     const modal = document.getElementById('modal-case-detail');
     clearTimeout(modalCloseTimers.get(modal.id));

@@ -302,17 +302,17 @@
                 <div class="login-panel-intro"><span class="eyebrow lang" data-id="SELAMAT DATANG DI IPCOS" data-en="WELCOME TO IPCOS">SELAMAT DATANG DI IPCOS</span><h2 id="login-title" class="lang" data-id="Masuk ke portal" data-en="Sign in to your portal">Masuk ke portal</h2><p class="lang" data-id="Pilih peran Anda untuk melanjutkan." data-en="Choose your role to continue.">Pilih peran Anda untuk melanjutkan.</p></div>
         <div class="modal-card login-form-card">
             <div class="login-tabs">
-                <button type="button" id="tab-mhs" class="login-tab active lang" onclick="switchLoginMode('mhs')" data-id="Mahasiswa"
+                <button type="button" id="tab-mhs" class="login-tab active lang" aria-pressed="true" aria-controls="form-mhs" onclick="switchLoginMode('mhs')" data-id="Mahasiswa"
                     data-en="Student">Mahasiswa</button>
-                <button type="button" id="tab-admin" class="login-tab lang" onclick="switchLoginMode('admin')" data-id="Admin"
+                <button type="button" id="tab-admin" class="login-tab lang" aria-pressed="false" aria-controls="form-admin" onclick="switchLoginMode('admin')" data-id="Admin"
                     data-en="Admin">Admin</button>
             </div>
             <form id="form-mhs" onsubmit="event.preventDefault(); loginMhs();">
-                <p id="error-msg-mhs" class="error-msg"></p>
+                <p id="error-msg-mhs" class="error-msg" role="alert"></p>
                 <label for="input-nim"
                     style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
                     class="lang" data-id="NIM / Student ID" data-en="NIM / Student ID">NIM / Student ID</label>
-                <input type="text" id="input-nim" enterkeyhint="go" placeholder="Masukkan NIM / Student ID" autocomplete="username"
+                <input type="text" id="input-nim" enterkeyhint="go" placeholder="Masukkan NIM / Student ID" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="error-msg-mhs"
                     required>
                 <button type="submit" class="btn-primary lang" data-id="Masuk Portal" data-en="Enter Portal">Masuk
                     Portal</button>
@@ -320,15 +320,15 @@
             <form id="form-admin" style="display:none;" onsubmit="event.preventDefault(); loginAdmin();">
                 <p class="lang" style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;"
                     data-id="Masukkan akun admin Anda." data-en="Enter your admin account.">Masukkan akun admin Anda.</p>
-                <p id="error-msg-admin" class="error-msg"></p>
+                <p id="error-msg-admin" class="error-msg" role="alert"></p>
                 <label for="input-admin-user"
                     style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
                     class="lang" data-id="Username admin" data-en="Admin username">Username admin</label>
-                <input type="text" id="input-admin-user" placeholder="Username" autocomplete="username" required>
+                <input type="text" id="input-admin-user" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="error-msg-admin" required>
                 <label for="input-admin-pass"
                     style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
                     class="lang" data-id="Password" data-en="Password">Password</label>
-                <input type="password" id="input-admin-pass" placeholder="Password" autocomplete="current-password"
+                <input type="password" id="input-admin-pass" placeholder="Password" autocomplete="current-password" aria-describedby="error-msg-admin"
                     required>
                 <button type="submit" class="btn-primary lang" data-id="Masuk sebagai Admin"
                     data-en="Sign in as Admin">Masuk sebagai Admin</button>
@@ -638,9 +638,10 @@
             <div class="card">
                 <details class="draft-help"><summary class="lang" data-id="Tentang Draf & Berkas" data-en="About Drafts & Files">Tentang Draf & Berkas</summary><p class="lang" data-id="Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim." data-en="Text drafts are kept for 14 days and can be continued on another device. Select files on the device you use; files are uploaded only when you submit the request.">Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim.</p></details>
                 <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p><div id="draft-controls"></div><div id="service-reminder" hidden></div>
+                <p class="form-helper lang" data-id="Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim." data-en="Fields marked * are required. Review the summary before submitting.">Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim.</p>
                 <div class="form-group">
                     <label for="reg-jenis-utama">Pilih Jenis Pendaftaran *</label>
-                    <select id="reg-jenis-utama" onchange="toggleExamForm()"
+                    <select id="reg-jenis-utama" required onchange="toggleExamForm()"
                         style="border-color: var(--umy-maroon); border-width: 2px;">
                         <option value="">-- Pilih Formulir --</option>
                         <option value="Outline">Pengajuan Outline Skripsi</option>
@@ -659,7 +660,8 @@
                     <section id="registration-readiness" class="registration-readiness" aria-labelledby="readiness-heading" hidden></section>
                     <div class="form-group" id="group-judul">
                         <label for="reg-judul">Judul Skripsi / Tugas Akhir *</label>
-                        <input type="text" id="reg-judul" placeholder="Masukkan judul..." required>
+                        <input type="text" id="reg-judul" placeholder="Masukkan judul..." aria-describedby="reg-judul-hint" required>
+                        <p id="reg-judul-hint" class="field-helper field-counter"></p>
                     </div>
 
                     <!-- Outline, Sempro, Pendadaran, Jurnal, Ganti Dosen blocks -->
@@ -710,15 +712,18 @@
                     <div id="req-ganti-dosen" style="display:none;">
                         <div class="form-group">
                             <label for="reg-dosen-lama">Dosen Pembimbing Sekarang *</label>
-                            <input type="text" id="reg-dosen-lama" placeholder="Masukkan nama dosen saat ini...">
+                            <input type="text" id="reg-dosen-lama" placeholder="Masukkan nama dosen saat ini..." aria-describedby="reg-dosen-lama-hint">
+                            <p id="reg-dosen-lama-hint" class="field-helper field-counter"></p>
                         </div>
                         <div class="form-group">
                             <label for="reg-dosen-baru">Usulan Dosen Pembimbing Baru *</label>
-                            <input type="text" id="reg-dosen-baru" placeholder="Masukkan nama usulan dosen baru...">
+                            <input type="text" id="reg-dosen-baru" placeholder="Masukkan nama usulan dosen baru..." aria-describedby="reg-dosen-baru-hint">
+                            <p id="reg-dosen-baru-hint" class="field-helper field-counter"></p>
                         </div>
                         <div class="form-group">
                             <label for="reg-alasan-ganti">Alasan Pergantian *</label>
-                            <textarea id="reg-alasan-ganti" rows="3" placeholder="Jelaskan alasan pergantian dosen..."></textarea>
+                            <textarea id="reg-alasan-ganti" rows="3" placeholder="Jelaskan alasan pergantian dosen..." aria-describedby="reg-alasan-ganti-hint"></textarea>
+                            <p id="reg-alasan-ganti-hint" class="field-helper field-counter"></p>
                         </div>
                         <div class="form-group">
                             <label for="file-surat-ganti" class="lang" data-id="Surat Permohonan Ganti Dosen *" data-en="Supervisor Change Request Letter *">Surat Permohonan Ganti Dosen *</label><p id="file-surat-ganti-format" class="upload-format lang" data-id="PDF · Maks. 10 MB" data-en="PDF · max. 10 MB">PDF · Maks. 10 MB</p>

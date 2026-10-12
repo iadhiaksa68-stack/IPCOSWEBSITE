@@ -96,3 +96,15 @@
 .filter-chip-list .text-link,.receipt-secondary { background:transparent; border:0; color:var(--umy-maroon); padding:8px 10px; border-radius:10px; font-family:inherit; font-size:13px; line-height:1.6; cursor:pointer; }
 .filter-chip-list .text-link:hover,.receipt-secondary:hover { background:var(--item-hover); }
 .filter-chip:focus-visible,.filter-chip-list .text-link:focus-visible,.receipt-secondary:focus-visible { outline:2px solid var(--umy-maroon); outline-offset:2px; }
+
+/* Keep familiar forms, with adequate label targets and one spacing rhythm. */
+.revision-file-options .check-row,#service-settings .service-enabled { min-height:44px; padding:8px 0; margin:0; box-sizing:border-box; cursor:pointer; }
+.service-setting-fields input { margin:0; }
+.field-counter { margin:4px 0 0; font-size:12px; line-height:1.6; text-align:end; font-variant-numeric:tabular-nums; }
+.form-group:has(>.field-counter)>input,.form-group:has(>.field-counter)>textarea { margin-bottom:0; }
+/* Success copy needs a lighter foreground on dark surfaces; button colors stay intact. */
+body.dark-mode :is(.form-draft-status,.form-submit-status,.stage-progress.is-ready,.requirement-ready .requirement-state,.dz-file-badge.success,.submission-steps .done) { color:#a6d9b7; }
+@media(max-width:600px) {
+ .service-management>form { margin-inline:8px; }
+ .service-setting { padding:12px; }
+}

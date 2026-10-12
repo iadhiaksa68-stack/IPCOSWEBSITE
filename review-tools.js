@@ -3,6 +3,7 @@
     const t=(id,en)=>uxText(id,en),el=id=>document.getElementById(id);
     let supported=null,capEpoch=-1,capPending=null;
     let baseRecord=null,editingId='',draft=[],dirty=false,saving=false,archiveBusy=false,retry=null;
+    const invalidNotes=new Set();
     const logs=item=>{try{const value=JSON.parse(item.note||'[]');return Array.isArray(value)?value:[];}catch(_){return [];}};
     const archive=item=>logs(item).slice().reverse().find(log=>log.kind==='archive')||null;
     const archived=item=>archive(item)?.archived===true;
@@ -16,6 +17,19 @@
         return documents(item).map(file=>({...file,status:previous.find(review=>review.url===file.url)?.status||'pending',note:previous.find(review=>review.url===file.url)?.note||''}));
     }
     const statusName=status=>status==='accepted'?t('Sudah Sesuai','Meets Requirements'):status==='revision'?t('Perlu Perbaikan','Needs Corrections'):t('Belum Diperiksa','Not Reviewed');
+    const missingNoteMessage=()=>t('Isi catatan untuk setiap berkas yang perlu diperbaiki.','Write a note for each file needing corrections.');
+    function refreshNoteFeedback() {
+        draft.forEach((review,index)=>{
+            const input=el('document-review-note-'+index);if(!input)return;
+            const required=review.status==='revision';input.required=required;
+            if(!required||review.note.trim())invalidNotes.delete(index);
+            const hintId=input.id+'-hint';let hint=el(hintId);
+            if(!hint){hint=document.createElement('p');hint.id=hintId;hint.className='field-helper';input.after(hint);}
+            hint.textContent=(required?t('Wajib untuk menjelaskan perbaikan.','Required to explain corrections.'):t('Opsional.','Optional.'))+' '+t('Maksimal 2.000 karakter.','Maximum 2,000 characters.');
+            setFieldError(input.id,invalidNotes.has(index)?missingNoteMessage():'');
+        });
+        if(invalidNotes.size&&el('document-review-feedback'))el('document-review-feedback').textContent=missingNoteMessage();
+    }
     async function version(item) {
         // The data endpoint formats detail/status for display. Use its raw-row
         // snapshot token so presentation changes cannot create false conflicts.
@@ -37,19 +51,20 @@
     function renderReviews(item,preserve=false) {
         let root=el('document-review-tools');if(!root){root=document.createElement('section');root.id='document-review-tools';el('case-action-panel').before(root);}
         const canEdit=currentUser.role==='admin'&&['pending','resubmitted'].includes(String(item.status).toLowerCase())&&!archived(item);
-        if(!preserve){editingId=String(item.id);baseRecord={...item};draft=reviews(item);dirty=false;retry=null;}
+        if(!preserve){editingId=String(item.id);baseRecord={...item};draft=reviews(item);dirty=false;retry=null;invalidNotes.clear();}
         if(supported!==true){root.textContent=currentUser.role==='admin'&&supported===false?t('Pemeriksaan per berkas menunggu aktivasi backend. Tindakan pengajuan tetap tersedia.','Per-document reviews are awaiting backend activation. Existing request actions remain available.'):'';return;}
         if(!draft.length){root.textContent='';return;}
         const preservedControls=preserve?[...root.querySelectorAll('select,textarea')]:[];
         root.innerHTML=`<h3>${t('Pemeriksaan Per Berkas','Document Review')}</h3><p class="field-helper">${canEdit?t('Catat hasil pemeriksaan setiap berkas. Menyimpan pemeriksaan belum menyetujui pengajuan.','Record the result for each file. Saving a review does not approve the request.'):t('Hasil pemeriksaan admin untuk versi berkas ini.','Admin review results for this version of the files.')}</p>`+draft.map((review,index)=>canEdit?`<div class="document-review-item"><label for="document-review-status-${index}">${escapeHtml(documentText(review.label))}</label><select id="document-review-status-${index}" data-review-status="${index}" ${saving?'disabled':''}>${['pending','accepted','revision'].map(status=>`<option value="${status}" ${status===review.status?'selected':''}>${statusName(status)}</option>`).join('')}</select><label for="document-review-note-${index}">${t('Catatan Berkas','File Notes')}</label><textarea id="document-review-note-${index}" data-review-note="${index}" rows="2" maxlength="2000" ${saving?'disabled':''} placeholder="${t('Wajib jika perlu perbaikan','Required when corrections are needed')}">${escapeHtml(review.note)}</textarea></div>`:`<div class="document-review-result ${review.status==='revision'?'needs-correction':''}"><strong>${escapeHtml(documentText(review.label))} · ${statusName(review.status)}</strong>${review.note?`<p class="preserve-lines">${escapeHtml(review.note)}</p>`:''}</div>`).join('')+(canEdit?`<button type="button" class="btn-secondary" data-save-document-review ${saving?'disabled':''}>${saving?t('Menyimpan…','Saving…'):t('Simpan Pemeriksaan','Save Review')}</button><button type="button" class="text-link" data-reload-document-review>${t('Muat Ulang Pemeriksaan','Reload Review')}</button><p id="admin-review-draft-status" class="field-helper" role="status"></p><p id="document-review-feedback" class="field-helper" role="status">${dirty?t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.'):''}</p>`:'');
         for(const control of preservedControls){const replacement=document.getElementById(control.id);if(!replacement)continue;if(control.tagName==='SELECT')[...control.options].forEach(option=>option.textContent=statusName(option.value));else control.placeholder=replacement.placeholder;replacement.replaceWith(control);}
+        if(canEdit)refreshNoteFeedback();
     }
     async function saveReview() {
         const item=currentCase();if(!item||currentUser.role!=='admin'||saving||supported!==true)return false;
         if(!dirty)return true;
         if(isOffline)throw new Error(t('Simpan pemeriksaan setelah koneksi kembali.','Save the review when the connection is restored.'));
-        const invalid=draft.findIndex(review=>review.status==='revision'&&!review.note.trim());
-        if(invalid>=0){el('document-review-note-'+invalid)?.focus();throw new Error(t('Isi catatan untuk setiap berkas yang perlu diperbaiki.','Write a note for each file needing corrections.'));}
+        invalidNotes.clear();draft.forEach((review,index)=>{if(review.status==='revision'&&!review.note.trim())invalidNotes.add(index);});refreshNoteFeedback();
+        if(invalidNotes.size){el('document-review-note-'+[...invalidNotes][0])?.focus();throw new Error(missingNoteMessage());}
         const epoch=sessionEpoch,id=String(item.id),snapshot=JSON.stringify(draft.map(({url,label,status,note})=>({url,label,status,note})));
         saving=true;activeUpdateIds.add(id);window.IPCOSReview?.actionsChanged();
         el('document-review-tools')?.querySelectorAll('input,select,textarea,button').forEach(control=>control.disabled=true);
@@ -128,7 +143,7 @@
         const epoch=sessionEpoch;capPending=api({action:'get_review_capabilities'},epoch).then(result=>{if(epoch!==sessionEpoch)return;supported=result.documentReviewSupported===true&&result.archiveSupported===true;capEpoch=epoch;}).catch(error=>{if(epoch===sessionEpoch&&!error.staleSession){supported=false;capEpoch=epoch;}}).finally(()=>{if(epoch!==sessionEpoch)return;capPending=null;renderArchives();const item=currentCase();if(item&&el('modal-case-detail').style.display==='flex'){renderReviews(item,true);window.IPCOSAdminDrafts?.offer(item);}});
     }
     document.addEventListener('input',event=>{
-        if(event.target.matches('[data-review-status],[data-review-note]')){const index=Number(event.target.dataset.reviewStatus??event.target.dataset.reviewNote),key=event.target.hasAttribute('data-review-status')?'status':'note';if(!saving&&draft[index]){draft[index][key]=event.target.value;dirty=true;retry=null;window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);el('document-review-feedback').textContent=t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.');}}
+        if(event.target.matches('[data-review-status],[data-review-note]')){const index=Number(event.target.dataset.reviewStatus??event.target.dataset.reviewNote),key=event.target.hasAttribute('data-review-status')?'status':'note';if(!saving&&draft[index]){draft[index][key]=event.target.value;dirty=true;retry=null;window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);el('document-review-feedback').textContent=t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.');refreshNoteFeedback();}}
         if(event.target.closest('#admin-archives'))renderArchives();
     });
     document.addEventListener('click',event=>{
@@ -139,8 +154,8 @@
         if(restore)restoreRequest(restore.dataset.restoreRequest);
         if(event.target.closest('#archive-period-button'))archivePeriod();
     });
-    window.addEventListener('ipcos:logout',()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;el('archive-list')?.replaceChildren();});
+    window.addEventListener('ipcos:logout',()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;invalidNotes.clear();el('archive-list')?.replaceChildren();});
     function historyHtml(log){if(log.kind==='document_review'&&Array.isArray(log.reviews))return log.reviews.map(review=>`<p class="preserve-lines"><strong>${escapeHtml(documentText(review.label))} · ${statusName(review.status)}</strong>${review.note?' · '+escapeHtml(review.note):''}</p>`).join('');return log.kind==='archive'&&log.reason?`<p>${t('Alasan: ','Reason: ')}${escapeHtml(log.reason)}</p>`:'';}
     function restoreDraft(values,savedRetry){if(currentUser.role!=='admin'||saving||!Array.isArray(values))return;draft=draft.map(file=>{const saved=values.find(value=>value.url===file.url&&value.label===file.label);return saved&&['pending','accepted','revision'].includes(saved.status)?{...file,status:saved.status,note:String(saved.note||'').slice(0,2000)}:file;});dirty=true;retry=savedRetry;draft.forEach((review,index)=>{const note=el('document-review-note-'+index),status=el('document-review-status-'+index);if(note)note.value=review.note;if(status)status.value=review.status;});renderReviews(currentCase(),true);window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);}
-    window.IPCOSReviewTools={version,discardLocal:()=>{dirty=false;retry=null;editingId='';draft=[];baseRecord=null;},restoreDraft,supported:()=>supported,refresh,historyHtml,opened,previewReady,prepareDecision,beforeDecision,archived,renderArchives,dirty:()=>dirty&&editingId===selectedCaseId,reset:()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;}};
+    window.IPCOSReviewTools={version,discardLocal:()=>{dirty=false;retry=null;editingId='';draft=[];baseRecord=null;invalidNotes.clear();},restoreDraft,supported:()=>supported,refresh,historyHtml,opened,previewReady,prepareDecision,beforeDecision,archived,renderArchives,dirty:()=>dirty&&editingId===selectedCaseId,reset:()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;invalidNotes.clear();}};
 })();

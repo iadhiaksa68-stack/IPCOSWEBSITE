@@ -117,20 +117,23 @@
         return true;
     }
     function feedback(message,type='success',scope=null) {
-        if (!authenticated()) return;
+        if (!authenticated()) return false;
         const visible = candidate => candidate?.isConnected && getComputedStyle(candidate).display !== 'none' && candidate.getClientRects().length;
         scope ||= operation?.epoch === sessionEpoch && visible(operation.scope) ? operation.scope : document.querySelector('.tab-content.active');
-        if (!scope || scope.id === 'welcome-modal') return;
+        if (!scope || scope.id === 'welcome-modal') return false;
         // Specialized editors already provide persistent messages beside the current action.
-        if (scope.id === 'modal-sop-editor' || scope.id === 'modal-case-detail' && document.getElementById('case-action-feedback')?.textContent) return;
+        if (scope.id === 'modal-sop-editor') return false;
+        const translated=systemText(message);
+        if (scope.id === 'modal-case-detail' && translated && document.getElementById('case-action-feedback')?.textContent.includes(translated)) return true;
         let box = scope.querySelector(':scope .operation-feedback');
         if (!box) {
             box = document.createElement('p'); box.className = 'operation-feedback'; box.setAttribute('role','status'); box.setAttribute('aria-live','polite');
             const destination = scope.id === 'modal-case-detail' ? document.getElementById('case-detail-content') : scope.querySelector('.modal-card') || scope;
             destination.appendChild(box);
         }
-        box.textContent = systemText(message); box.dataset.state = type; box.hidden = false;
+        box.textContent = translated; box.dataset.state = type; box.hidden = false;
         bindLanguageBlock(box);
+        return true;
     }
     function finishOperation() { if (operation?.epoch === sessionEpoch) { const box = operation.scope.querySelector('.operation-feedback[data-state="busy"]'); if (box) box.hidden = true; } }
     function reset() {
