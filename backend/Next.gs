@@ -301,6 +301,7 @@ function intlSource(){const meta=intlMeta(),props=PropertiesService.getScriptPro
 function intlOverrideKey(nim){return 'IPCOS_INTL_EDIT_'+nextHash(String(nim));}
 function intlRows(){
  const source=intlSource(),map=new Map(source.rows.map(row=>[row.nim,Object.assign({},row)])),props=PropertiesService.getScriptProperties().getProperties();
+ for(const key of Object.keys(props))if(key.startsWith('IPCOS_INTL_ROSTER_'))for(const row of intlNormalizeRows(JSON.parse(props[key])))if(!map.has(row.nim))map.set(row.nim,Object.assign({},row));
  const sheet=SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_MAHASISWA),students=sheet?getSheetData(sheet):[];
  for(const student of students){const nim=String(student.NIM??student.nim??'').trim(),year=Number(nim.slice(0,4)),name=String(student.Nama??student.nama??'').trim();if(year>=2024&&year<=2100&&nim&&name&&!map.has(nim))map.set(nim,{nim:nim,nama:name,angkatan:year,kelas:'',keterangan:'',status:''});}
  for(const key of Object.keys(props))if(key.startsWith('IPCOS_INTL_EDIT_')){const saved=JSON.parse(props[key]);if(saved.active!==false){const old=map.get(saved.record.nim)||saved.record;map.set(saved.record.nim,Object.assign({},old,{kelas:saved.record.kelas,keterangan:saved.record.keterangan,status:saved.record.status,manual:true,editRevision:saved.revision,updatedAt:saved.updatedAt}));}else if(map.has(saved.record.nim)){const row=map.get(saved.record.nim);row.editRevision=saved.revision;}}
