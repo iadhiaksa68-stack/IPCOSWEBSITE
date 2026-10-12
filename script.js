@@ -1723,11 +1723,25 @@ function openContentEditor(type) {
         'template_berkas': 'Edit Template & Link Download',
         'faq': 'Edit Pertanyaan & Jawaban FAQ'
     };
+    document.getElementById('editor-modal-title').dataset.sourceTitle=titles[type];
     document.getElementById('editor-modal-title').innerText = systemText(titles[type]);
     renderEditorUI();
 
     const modal = document.getElementById('modal-edit-content');
     modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
+}
+
+function refreshContentEditorLanguage(){
+    if(document.getElementById('modal-edit-content').style.display!=='flex'||contentSaving)return;
+    const container=document.getElementById('editor-ui-container'),active=document.activeElement;
+    const key=container.contains(active)?active.getAttribute('oninput'):null;
+    const selection=key?{start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
+    const expanded=[...container.querySelectorAll('details')].map(el=>el.open),scroll=container.closest('.content-editor-body').scrollTop;
+    renderEditorUI();container.querySelectorAll('details').forEach((el,i)=>el.open=!!expanded[i]);
+    document.getElementById('editor-modal-title').textContent=systemText(document.getElementById('editor-modal-title').dataset.sourceTitle||'Edit Konten');
+    const replacement=key?[...container.querySelectorAll('input,textarea')].find(el=>el.getAttribute('oninput')===key):null;
+    if(replacement){replacement.focus({preventScroll:true});if(selection.start!==null)replacement.setSelectionRange(selection.start,selection.end,selection.direction);}
+    container.closest('.content-editor-body').scrollTop=scroll;
 }
 
 function renderEditorUI() {
@@ -1935,8 +1949,9 @@ function toggleLanguage() {
     document.querySelectorAll('.submission-steps[data-stage]').forEach(steps => setSubmissionStage(steps.id.replace(/-steps$/,''),steps.dataset.stage));
     document.querySelectorAll('#form-submit-status,#case-action-feedback').forEach(renderProcessNotice);
     window.IPCOSSop?.languageChanged();
-    window.IPCOSAcademic?.render();
+    window.IPCOSAcademic?.languageChanged();
     window.IPCOSInternational?.languageChanged();
+    refreshContentEditorLanguage();
     refreshServiceAvailability();
     document.querySelectorAll('#registration-fields .dz-remove-btn').forEach(button=>button.textContent=uxText('Hapus File','Remove file'));
     const draftStatus = document.getElementById('form-draft-status');
