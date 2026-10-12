@@ -19,6 +19,6 @@ function getDataForSession(session) {
   const contents = getSheetData(getOrCreateSheet(ss, SHEET_KONTEN, ['Tipe', 'DataJSON']));
   const dosenSheet = ss.getSheetByName(SHEET_DOSEN);
   const dosens = dosenSheet ? getSheetData(dosenSheet) : [];
-  return { status: 'success', registrations: registrations, students: students, announcements: announcements, contents: contents, dosens: dosens, services:featureConfig(), ...journeySnapshot(session), backup:session.role === 'admin' ? featureBackupStatus() : null };
+  return { status: 'success', registrations: registrations, students: students, announcements: announcements, contents: contents, dosens: dosens, services:featureConfig(), ...journeySnapshot(session), ...academicSnapshot(session), internationalSupported:true, backup:session.role === 'admin' ? featureBackupStatus() : null };
 }
 

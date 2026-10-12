@@ -1,4 +1,4 @@
-const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const source=fs.readFileSync(__dirname+'/backend-transactions.fixture.cjs','utf8')+'\n'+fs.readFileSync(__dirname+'/backend-create.fixture.cjs','utf8')+'\n'+fs.readFileSync(__dirname+'/../backend/Features.gs','utf8')+'\n'+fs.readFileSync(__dirname+'/../backend/Next.gs','utf8');
 let properties={};let session={role:'admin',nama:'Admin'};
 let regs,dosens,students,created,failUpload,failWrite,locked,lockAllowed,dispatches;const checks=[];
@@ -7,15 +7,15 @@ const makeRecord=(id,status,jenis='Proposal',detail='Judul')=>[id,'2026-10-05','
 function sheet(name){return {getDataRange:()=>({getValues:()=>structuredClone(name==='Registrasi'?regs:dosens)}),appendRow:row=>{if(failWrite)throw Error('Sheet error');regs.push(row)},getRange:(r,c)=>({setValue:v=>{dosens[r-1][c-1]=v},setValues:values=>{if(name==='Registrasi'){if(failWrite)throw Error('Sheet error');regs[r-1]=structuredClone(values[0]);}else values[0].forEach((v,i)=>dosens[r-1][c-1+i]=v)}})};}
 const ctx={SHEET_ID:'test',SHEET_REGISTRASI:'Registrasi',SHEET_MAHASISWA:'Mahasiswa',SHEET_DOSEN:'DataDosen',DRIVE_FOLDER_ID:'test',
  SpreadsheetApp:{openById:()=>({getSheetByName:sheet})},getOrCreateSheet:()=>sheet('Registrasi'),getSheetData:s=>s.getDataRange?s.getDataRange().getValues().slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]]))):students,
- PropertiesService:{getScriptProperties:()=>({getProperty:key=>properties[key],setProperty:(key,value)=>{properties[key]=value},deleteProperty:key=>delete properties[key]})},
+ PropertiesService:{getScriptProperties:()=>({getProperties:()=>({...properties}),getProperty:key=>properties[key],setProperty:(key,value)=>{properties[key]=value},deleteProperty:key=>delete properties[key]})},
  ScriptApp:{getProjectTriggers:()=>[]}, getSession:()=>session,
- Utilities:{formatDate:()=> '2026-10-05',base64Encode:bytes=>Buffer.from(bytes).toString('base64'),base64Decode:b=>Array.from(Buffer.from(b,'base64')),newBlob:(bytes,mime,name)=>({bytes,mime,name,getAs:()=>({getBytes:()=>Buffer.from('%PDF-1.4 TEST')})})},
+ Utilities:{DigestAlgorithm:{SHA_256:'sha256'},computeDigest:(algorithm,value)=>[...crypto.createHash('sha256').update(String(value)).digest()],formatDate:()=> '2026-10-05',base64Encode:bytes=>Buffer.from(bytes).toString('base64'),base64Decode:b=>Array.from(Buffer.from(b,'base64')),newBlob:(bytes,mime,name)=>({bytes,mime,name,getAs:()=>({getBytes:()=>Buffer.from('%PDF-1.4 TEST')})})},
  DriveApp:{getFolderById:()=>({getFoldersByName:()=>({hasNext:()=>true,next:()=>({createFile:blob=>{if(failUpload===created.length+1)throw Error('Drive error');const file={blob,trashed:false,getUrl:()=> 'https://drive.google.com/file/d/test'+created.length+'/view',setTrashed:v=>file.trashed=v};created.push(file);return file;}})})})},
  LockService:{getScriptLock:()=>({tryLock:()=>{if(lockAllowed)locked=true;return lockAllowed},hasLock:()=>locked,releaseLock:()=>locked=false})},
  ContentService:{MimeType:{JSON:'json'},createTextOutput:content=>({content,setMimeType(){return this}})},
  dispatchPost:()=>{assert(locked);dispatches++;return {ok:true}}
 };vm.createContext(ctx);vm.runInContext(source,ctx);ctx.auditStudent=nim=>students.find(s=>s.NIM===nim && s.Status==='Aktif');
-function reset(){regs=[headers,makeRecord('r','Revision')];dosens=[['Nama','Terpakai','Maksimal'],['Baru',1,2],['Lama',2,5]];students=[{NIM:'A',Nama:'A',Status:'Aktif'}];created=[];failUpload=0;failWrite=false;locked=false;lockAllowed=true;dispatches=0;properties={};session={role:'admin',nama:'Admin'};}
+function reset(){regs=[headers,makeRecord('r','Revision')];dosens=[['Nama','Terpakai','Maksimal'],['Baru',1,2],['Lama',2,5]];students=[{NIM:'A',Nama:'A',Status:'Aktif'}];created=[];failUpload=0;failWrite=false;locked=false;lockAllowed=true;dispatches=0;properties={};for(const nim of ['A','B'])properties[ctx.academicKey(nim)]=JSON.stringify({level:1,revision:1,events:[]});session={role:'admin',nama:'Admin'};}
 const file={label:'Form ACC Seminar Proposal',fileName:'uji.pdf',mimeType:'application/pdf',base64:Buffer.from('%PDF-1.4\nTEST\n%%EOF').toString('base64')};
 const revision={id:'r',senderRole:'mhs',senderName:'A',status:'Resubmitted',noteText:'Sudah diperbaiki',files:[file]};
 const accept={id:'r',senderRole:'admin',senderName:'Admin',status:'Accepted',noteText:'Diterima',files:[],dospem:'Baru'};

@@ -456,7 +456,7 @@ function syncDatabase() {
 
     if (currentUser.role === 'admin') {
         renderTableSkeleton('table-admin-reg', 5, 6);
-        renderTableSkeleton('table-master-mhs', 4, 4);
+        renderTableSkeleton('table-master-mhs', 5, 4);
     } else if (currentUser.role === 'mhs') {
         renderTableSkeleton('table-my-status', 3, 5);
         renderTimelineSkeleton('activity-timeline-container', 3);
@@ -483,6 +483,8 @@ function applyDatabaseSnapshot(data) {
             data.registrations = normalizeData(data.registrations);
 
             sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
+            window.IPCOSAcademic?.apply(data);
+            window.IPCOSInternational?.apply(data);
             sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
             renderNotifications();
             refreshServiceAvailability();
@@ -1130,7 +1132,7 @@ function caseFileListHtml(item) {
     const files = getCaseFiles(item);
     let logs=[]; try { logs=JSON.parse(item.note || '[]'); } catch (_) {}
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
-    const rows=files.map((file,index)=>{const doc=metadata.find(doc=>doc.url===file.url); return {...file,index,document:doc};});
+    const rows=files.map((file,index)=>{const doc=metadata.slice().reverse().find(doc=>doc.url===file.url); return {...file,index,document:doc};});
     const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
     const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${row.document&&latest.get(row.document.label)===row&&comparableCaseFiles(item,row.document.label).length>1?`<button type="button" class="btn-secondary" data-compare-label="${escapeHtml(row.document.label)}">${uxText('Bandingkan Revisi','Compare Revisions')}</button>`:''}${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div></div>`;
     const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
@@ -1924,6 +1926,8 @@ function toggleLanguage() {
     document.querySelectorAll('.submission-steps[data-stage]').forEach(steps => setSubmissionStage(steps.id.replace(/-steps$/,''),steps.dataset.stage));
     document.querySelectorAll('#form-submit-status,#case-action-feedback').forEach(renderProcessNotice);
     window.IPCOSSop?.languageChanged();
+    window.IPCOSAcademic?.render();
+    window.IPCOSInternational?.languageChanged();
     refreshServiceAvailability();
     document.querySelectorAll('#registration-fields .dz-remove-btn').forEach(button=>button.textContent=uxText('Hapus File','Remove file'));
     const draftStatus = document.getElementById('form-draft-status');
@@ -2037,7 +2041,7 @@ function openCaseDetail(id, languageRefresh = false) {
         <details class="case-academic-details" open><summary>${uxText('Detail Pengajuan','Request Details')}</summary><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div></details>
         <button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
-        <aside class="case-action-column">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
+        <aside class="case-action-column">${window.IPCOSAcademic?.caseHtml(item)||''}${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
         <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
         ${window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
@@ -2525,6 +2529,7 @@ function toggleSidebar() { document.getElementById('main-sidebar').classList.tog
 function canAccessTab(tabId) {
     if (['sop-magang','sop-tugas-akhir'].includes(tabId)) return ['mhs','admin'].includes(currentUser.role);
     if (tabId === 'academic-journey') return ['mhs','admin'].includes(currentUser.role);
+    if (tabId === 'internationalization') return ['mhs','admin'].includes(currentUser.role);
     if (['pendaftaran','student-status'].includes(tabId)) return currentUser.role === 'mhs';
     if (['admin-data','admin-dosen','admin-master'].includes(tabId)) return currentUser.role === 'admin';
     return true;
@@ -2546,6 +2551,7 @@ function switchTab(event, tabId) {
     }
     document.getElementById('main-sidebar').classList.remove('active');
     window.IPCOSExperience?.tabChanged(tabId);
+    if (tabId === 'internationalization') window.IPCOSInternational?.open();
     if (tabId === 'sop-magang') window.IPCOSSop?.open('sop_magang');
     if (tabId === 'sop-tugas-akhir') window.IPCOSSop?.open('sop_tugas_akhir');
 
@@ -2766,11 +2772,12 @@ async function postAnnouncement(customMsg = null, customType = null) {
 function renderMasterMahasiswa(students) {
     const tbody = document.getElementById('table-master-mhs');
     if (!tbody) return; tbody.innerHTML = '';
-    students.reverse().forEach(s => {
+    students.slice().reverse().forEach(s => {
         const statusMhs = s.Status || s.status || "Aktif"; let badgeClass = "badge-accepted";
         if (statusMhs.toLowerCase() === "tidak aktif") badgeClass = "badge-revision"; else if (statusMhs.toLowerCase() === "lulus") badgeClass = "badge-resubmitted";
-        tbody.innerHTML += `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(systemText(statusMhs))}</span></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">${uxText('Hapus','Delete')}</button></td></tr>`;
+        tbody.innerHTML += `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(systemText(statusMhs))}</span></td><td data-academic-nim="${escapeHtml(String(s.NIM??s.nim))}"></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">${uxText('Hapus','Delete')}</button></td></tr>`;
     });
+    window.IPCOSAcademic?.render();
 }
 
 async function addStudent() {

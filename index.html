@@ -35,6 +35,8 @@
     <link rel="stylesheet" href="next-ui.css">
     <link rel="stylesheet" href="polish.css">
     <link rel="stylesheet" href="review-tools.css">
+    <link rel="stylesheet" href="academic-ui.css">
+    <link rel="stylesheet" href="international-ui.css">
 </head>
 
 <body class="transaction-view">
@@ -374,7 +376,7 @@
                 data-en="Home">Beranda</li><li data-nav-target="admin-data" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-nav-icon="admin-data"
                 data-id="Antrean Pengajuan" data-en="Request Queue">Antrean Pengajuan</li><li data-nav-target="pendaftaran" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-nav-icon="pendaftaran" data-id="Pusat Pendaftaran"
                 data-en="Submit a Request">Pusat Pendaftaran</li><li data-nav-target="student-status" tabindex="0" role="button" class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-nav-icon="student-status"
-                data-id="Status Pengajuanku" data-en="My Requests">Status Pengajuanku</li><li data-nav-target="academic-journey" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'academic-journey')" data-nav-icon="student-status" data-id="Perjalanan Akademik" data-en="Academic Journey">Perjalanan Akademik</li><li class="nav-group"><details data-nav-group="management"><summary><span class="lang" data-id="Kelola layanan" data-en="Manage services">Kelola layanan</span></summary><ul><li data-nav-target="admin-dosen" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-nav-icon="admin-dosen" data-id="Plotting Dosen" data-en="Supervisor Capacity">Plotting Kuota Dosen</li><li data-nav-target="admin-master" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
+                data-id="Status Pengajuanku" data-en="My Requests">Status Pengajuanku</li><li data-nav-target="academic-journey" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'academic-journey')" data-nav-icon="student-status" data-id="Perjalanan Akademik" data-en="Academic Journey">Perjalanan Akademik</li><li data-nav-target="internationalization" tabindex="0" role="button" class="nav-item lang" id="nav-internationalization" hidden onclick="switchTab(event, 'internationalization')" data-nav-icon="kurikulum" data-id="Internasionalisasi" data-en="Internationalization">Internasionalisasi</li><li class="nav-group"><details data-nav-group="management"><summary><span class="lang" data-id="Kelola layanan" data-en="Manage services">Kelola layanan</span></summary><ul><li data-nav-target="admin-dosen" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-nav-icon="admin-dosen" data-id="Plotting Dosen" data-en="Supervisor Capacity">Plotting Kuota Dosen</li><li data-nav-target="admin-master" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
                 data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li></ul></details></li><li class="nav-group"><details data-nav-group="sop"><summary><span class="lang" data-id="SOP & panduan" data-en="SOP & guides">SOP & panduan</span></summary><ul><li data-nav-target="sop-magang" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-magang')" data-nav-icon="skripsi" data-id="SOP Magang" data-en="Internship SOP">SOP Magang</li><li data-nav-target="sop-tugas-akhir" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-tugas-akhir')" data-nav-icon="skripsi" data-id="SOP Tugas Akhir" data-en="Final Project SOP">SOP Tugas Akhir</li><li data-nav-target="remidial" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-nav-icon="remidial" data-id="SOP Remidial" data-en="Remedial Procedure">SOP Remidial</li></ul></details></li><li class="nav-group"><details data-nav-group="academic"><summary><span class="lang" data-id="Referensi akademik" data-en="Academic resources">Referensi akademik</span></summary><ul><li data-nav-target="magang" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'magang')" data-nav-icon="magang" data-id="Kewajiban Magang"
                 data-en="Internship Requirements">Kewajiban Magang</li><li data-nav-target="skripsi" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-nav-icon="skripsi" data-id="Kewajiban Skripsi"
                 data-en="Thesis Requirements">Kewajiban Skripsi</li><li data-nav-target="kurikulum" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-nav-icon="kurikulum" data-id="Sebaran Mata Kuliah"
@@ -744,6 +746,7 @@
             </div>
         </div>
 
+        <div id="internationalization" class="tab-content"><h1 class="lang" data-id="Data Internasionalisasi" data-en="Internationalization Data">Data Internasionalisasi</h1><div id="internationalization-content"></div></div>
         <div id="academic-journey" class="tab-content">
             <div id="academic-journey-content"></div>
         </div>
@@ -909,7 +912,8 @@
                             <tr>
                                 <th>NIM</th>
                                 <th>Nama Mahasiswa</th>
-                                <th>Status</th>
+                                <th>Status Akses</th>
+                                <th>Tahap Akademik</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -1036,6 +1040,8 @@
     <script src="polish.js" defer></script>
     <script src="review-tools.js" defer></script>
     <script src="admin-review-drafts.js" defer></script>
+    <script src="academic-workflow.js" defer></script>
+    <script src="internationalization.js" defer></script>
 </body>
 
 </html>

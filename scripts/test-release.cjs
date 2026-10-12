@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const assets = require('./assets.cjs');
-const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud', 'language-layout', 'sop', 'experience', 'next', 'review-tools', 'review-enhancements', 'review-version'];
+const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud', 'language-layout', 'sop', 'experience', 'next', 'review-tools', 'review-enhancements', 'review-version', 'academic-international'];
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.mjs':'text/javascript', '.wasm':'application/wasm', '.txt':'text/plain' };
 // Whitelisted files and mocked API routes make these tests independent of live data.
 const server = createServer((req, res) => {
@@ -29,6 +29,7 @@ async function run(file, args = []) {
     await run('tests/backend-sop.cjs', ['--test']);
     await run('tests/backend-next.cjs', ['--test']);
     await run('tests/backend-review.cjs', ['--test']);
+    await run('tests/backend-academic-international.cjs', ['--test']);
     mkdirSync(path.join(root, 'test-results'), { recursive: true });
     await run('tests/backend-transactions.cjs');
     await run('tests/backups.cjs');

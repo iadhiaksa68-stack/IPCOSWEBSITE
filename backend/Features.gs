@@ -28,6 +28,7 @@ function featureRegistrations() {
 function featureCheckCreate(data) {
   const existing = featureRegistrations().find(r => String(r.nim).trim() === String(data.nim).trim() && r.jenis === data.jenis && ['Pending','Revision','Resubmitted'].includes(r.status));
   if (existing) return {status:'duplicate',id:String(existing.id),message:'Pengajuan sejenis masih berjalan. Lanjutkan pengajuan yang sudah ada.'};
+  if(typeof academicCheckCreate==='function')academicCheckCreate(data);
   if (Array.isArray(data.files)) featureCheckSubmissionFiles(data.files,data.jenis);
   const config = featureConfig().find(c => c.type === data.jenis);
   const today = Utilities.formatDate(new Date(),'Asia/Jakarta','yyyy-MM-dd');
@@ -89,7 +90,7 @@ function scheduledBackup() {
     const sheet=SpreadsheetApp.openById(copy.getId()).getSheetByName(SHEET_REGISTRASI);
     const records=sheet ? getSheetData(sheet) : [];
     const ids=[...new Set(records.flatMap(r=>featureLinkUrls(r.link)).map(url=>(url.match(/\/d\/([\w-]+)/)||url.match(/[?&]id=([\w-]+)/)||[])[1]).filter(Boolean).concat(sopBackupFiles()))];
-    const manifest={created:new Date().toISOString(),database:copy.getId(),config:featureConfig(),preparation:journeyBackup(),files:ids.map(id=>({originalId:id})),errors:[]};
+    const manifest={created:new Date().toISOString(),database:copy.getId(),config:featureConfig(),preparation:journeyBackup(),academic:typeof academicPrivateBackup==='function'?academicPrivateBackup():{},files:ids.map(id=>({originalId:id})),errors:[]};
     const manifestFile=folder.createFile('manifest.json',JSON.stringify(manifest),MimeType.PLAIN_TEXT);
     p.setProperty('IPCOS_BACKUP_JOB',JSON.stringify({folder:folder.getId(),manifest:manifestFile.getId(),cursor:0}));
     p.setProperty('IPCOS_BACKUP_STATUS',JSON.stringify({state:'running',started:manifest.created}));

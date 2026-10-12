@@ -9,10 +9,10 @@
     function documents(item) {
         const metadata=logs(item).flatMap(log=>Array.isArray(log.documents)?log.documents:[]),latest=new Map();
         metadata.forEach(doc=>{if(!latest.has(doc.label)||Number(doc.version)>Number(latest.get(doc.label).version))latest.set(doc.label,doc);});
-        return getCaseFiles(item).map(file=>({...file,document:metadata.find(doc=>doc.url===file.url)})).filter(file=>!file.document||latest.get(file.document.label)?.url===file.url).map(file=>({url:file.url,label:file.document?.label||file.label.replace(/^📄\s*/,''),fileName:file.document?.fileName||file.label}));
+        return getCaseFiles(item).map(file=>({...file,document:metadata.slice().reverse().find(doc=>doc.url===file.url)})).filter(file=>!file.document||latest.get(file.document.label)?.url===file.url).map(file=>({url:file.url,label:file.document?.label||file.label.replace(/^📄\s*/,''),fileName:file.document?.fileName||file.label}));
     }
     function reviews(item) {
-        const previous=logs(item).slice().reverse().find(log=>log.kind==='document_review')?.reviews||[];
+        const previous=logs(item).slice().reverse().find(log=>['document_review','request_type_change'].includes(log.kind))?.reviews||[];
         return documents(item).map(file=>({...file,status:previous.find(review=>review.url===file.url)?.status||'pending',note:previous.find(review=>review.url===file.url)?.note||''}));
     }
     const statusName=status=>status==='accepted'?t('Sudah Sesuai','Meets Requirements'):status==='revision'?t('Perlu Perbaikan','Needs Corrections'):t('Belum Diperiksa','Not Reviewed');
@@ -142,5 +142,5 @@
     window.addEventListener('ipcos:logout',()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;el('archive-list')?.replaceChildren();});
     function historyHtml(log){if(log.kind==='document_review'&&Array.isArray(log.reviews))return log.reviews.map(review=>`<p class="preserve-lines"><strong>${escapeHtml(documentText(review.label))} · ${statusName(review.status)}</strong>${review.note?' · '+escapeHtml(review.note):''}</p>`).join('');return log.kind==='archive'&&log.reason?`<p>${t('Alasan: ','Reason: ')}${escapeHtml(log.reason)}</p>`:'';}
     function restoreDraft(values,savedRetry){if(currentUser.role!=='admin'||saving||!Array.isArray(values))return;draft=draft.map(file=>{const saved=values.find(value=>value.url===file.url&&value.label===file.label);return saved&&['pending','accepted','revision'].includes(saved.status)?{...file,status:saved.status,note:String(saved.note||'').slice(0,2000)}:file;});dirty=true;retry=savedRetry;draft.forEach((review,index)=>{const note=el('document-review-note-'+index),status=el('document-review-status-'+index);if(note)note.value=review.note;if(status)status.value=review.status;});renderReviews(currentCase(),true);window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);}
-    window.IPCOSReviewTools={restoreDraft,supported:()=>supported,refresh,historyHtml,opened,previewReady,prepareDecision,beforeDecision,archived,renderArchives,dirty:()=>dirty&&editingId===selectedCaseId,reset:()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;}};
+    window.IPCOSReviewTools={version,discardLocal:()=>{dirty=false;retry=null;editingId='';draft=[];baseRecord=null;},restoreDraft,supported:()=>supported,refresh,historyHtml,opened,previewReady,prepareDecision,beforeDecision,archived,renderArchives,dirty:()=>dirty&&editingId===selectedCaseId,reset:()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;}};
 })();

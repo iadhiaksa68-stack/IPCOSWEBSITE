@@ -9,6 +9,7 @@ function serviceSetting(type) {
 function serviceAvailability(type) {
     const setting = serviceSetting(type);
     const today = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const academicReason=window.IPCOSAcademic?.reason(type);if(academicReason)return academicReason;
     if (!setting.enabled) return uxText('Layanan sedang ditutup oleh admin.', 'This service is currently closed by admin.');
     if (setting.open && today < setting.open) return `${uxText('Pendaftaran dibuka','Registration opens')} ${formatDate(setting.open)} (WIB, UTC+7).`;
     if (setting.close && today > setting.close) return `${uxText('Periode pendaftaran berakhir','Registration closed on')} ${formatDate(setting.close)} (WIB, UTC+7).`;
@@ -173,7 +174,7 @@ function comparableCaseFiles(item,label) {
     let logs=[];try{logs=JSON.parse(item.note||'[]');}catch(_){}
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[],seen=new Set();
     return getCaseFiles(item).flatMap((file,index)=>{
-        const doc=metadata.find(doc=>doc.url===file.url);
+        const doc=metadata.slice().reverse().find(doc=>doc.url===file.url);
         if(!doc||doc.label!==label||!Number.isInteger(Number(doc.version))||Number(doc.version)<1||!isPrivateDriveUrl(file.url)||seen.has(file.url))return [];
         seen.add(file.url);return [{...file,index,version:Number(doc.version),fileName:String(doc.fileName||file.label)}];
     }).sort((a,b)=>a.version-b.version);
