@@ -104,6 +104,24 @@
 .form-group:has(>.field-counter)>input,.form-group:has(>.field-counter)>textarea { margin-bottom:0; }
 /* Success copy needs a lighter foreground on dark surfaces; button colors stay intact. */
 body.dark-mode :is(.form-draft-status,.form-submit-status,.stage-progress.is-ready,.requirement-ready .requirement-state,.dz-file-badge.success,.submission-steps .done) { color:#a6d9b7; }
+/* Dialog controls remain reachable with a keyboard and on short phone screens. */
+.sr-only { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
+body.modal-overlay-open { overflow:hidden; }
+.login-tabs .login-tab { min-height:44px; }
+.modal-icon-close { width:44px; height:44px; min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 44px; border-radius:10px; }
+.modal-card { max-height:calc(100dvh - 32px); overscroll-behavior:contain; }
+#modal-global-search> .modal-card { max-height:calc(90dvh - 24px); }
+#modal-global-search .modal-card>div:first-of-type { gap:8px; }
+#modal-global-search .modal-card>div:first-of-type>div:first-child { min-width:0; }
+#global-search-input { min-width:0; padding-inline:4px; }
+.search-result { display:block; width:100%; text-align:left; font:inherit; color:var(--text-color); background:transparent; overflow-wrap:anywhere; white-space:normal; }
+.search-result:focus-visible { outline:2px solid var(--umy-maroon); outline-offset:-3px; }
+#announcement-banner { gap:12px; color:#3b3030!important; }
+#announcement-banner>div { min-width:0; }
+#announcement-banner #announcement-text { overflow-wrap:anywhere; }
+#announcement-banner>button { width:44px!important; height:44px!important; min-width:44px; flex:0 0 44px; }
+.wa-float-container { color:inherit; text-decoration:none; }
+.wa-float-container.wa-hidden { visibility:hidden; }
 @media(max-width:600px) {
  .service-management>form { margin-inline:8px; }
  .service-setting { padding:12px; }

@@ -331,18 +331,8 @@
         note,
         item.reviewVersion || item.note,
       ]);
-    if (!retry || retry.signature !== signature)
-      retry = {
-        signature,
-        payload: {
-          action: "change_request_type",
-          id,
-          type,
-          reason: note,
-          version: await window.IPCOSReviewTools.version(item),
-          requestId: crypto.randomUUID(),
-        },
-      };
+    // Lock before preparing the version: it can make a network request.
+    // A second click or a logout during that request must not start a mutation.
     busy = true;
     activeUpdateIds.add(id);
     window.IPCOSReview?.actionsChanged();
@@ -351,6 +341,26 @@
       "Saving correction…",
     );
     try {
+      if (!retry || retry.signature !== signature) {
+        const version = await window.IPCOSReviewTools.version(item);
+        if (
+          epoch !== sessionEpoch ||
+          currentUser.role !== "admin" ||
+          selectedCaseId !== id
+        )
+          return;
+        retry = {
+          signature,
+          payload: {
+            action: "change_request_type",
+            id,
+            type,
+            reason: note,
+            version,
+            requestId: crypto.randomUUID(),
+          },
+        };
+      }
       await api(retry.payload);
       if (epoch !== sessionEpoch) return;
       retry = null;

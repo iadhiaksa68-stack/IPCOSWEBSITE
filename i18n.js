@@ -30,6 +30,9 @@ const interfaceEnglish = {
     'Portal Akademik IPCOS UMY':'IPCOS UMY Academic Portal',
     'Ringkasan & layanan akademik':'Academic overview & services',
     'Detail Pengajuan':'Request details', 'Tutup':'Close', 'Batal':'Cancel',
+    'Cari menu, formulir, atau panduan':'Search menus, forms, or guides',
+    'Tutup pencarian':'Close search', 'Pratinjau dokumen':'Document preview',
+    'Hubungi Mincos lewat WhatsApp':'Contact Mincos on WhatsApp',
     'Pengajuan berhasil dikirim':'Request submitted successfully',
     'Lihat Status Pengajuan':'View request status',
     'Ketik sesuatu untuk mulai mencari...':'Type to start searching...',
@@ -251,6 +254,8 @@ function serviceLabel(value) { const pair=serviceLabels[value]; return pair ? pa
 function systemText(value) {
     const text = String(value ?? '');
     if (serviceLabels[text]) return serviceLabel(text);
+    const documentLabels = {'Transkrip':'Transkrip Nilai','Draft Proposal':'Draf Proposal'};
+    if (currentLang === 'id' && documentLabels[text]) return documentLabels[text];
     if (currentLang !== 'en') return text;
     const key = text.replace(/\s+/g, ' ').trim();
     if (interfaceEnglish[key]) return interfaceEnglish[key];

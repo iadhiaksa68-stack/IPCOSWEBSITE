@@ -6,6 +6,92 @@
     const mobile = () => matchMedia('(max-width:850px)').matches;
     const authenticated = () => ['mhs','admin'].includes(currentUser.role) && !!getSessionToken();
     const text = (id,en) => uxText(id,en);
+    const focusableSelector = 'button,a[href],input,textarea,select,summary,iframe,[tabindex]';
+    const canFocus = node => node?.isConnected && !node.disabled && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden' && !node.closest('[hidden],[inert]');
+    let activeModal = null, lastFocused = document.activeElement;
+    const modalReturnFocus = new WeakMap(), modalBackground = new Map();
+    function topModal() {
+        if (document.fullscreenElement) return document.fullscreenElement;
+        const visible = [...document.querySelectorAll('.overlay,dialog[open]')].filter(node => node.getClientRects().length && getComputedStyle(node).display !== 'none');
+        // A native modal dialog sits in the browser's top layer, above z-index.
+        const native = visible.filter(node => node.matches('dialog[open]'));
+        if (native.length) return native.at(-1);
+        const expanded = document.querySelector('.document-expanded');
+        if (expanded?.getClientRects().length) return expanded;
+        return visible.sort((a,b) => (Number.parseInt(getComputedStyle(a).zIndex) || 0) - (Number.parseInt(getComputedStyle(b).zIndex) || 0)).at(-1) || null;
+    }
+    function modalControls(modal) {
+        return [...modal.querySelectorAll(focusableSelector)].filter(node => canFocus(node) && node.tabIndex >= 0);
+    }
+    function focusModal(modal) {
+        const target = modalControls(modal)[0] || modal;
+        if (target === modal && !modal.hasAttribute('tabindex')) modal.tabIndex = -1;
+        target.focus({preventScroll:true});
+    }
+    function syncModalAccessibility() {
+        const next = topModal();
+        const dropdown = document.getElementById('notif-dropdown');
+        document.querySelector('.notification-toggle')?.setAttribute('aria-expanded',String(!!dropdown?.getClientRects().length));
+        if (next === activeModal) return;
+        const previous = activeModal;
+        for (const [node,inert] of modalBackground) if (node.isConnected) node.inert = inert;
+        modalBackground.clear(); activeModal = next;
+        if (next && !modalReturnFocus.has(next)) modalReturnFocus.set(next, next.contains(document.activeElement) ? lastFocused : document.activeElement);
+        document.body.classList.toggle('modal-overlay-open',!!next);
+        if (next) {
+            for (const node of document.body.children) {
+                if (node === next || node.contains(next) || !node.getClientRects().length || ['SCRIPT','STYLE','LINK'].includes(node.tagName) || node.id === 'loader' || node.id === 'toast-container') continue;
+                modalBackground.set(node,node.inert); node.inert = true;
+            }
+        } else drawerChanged();
+        const origin = previous && modalReturnFocus.get(previous);
+        // Restore only when closing a layer, including a preview over an editor.
+        if (previous && !previous.getClientRects().length) {
+            modalReturnFocus.delete(previous);
+            if (canFocus(origin) && (!next || next.contains(origin))) origin.focus({preventScroll:true});
+            else if (next && !next.contains(document.activeElement)) focusModal(next);
+        } else if (next && !next.contains(document.activeElement)) focusModal(next);
+    }
+    function setupModalAccessibility() {
+        document.addEventListener('focusin',event => {
+            const next = topModal();
+            if (next && next !== activeModal && !modalReturnFocus.has(next) && !next.contains(lastFocused)) modalReturnFocus.set(next,lastFocused);
+            lastFocused = event.target;
+        },true);
+        const observer = new MutationObserver(mutations => {
+            if (mutations.some(change => change.type === 'childList' || change.target.matches?.('.overlay,dialog,#notif-dropdown,.document-expanded'))) syncModalAccessibility();
+        });
+        observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','hidden','open']});
+        document.addEventListener('keydown',event => {
+            const modal = topModal();
+            if (modal && event.key === 'Tab') {
+                const controls = modalControls(modal), first = controls[0], last = controls.at(-1);
+                if (!modal.contains(document.activeElement) || !controls.length) { event.preventDefault(); focusModal(modal); }
+                else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                // Individual editors must not redirect focus away from a nested layer.
+                event.stopImmediatePropagation();
+            }
+            if (event.key !== 'Escape') return;
+            if (document.fullscreenElement || modal?.matches('dialog') || modal?.classList.contains('document-expanded')) return;
+            if (modal) {
+                event.preventDefault(); event.stopImmediatePropagation();
+                if (modal.id !== 'welcome-modal') {
+                    const academicClose = modal.querySelector('[data-close-academic]');
+                    if (academicClose) academicClose.click();
+                    else if (modal.id === 'modal-important-announcement') closeAnnouncementModal();
+                    else closeModal(modal.id);
+                }
+                return;
+            }
+            const dropdown = document.getElementById('notif-dropdown');
+            if (dropdown?.getClientRects().length) {
+                event.preventDefault(); dropdown.style.display = 'none';
+                document.querySelector('.notification-toggle')?.focus();
+            }
+        },true);
+        syncModalAccessibility();
+    }
     const icon = name => {
         const paths = { home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/>', requests:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>', sop:'<path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Z"/><path d="M12 5v15"/>', menu:'<path d="M4 6h16M4 12h16M4 18h16"/>' };
         return '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+paths[name]+'</svg>';
@@ -39,6 +125,7 @@
         // A modal opened by a known operation can be its original feedback destination.
         document.addEventListener('submit', event => { const scope = event.target.closest('.tab-content,.overlay,.overlay-dialog'); if (scope && scope.id !== 'welcome-modal') operation = {scope,epoch:sessionEpoch}; }, true);
         refresh();
+        setupModalAccessibility();
     }
     function refresh() {
         const auth = authenticated(); document.body.classList.toggle('workspace-authenticated',auth);

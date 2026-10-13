@@ -133,13 +133,13 @@ function formatDateTime(dateString) {
 }
 
 function timeAgo(dateString) {
-    const safeDate = typeof dateString === 'string' ? dateString.replace(' ', 'T') : dateString;
-    const date = new Date(safeDate);
+    const date = displayDate(dateString);
+    if (isNaN(date)) return '-';
     const now = new Date();
-    const seconds = Math.round((now - date) / 1000);
-    const minutes = Math.round(seconds / 60);
-    const hours = Math.round(minutes / 60);
-    const days = Math.round(hours / 24);
+    const seconds = Math.max(0, Math.floor((now - date) / 1000));
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
 
     if (seconds < 60) return currentLang === 'id' ? 'Baru saja' : 'Just now';
     if (minutes < 60) return currentLang === 'id' ? `${minutes} menit lalu` : `${minutes} mins ago`;
@@ -190,15 +190,6 @@ document.addEventListener('keydown', function (event) {
         event.preventDefault();
         openGlobalSearch();
     }
-    if (event.key === "Escape") {
-        if(document.fullscreenElement || document.querySelector('.document-expanded'))return;
-        closeModal('modal-global-search');
-        document.querySelectorAll('.overlay').forEach(modal => {
-            if (window.getComputedStyle(modal).display !== 'none' && modal.id !== 'welcome-modal') {
-                closeModal(modal.id);
-            }
-        });
-    }
 });
 
 function openGlobalSearch() {
@@ -207,7 +198,10 @@ function openGlobalSearch() {
     const input = document.getElementById('global-search-input');
     input.value = '';
     renderSearchResults('');
-    setTimeout(() => { modal.style.opacity = '1'; input.focus(); }, 10);
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        if (modal.style.display === 'flex' && !modal.contains(document.activeElement)) input.focus();
+    }, 10);
 }
 
 document.getElementById('global-search-input')?.addEventListener('input', function (e) {
@@ -223,7 +217,7 @@ function renderSearchResults(query) {
         return;
     }
 
-    const q = query.toLowerCase();
+    const q = query.trim().toLowerCase();
     const results = searchDatabase.filter(item => canAccessTab(item.tab) && (
         item.title.toLowerCase().includes(q) || systemText(item.title).toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q) || (searchEnglishKeywords[item.tab] || '').includes(q))
     );
@@ -236,10 +230,10 @@ function renderSearchResults(query) {
     let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
     results.forEach(item => {
         html += `
-            <div onclick="executeSearchNavigation('${item.tab}')" style="padding: 12px 16px; background: var(--item-bg); border: 1px solid var(--item-border); border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+            <button type="button" class="search-result" onclick="executeSearchNavigation('${item.tab}')" style="width:100%; text-align:left; font:inherit; padding: 12px 16px; background: var(--item-bg); border: 1px solid var(--item-border); border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
                 <span style="font-weight: 600; font-size: 14px; color: var(--heading-color);">${escapeHtml(systemText(item.title))}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </div>
+            </button>
         `;
     });
     html += '</div>';
@@ -247,13 +241,8 @@ function renderSearchResults(query) {
 }
 
 function executeSearchNavigation(tabId) {
+    switchTab(null, tabId);
     closeModal('modal-global-search');
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => {
-        if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${tabId}'`)) {
-            switchTab({ currentTarget: item }, tabId);
-        }
-    });
 }
 
 // ==========================================
@@ -606,7 +595,7 @@ async function performLogin(role) {
     const errorMsg = document.getElementById(student ? 'error-msg-mhs' : 'error-msg-admin');
     const nim = document.getElementById('input-nim').value.trim();
     const username = document.getElementById('input-admin-user').value.trim();
-    const password = document.getElementById('input-admin-pass').value.trim();
+    const password = document.getElementById('input-admin-pass').value;
     if (student ? !nim : !username || !password) {
         if (student) setLoginError(role, 'Mohon masukkan NIM Anda.', 'Please enter your student ID.');
         else setLoginError(role, 'Username dan password wajib diisi.', 'Username and password are required.');
@@ -777,7 +766,7 @@ function renderNotifications() {
         });
     });
 
-    notifs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    notifs.sort((a, b) => displayDate(b.date).getTime() - displayDate(a.date).getTime());
     currentNotificationIds = notifs.map(n => n.key);
     const readIds = getReadNotificationIds();
     const unreadCount = notifs.filter(n => !readIds.includes(n.key)).length;
@@ -861,7 +850,7 @@ function renderActivityTimeline(records) {
     }
 
     let html = '';
-    myRecords.sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0, 5).forEach(r => {
+    myRecords.sort((a,b) => displayDate(getCaseEventTime(b))-displayDate(getCaseEventTime(a))).slice(0, 5).forEach(r => {
         let text = '';
         const stat = String(r.status).trim().toLowerCase();
 
@@ -899,8 +888,12 @@ function handleDropZone(e, el, inputId, labelId) {
     el.classList.remove('dragover');
     const fileInput = document.getElementById(inputId);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        fileInput.files = e.dataTransfer.files;
-        validateFile(fileInput, labelId);
+        const transfer = new DataTransfer();
+        const files = [...e.dataTransfer.files];
+        (fileInput.multiple ? files : files.slice(0, 1)).forEach(file => transfer.items.add(file));
+        fileInput.files = transfer.files;
+        // Run the same inline and delegated validation/preflight as the file picker.
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     }
 }
 
@@ -951,6 +944,7 @@ function clearSelectedFile(inputId, labelId) {
     if (input) { input.value = ""; setFieldError(inputId, ''); }
     const labelEl = document.getElementById(labelId);
     if (labelEl) labelEl.innerHTML = "";
+    input?.dispatchEvent(new Event('change', { bubbles: true }));
     renderRegistrationReadiness();
 }
 
@@ -1175,8 +1169,8 @@ function renderTaskHome() {
     const records = admin ? all : all.filter(item => String(item.nim) === String(currentUser.nim));
     const priority = item => { const status = String(item.status).toLowerCase(); return admin ? ({resubmitted:0,pending:1,revision:2,accepted:3}[status] ?? 4) : ({revision:0,resubmitted:1,pending:2,accepted:3}[status] ?? 4); };
     const actionable = records.filter(item => admin ? ['pending','resubmitted'].includes(String(item.status).toLowerCase()) : String(item.status).toLowerCase() !== 'accepted');
-    actionable.sort((a,b) => priority(a)-priority(b) || new Date(getCaseEventTime(a))-new Date(getCaseEventTime(b)));
-    const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => new Date(getCaseEventTime(b))-new Date(getCaseEventTime(a))).slice(0,1);
+    actionable.sort((a,b) => priority(a)-priority(b) || displayDate(getCaseEventTime(a))-displayDate(getCaseEventTime(b)));
+    const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => displayDate(getCaseEventTime(b))-displayDate(getCaseEventTime(a))).slice(0,1);
     const revisions = records.filter(item => String(item.status).toLowerCase() === 'revision').length;
     const title = admin ? uxText('Antrean kerja Anda', 'Your review queue') : uxText('Pengajuan Anda', 'Your requests');
     const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Di beranda, perbaikan masuk didahulukan, lalu aktivitas paling lama. Pilih urutan lain di Antrean.', actionable.length === 1 ? 'request needs review. Home shows corrections first, then oldest activity. Choose another order in the Queue.' : 'requests need review. Home shows corrections first, then oldest activity. Choose another order in the Queue.')}`
@@ -1431,7 +1425,7 @@ async function submitForm(e) {
     setSubmissionStage('form-submit-status','preparing');
     setProcessNotice('form-submit-status','form-preparing');
 
-    let finalDetail = `<b>Judul:</b> ${document.getElementById('reg-judul').value}`;
+    let finalDetail = `<b>Judul:</b> ${escapeHtml(document.getElementById('reg-judul').value.trim())}`;
 
     try {
         showLoader(currentLang === 'id' ? 'Mengompresi & Memproses Berkas...' : 'Compressing & Processing Files...');
@@ -1468,7 +1462,7 @@ async function submitForm(e) {
             if (dLama === dBaru) throw new Error(currentLang === 'id' ? "Dosen lama dan baru tidak boleh sama!" : "Old and new supervisor cannot be the same!");
 
             // KHUSUS PERGANTIAN DOSEN, JUDUL DIHILANGKAN DARI DETAIL
-            finalDetail = `<b>Dosen Lama:</b> ${dLama}<br><b>Dosen Baru:</b> ${dBaru}<br><b>Alasan:</b> ${kets}`;
+            finalDetail = `<b>Dosen Lama:</b> ${escapeHtml(dLama.trim())}<br><b>Dosen Baru:</b> ${escapeHtml(dBaru.trim())}<br><b>Alasan:</b> ${escapeHtml(kets.trim())}`;
             filesToUpload.push({ label: 'Surat Permohonan Ganti Dosen', fileName: fSurat.name, mimeType: fSurat.type, base64: await fileToBase64(fSurat) });
         }
 
@@ -2280,7 +2274,7 @@ function filterAdminData() {
         const type = document.getElementById('admin-type-filter')?.value || '';
         const overdueOnly = document.getElementById('admin-overdue-filter')?.checked;
         const from=document.getElementById('admin-date-from').value,to=document.getElementById('admin-date-to').value;
-        const submitted=new Date(item.date),day=Number.isFinite(submitted.getTime())?submitted.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';
+        const submitted=displayDate(item.date),day=Number.isFinite(submitted.getTime())?submitted.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';
         return matchSearch && matchFilter && (!type || item.jenis === type) && (!overdueOnly || caseWaiting(item)?.overdue) && (!from || day>=from) && (!to || day<=to) && (!from || !to || from<=to);
     });
 
@@ -2292,17 +2286,14 @@ function filterAdminData() {
             const waitA=caseWaiting(a),waitB=caseWaiting(b);
             const score=wait=>wait ? wait.days-(order==='overdue'?wait.target:0) : -Infinity;
             if(score(waitA)!==score(waitB))return score(waitB)-score(waitA);
-            return (Date.parse(a.date)||0)-(Date.parse(b.date)||0);
+            return (displayDate(a.date).getTime()||0)-(displayDate(b.date).getTime()||0);
         }
         if (filterVal === 'ACTION_REQUIRED') {
             const priority = item => String(item.status).toLowerCase() === 'resubmitted' ? 0 : 1;
             if (priority(a) !== priority(b)) return priority(a) - priority(b);
         }
-        const safeDateA = getCaseEventTime(a).replace(' ', 'T');
-        const safeDateB = getCaseEventTime(b).replace(' ', 'T');
-
-        const dateA = safeDateA ? (new Date(safeDateA).getTime() || 0) : 0;
-        const dateB = safeDateB ? (new Date(safeDateB).getTime() || 0) : 0;
+        const dateA = displayDate(getCaseEventTime(a)).getTime() || 0;
+        const dateB = displayDate(getCaseEventTime(b)).getTime() || 0;
 
         return isAdminSortDesc ? (dateB - dateA) : (dateA - dateB);
     });
@@ -2391,26 +2382,41 @@ function openDocPreview(url) {
     if(selectedCaseId===String(item.id))previewCaseFile(getCaseFiles(item).findIndex(file=>file.url===url));
 }
 
+function nearestYudisiumDeadline(now = Date.now()) {
+    const upcoming = [];
+    for (const group of getChecklistData('kalender')) {
+        for (const item of group.items) {
+            const day = academicCalendarDate(item.text);
+            if (!day) continue;
+            // The academic calendar's dates end at 23:59:59 WIB (UTC+7).
+            const deadline = day.getTime() + 17 * 60 * 60 * 1000 - 1000;
+            if (deadline >= now) upcoming.push({ deadline, day, title: contentText(group.title, group.titleEn), dateText: item.text });
+        }
+    }
+    return upcoming.sort((a,b) => a.deadline-b.deadline)[0] || null;
+}
+function renderYudisiumCountdown() {
+    const now = Date.now(), next = nearestYudisiumDeadline(now);
+    const distance = next ? next.deadline - now : 0;
+    const days = Math.floor(distance / 86400000);
+    const hours = Math.floor((distance % 86400000) / 3600000);
+    const minutes = Math.floor((distance % 3600000) / 60000);
+    const seconds = Math.floor((distance % 60000) / 1000);
+    const text = next ? `${days}d : ${hours}h : ${minutes}m : ${seconds}s` : uxText('Jadwal belum tersedia', 'No upcoming schedule');
+    document.querySelectorAll('.countdown-timer-display, #countdown-timer-display').forEach(el => { el.textContent = text; });
+    document.querySelectorAll('.countdown-period-label').forEach(el => {
+        el.textContent = next ? `${next.title} · ${uxText('Batas','Deadline')}: ${formatDate(next.day)}` : uxText('Menunggu jadwal berikutnya', 'Awaiting the next schedule');
+    });
+    document.querySelectorAll('[data-next-yudisium-reminder]').forEach(button => { button.disabled = !next; });
+}
+function downloadNearestYudisiumReminder() {
+    const next = nearestYudisiumDeadline();
+    if (!next) { showToast(uxText('Jadwal Yudisium berikutnya belum tersedia.', 'The next graduation clearance schedule is unavailable.'), 'error'); return; }
+    downloadICS(next.title, next.dateText);
+}
 function startCountdownWidget() {
-    const targetDate = new Date("October 19, 2026 23:59:59").getTime();
-
-    setInterval(() => {
-        const now = new Date().getTime();
-        const distance = targetDate - now;
-
-        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-        const textDisplay = (distance < 0)
-            ? systemText('DITUTUP')
-            : `${days}d : ${hours}h : ${minutes}m : ${seconds}s`;
-
-        document.querySelectorAll('.countdown-timer-display, #countdown-timer-display').forEach(el => {
-            if (el) el.innerText = textDisplay;
-        });
-    }, 1000);
+    renderYudisiumCountdown();
+    setInterval(renderYudisiumCountdown, 1000);
 }
 
 function openChatTimeline(id) {
@@ -3071,16 +3077,6 @@ document.querySelectorAll('.overlay').forEach(overlay => {
 const secondaryDashboard = document.querySelector('.dashboard-secondary');
 if (secondaryDashboard) secondaryDashboard.addEventListener('toggle', () => {
     if (secondaryDashboard.open) showDashboardCharts();
-});
-document.addEventListener('keydown', event => {
-    const login = document.getElementById('welcome-modal');
-    const modal = document.querySelector('.document-expanded') || document.fullscreenElement || (getComputedStyle(login).display !== 'none' ? login : document.getElementById('modal-case-detail'));
-    if (event.key !== 'Tab' || !(modal.classList.contains('document-expanded') || document.fullscreenElement===modal || getComputedStyle(modal).display==='flex')) return;
-    const controls = [...modal.querySelectorAll('button, a[href], input, textarea, select')].filter(el => !el.disabled && el.getClientRects().length > 0);
-    const first = controls[0], last = controls[controls.length - 1];
-    if (!modal.contains(document.activeElement)) { event.preventDefault(); first?.focus(); }
-    else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 });
 
 // Keyboard access for the existing navigation actions.

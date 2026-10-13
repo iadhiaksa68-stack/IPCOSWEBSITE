@@ -35,6 +35,34 @@
   padding: 12px 0;
   border-top: 1px solid var(--item-border);
 }
+.case-academic-stage .text-link,
+[data-academic-nim] .text-link {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--umy-maroon);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.case-academic-stage .text-link:hover,
+[data-academic-nim] .text-link:hover {
+  background: var(--item-hover);
+}
+.case-academic-stage .text-link:focus-visible,
+[data-academic-nim] .text-link:focus-visible {
+  outline: 2px solid var(--umy-maroon);
+  outline-offset: 2px;
+}
 [data-academic-nim] {
   display: flex;
   flex-direction: column;

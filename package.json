@@ -7,7 +7,7 @@
   },
   "scripts": {
     "test": "node scripts/test-release.cjs",
-    "build": "npm test && node scripts/build-static.cjs",
+    "build": "npm test && node scripts/build-static.cjs && node scripts/test-production.cjs",
     "build:deploy": "node scripts/verify-ci.cjs && node scripts/build-static.cjs"
   },
   "devDependencies": {
@@ -15,5 +15,8 @@
     "@xmldom/xmldom": "0.9.12",
     "pdfjs-dist": "6.4.299",
     "playwright-core": "1.63.0"
+  },
+  "dependencies": {
+    "esbuild": "0.28.2"
   }
 }
