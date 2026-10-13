@@ -56,7 +56,10 @@
         clearTimeout(timer);draftStatus();timer=setTimeout(flushDraft,900);
     }
     async function flushDraft() {
-        if(!owner()||draft.saving||draft.conflict)return;
+        if(!owner()||draft.saving||draft.conflict||draft.error)return;
+        // A manual flush takes over the pending autosave. Its old timer must
+        // not silently retry a failed request and remove the explicit retry UI.
+        clearTimeout(timer);timer=null;
         if(!draft.loaded) {draft.epoch=-1;await startDraft();return;}
         if(draft.generation===draft.confirmed||!draft.intent)return;
         const epoch=sessionEpoch,generation=draft.generation,intent=structuredClone(draft.intent);

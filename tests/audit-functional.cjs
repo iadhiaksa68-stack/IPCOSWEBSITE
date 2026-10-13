@@ -331,6 +331,88 @@ function academicContext() {
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+function draftLifecycleContext(read) {
+  const ids = ['reg-jenis-utama','reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti','form-draft-status','draft-controls'];
+  const nodes = Object.fromEntries(ids.map(id => [id, {value: '', dataset: {}, innerHTML: '', textContent: ''}]));
+  nodes['reg-jenis-utama'].value = 'Outline';
+  const timers = new Map(), calls = [];
+  let nextTimer = 0;
+  const context = vm.createContext({
+    document: {getElementById: id => nodes[id]}, window: {}, currentUser: {role: 'mhs', nim: 'A'},
+    getSessionToken: () => 'token', sessionEpoch: 1, currentLang: 'id', uxText: text => text, systemText: text => text,
+    crypto: {randomUUID: () => 'draft-request'}, GAS_URL: 'fixture', structuredClone, readStoredJSON: () => ({}),
+    sessionStorage: {getItem: () => null, setItem() {}, removeItem() {}},
+    setTimeout: fn => {timers.set(++nextTimer, fn); return nextTimer;}, clearTimeout: id => timers.delete(id),
+    apiPost: async (url, options) => {const data = JSON.parse(options.body); calls.push(data); return data;}, readApiResult: read,
+  });
+  const nextSource = fs.readFileSync(path.join(__dirname, '../next-workflow.js'), 'utf8');
+  vm.runInContext(nextSource.slice(0, nextSource.indexOf('    const fieldNames=')) + 'window.draftProbe={startDraft,changed,flushDraft,chooseDraft};})();', context);
+  return {api: context.window.draftProbe, nodes, timers, calls};
+}
+
+test('lost draft acknowledgement keeps retry available after the earlier autosave deadline', async () => {
+  let loseAck = true;
+  const fixture = draftLifecycleContext(async data => {
+    if (data.action === 'get_form_draft') return {status: 'success', draft: {exists: false, fields: {}, revision: 0}};
+    if (loseAck) {loseAck = false; throw Error('Lost acknowledgement');}
+    return {status: 'success', draft: {exists: true, fields: data.fields, revision: 1}};
+  });
+  await fixture.api.startDraft();
+  fixture.nodes['reg-judul'].value = 'Keep this draft'; fixture.api.changed();
+  const queuedAutosave = [...fixture.timers.values()][0];
+  await fixture.api.flushDraft();
+  assert.match(fixture.nodes['draft-controls'].innerHTML, /data-draft-choice="retry"/);
+  assert.equal(fixture.timers.size, 0);
+  // A callback already queued before cancellation must also leave retry intact.
+  await queuedAutosave();
+  assert.match(fixture.nodes['draft-controls'].innerHTML, /data-draft-choice="retry"/);
+  assert.equal(fixture.calls.filter(call => call.action === 'save_form_draft').length, 1);
+  await fixture.api.chooseDraft('retry');
+  assert.doesNotMatch(fixture.nodes['draft-controls'].innerHTML, /data-draft-choice="retry"/);
+  const saves = fixture.calls.filter(call => call.action === 'save_form_draft');
+  assert.equal(saves.length, 2);
+  assert.equal(saves[0].requestId, saves[1].requestId);
+});
+
+test('failed initial draft loading keeps its retry until explicitly requested', async () => {
+  let unavailable = true;
+  const fixture = draftLifecycleContext(async () => {
+    if (unavailable) {unavailable = false; throw Error('Draft unavailable');}
+    return {status: 'success', draft: {exists: false, fields: {}, revision: 0}};
+  });
+  fixture.nodes['reg-judul'].value = 'Unsaved local text'; fixture.api.changed();
+  const queuedAutosave = [...fixture.timers.values()][0];
+  await fixture.api.flushDraft();
+  assert.match(fixture.nodes['draft-controls'].innerHTML, /data-draft-choice="retry"/);
+  await queuedAutosave();
+  assert.equal(fixture.calls.length, 1);
+  assert.equal(fixture.nodes['reg-judul'].value, 'Unsaved local text');
+  await fixture.api.chooseDraft('retry');
+  assert.equal(fixture.calls.filter(call => call.action === 'get_form_draft').length, 2);
+  assert.doesNotMatch(fixture.nodes['draft-controls'].innerHTML, /data-draft-choice="retry"/);
+});
+
+test('edits during an in-flight draft save still flush the latest generation', async () => {
+  let release, saving = 0;
+  const held = new Promise(resolve => {release = resolve;});
+  const fixture = draftLifecycleContext(async data => {
+    if (data.action === 'get_form_draft') return {status: 'success', draft: {exists: false, fields: {}, revision: 0}};
+    if (++saving === 1) await held;
+    return {status: 'success', draft: {exists: true, fields: data.fields, revision: saving}};
+  });
+  await fixture.api.startDraft();
+  fixture.nodes['reg-judul'].value = 'First title'; fixture.api.changed();
+  const pending = fixture.api.flushDraft();
+  await flush();
+  fixture.nodes['reg-judul'].value = 'Latest title'; fixture.api.changed();
+  release(); await pending; await flush();
+  const saves = fixture.calls.filter(call => call.action === 'save_form_draft');
+  assert.equal(saves.length, 2);
+  assert.equal(saves[0].fields['reg-judul'], 'First title');
+  assert.equal(saves[1].fields['reg-judul'], 'Latest title');
+  assert.equal(fixture.timers.size, 0);
+});
+
 test('request type correction locks before version lookup and ignores repeated clicks', async () => {
   const fixture = academicContext();
   fixture.click();
