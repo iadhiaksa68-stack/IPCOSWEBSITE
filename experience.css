@@ -80,7 +80,6 @@ button:active:not(:disabled) { filter:brightness(.96); }
     #student-bottom-nav button.active { color:var(--sidebar-active-text); background:var(--sidebar-active-bg); font-weight:700; }
     body.workspace-authenticated:has(#student-bottom-nav:not([hidden])) .context-actions { bottom:64px; }
     .context-actions>button { flex:1; }
-    .wa-float-container { margin-bottom:96px; }
     .notification-toggle,#notif-wrapper { flex-shrink:0; }
     #notif-dropdown { position:fixed!important; top:72px!important; right:16px!important; width:min(320px,calc(100vw - 32px))!important; }
 }

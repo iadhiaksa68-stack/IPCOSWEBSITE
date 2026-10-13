@@ -3,7 +3,7 @@
   const pending = new Map();
   let sopContents = [],
     generation = 0;
-  function load(file) {
+  function load(file, ready = () => true) {
     if (pending.has(file)) return pending.get(file);
     const promise = new Promise((resolve, reject) => {
       const script = document.createElement("script");
@@ -25,6 +25,9 @@
         );
       }
       script.onload = () => {
+        // HTTP success also fires when a script is empty or has a syntax error.
+        // Remove that attempt so Retry fetches a fresh script instead of looping.
+        if (!ready()) { fail(); return; }
         clearTimeout(timeout);
         resolve();
       };
@@ -41,7 +44,7 @@
         view = document.getElementById(type + "-view");
       if (view) view.textContent = uxText("Memuat SOP…", "Loading SOP…");
       try {
-        await load("sop.js");
+        await load("sop.js", () => window.IPCOSSop !== placeholder);
         if (
           epoch !== sessionEpoch ||
           run !== generation ||

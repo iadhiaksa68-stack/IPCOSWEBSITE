@@ -19,11 +19,11 @@ Static academic portal with the existing Google Apps Script backend. Login and t
 
 Requires Node.js 24. Run `npm ci --include=dev`, then `npm run build`.
 
-Sixteen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings, academic preparation and modal accessibility. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
+Seventeen browser suites verify transactions, regressions, workflow continuity, private document cleanup, service settings, academic preparation, modal accessibility and announcement readability. API calls are intercepted with test fixtures; tests never write to the real academic database or use real credentials. External requests are blocked by the fixtures.
 
 On macOS the tests use installed Google Chrome; on Linux they use the pinned bundled headless Chromium. For other environments set `IPCOS_TEST_BROWSER` to an installed Chrome/Chromium executable.
 
-GitHub Actions runs sixteen source browser suites, six production-artifact browser suites, backend transaction/access/backup checks, structural document checks and release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
+GitHub Actions runs seventeen source browser suites, seven production-artifact browser suites, backend transaction/access/backup checks, structural document checks and release-gate checks for pushes and pull requests. Vercel verifies the successful workflow for the exact `VERCEL_GIT_COMMIT_SHA` through GitHub's public API before publishing. Failed, cancelled, missing or unverifiable checks block publication. No extra token is needed because this repository is public. Deploy through the connected Git repository; a manual deployment without a commit SHA is blocked.
 
 Vercel installs no browser dependencies. Build output contains only the explicitly allowed website assets listed in `scripts/assets.cjs`; backend source, tests, dependencies and environment files are excluded.
 
@@ -39,6 +39,15 @@ Tests cover the supported scenarios, not a guarantee against every possible bug.
 - Production combines the ordered global scripts and styles into two minified assets with content hashes. Global names remain intact for inline handlers. SOP, CSV and internationalization modules remain lazy and receive content hashes; PDF assets retain their existing paths. Browser suites also exercise the actual built output.
 - The public portal sends anti-framing, MIME, referrer and limited CSP headers. Hashed assets cache immutably; HTML revalidates so new releases pick up new asset URLs.
 - These changes require no backend deployment or spreadsheet migration. Live academic mutations are not part of the automated checks; backend integration tests use synthetic Apps Script fixtures.
+
+## Request clarity and announcements (13 October 2026)
+
+- Student and admin request cards show a status and one next-step instruction. Timing disclosures, repeated internal targets and duplicate owner labels are removed from home, queues, history and case detail. Internal admin waiting/overdue filters remain available and interpret timestamps in WIB.
+- Announcement composers and student announcement surfaces use readable light/dark colors and 44px controls. Submitting via Enter is supported. Pending writes disable both submit buttons; failure retains the draft, confirmed sends clear only the submitted draft, and responses from older sessions cannot reset current controls or text.
+- Announcement dismissal is private to each account. Background sync retains the current important-announcement checkbox; backdrop dismissal is remembered. Dismissed banners stay hidden until a new announcement arrives.
+- Returning from a guide preserves the live registration review and selected files. Notification and search navigation respect a declined leave-form confirmation. Reopening search cancels the previous close animation; search requires an authenticated session.
+- A SOP script that loads without installing its implementation now fails visibly with a working retry rather than recursively reopening its placeholder. Concurrent opens share one script attempt; stale session responses cannot overwrite current guidance.
+- Redundant dashboard workspace labels and large decorative announcement symbols are removed. Academic transactions, source content and backend schema are unchanged.
 
 ## Drafts, corrections and admin tools (8 October 2026)
 

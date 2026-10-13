@@ -5,7 +5,7 @@
 .login-story-footer,.login-copyright,.workspace-copyright { font-size:12px; }
 .login-story-body { padding-top:32px; }
 .display-time { font-size:12px; opacity:.85; }
-.form-helper,.field-helper,.form-draft-status,.upload-format,.task-home-header p,.request-state-owner { font-size:14px; line-height:1.65; }
+.form-helper,.field-helper,.form-draft-status,.upload-format,.task-home-header p { font-size:14px; line-height:1.65; }
 .draft-help { background:none; border:0; padding:0; margin:0 0 12px; }
 .draft-help summary { min-height:44px; padding:8px 0; font-size:14px; color:var(--text-muted); cursor:pointer; }
 .draft-help p { margin:4px 0 12px; line-height:1.7; font-size:14px; }
@@ -87,7 +87,6 @@
 @media(prefers-reduced-motion:reduce) { #sop-picker,.filter-chip { animation:none; transition:none; } }
 .advanced-filters .overdue-filter input { width:18px!important; min-width:18px!important; flex:0 0 18px; margin:0; }
 .request-state-heading { align-items:flex-start; flex-direction:column; gap:6px; }
-.request-state-target { font-size:12px; line-height:1.6; color:var(--text-muted); margin:8px 0; }
 .request-state .request-state-next { font-size:14px; }
 .upload-guidance .text-link,.guide-back span { font-size:14px; }
 .login-story { min-width:0; }
@@ -116,13 +115,28 @@ body.modal-overlay-open { overflow:hidden; }
 #global-search-input { min-width:0; padding-inline:4px; }
 .search-result { display:block; width:100%; text-align:left; font:inherit; color:var(--text-color); background:transparent; overflow-wrap:anywhere; white-space:normal; }
 .search-result:focus-visible { outline:2px solid var(--umy-maroon); outline-offset:-3px; }
-#announcement-banner { gap:12px; color:#3b3030!important; }
+#announcement-banner { display:flex; gap:12px; align-items:flex-start; justify-content:space-between; margin-bottom:24px; padding:14px 16px; background:var(--umy-gold-light)!important; color:var(--text-color)!important; border:1px solid var(--surface-border)!important; border-radius:12px!important; font-size:14px!important; line-height:1.7; box-shadow:none!important; }
 #announcement-banner>div { min-width:0; }
-#announcement-banner #announcement-text { overflow-wrap:anywhere; }
-#announcement-banner>button { width:44px!important; height:44px!important; min-width:44px; flex:0 0 44px; }
-.wa-float-container { color:inherit; text-decoration:none; }
-.wa-float-container.wa-hidden { visibility:hidden; }
+#announcement-banner #announcement-text { overflow-wrap:anywhere; white-space:pre-line; }
+#announcement-banner>button { width:44px; height:44px; min-width:44px; flex:0 0 44px; padding:0; background:transparent; color:inherit; border:1px solid var(--surface-border); border-radius:10px; font-size:22px; cursor:pointer; }
+.announcement-composer { background:var(--card-bg); color:var(--text-color); }
+.announcement-composer h2,.announcement-composer h3 { color:var(--heading-color); margin:0 0 8px; line-height:1.5; }
+.announcement-fields { min-width:0; flex:1; }
+.announcement-fields label { display:block; margin:0 0 8px; font-size:14px; font-weight:600; color:var(--text-color); }
+.announcement-fields input:not([type=checkbox]),.announcement-fields textarea { background:var(--input-bg); color:var(--text-color); caret-color:var(--text-color); min-width:0; width:100%; margin:0; line-height:1.65; }
+.announcement-fields input::placeholder,.announcement-fields textarea::placeholder { color:var(--text-muted); opacity:1; }
+.announcement-fields textarea { min-height:112px; margin-bottom:8px; }
+.announcement-fields .announcement-important { display:flex; align-items:center; gap:10px; min-height:44px; padding:8px 0; margin:0 0 12px; cursor:pointer; font-weight:500; }
+.announcement-important input { width:18px; height:18px; min-height:18px; flex:0 0 18px; margin:0; padding:0; accent-color:var(--umy-maroon); }
+.announcement-composer .announcement-submit { width:auto; min-height:44px; margin:0; background:#9f2442; color:#fff; white-space:normal; }
+.announcement-composer .announcement-submit:disabled { opacity:.65; cursor:wait; }
+.announcement-management { margin-bottom:24px; }
+.card-broadcast-admin { align-items:flex-end; gap:16px; }
+.card-broadcast-admin .form-helper { margin:0 0 12px; }
+#modal-important-announcement .modal-card { text-align:left; }
+#modal-important-announcement .modal-card>div { justify-content:flex-start!important; }
 @media(max-width:600px) {
+ .announcement-composer .announcement-submit { width:100%; }
  .service-management>form { margin-inline:8px; }
  .service-setting { padding:12px; }
 }

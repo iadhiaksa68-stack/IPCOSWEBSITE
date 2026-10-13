@@ -1323,49 +1323,6 @@ body.dark-mode .deadline-tag {
     color: var(--heading-color);
 }
 
-/* WHATSAPP FLOATING */
-.wa-float-container {
-    position: fixed;
-    bottom: 24px;
-    right: 20px;
-    z-index: 1500;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    transition: all 0.4s ease;
-}
-
-.wa-float-container.wa-hidden {
-    opacity: 0;
-    transform: translateY(60px) scale(0.9);
-    pointer-events: none;
-}
-
-.wa-bumper {
-    background: #1A1512;
-    color: var(--umy-gold);
-    font-weight: 700;
-    padding: 8px 14px;
-    border-radius: 16px;
-    font-size: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: var(--shadow-md);
-}
-
-.wa-icon-circle {
-    background: linear-gradient(135deg, var(--umy-green) 0%, #687523 100%);
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid white;
-    box-shadow: var(--shadow-md);
-    transition: var(--trans-fast);
-}
-
 /* ADMIN CONTROLS */
 .admin-table-controls {
     display: flex;
@@ -1537,15 +1494,6 @@ summary {
 
     .student-info-actions button {
         flex: 1;
-    }
-
-    .wa-float-container {
-        bottom: 20px;
-        right: 16px;
-    }
-
-    .wa-bumper {
-        display: none;
     }
 
     .modal-card {

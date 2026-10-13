@@ -167,7 +167,6 @@ body.dark-mode .badge-accepted { background:#22372b; color:#a6d9b7; border-color
   .login-panel-intro .eyebrow { display:none; }
   .page-intro { margin-top:26px; }
   .task-card { min-height:0; }
-  .wa-float-container { position:static; align-self:flex-end; margin:0 20px 24px; transform:none; }
 }
 @media (max-width:480px) {
   #welcome-modal { padding:16px; align-items:center; }
@@ -193,9 +192,6 @@ body.dark-mode .badge-accepted { background:#22372b; color:#a6d9b7; border-color
 /* Transaction workflow tools */
 .service-availability { padding:16px; margin:16px 0; border:1px solid var(--item-border); border-radius:12px; background:var(--item-bg); }
 .service-availability p { margin:8px 0 12px; }
-.waiting-badge { font-size:12px; line-height:1.6; color:var(--text-muted); margin:8px 0; }
-.waiting-overdue { color:#9a3412; font-weight:600; }
-body.dark-mode .waiting-overdue { color:#fdba74; }
 .document-version { display:block; margin-top:4px; overflow-wrap:anywhere; }
 .service-management { margin-bottom:20px; }
 .service-management > summary { font-weight:700; cursor:pointer; padding:8px 0; }

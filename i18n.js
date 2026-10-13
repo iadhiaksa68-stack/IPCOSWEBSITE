@@ -173,6 +173,7 @@ const interfaceEnglish = {
     'Tidak dapat menambah mahasiswa saat offline.':'Cannot add student access while offline.',
     'Tidak dapat menghapus saat offline.':'Cannot delete data while offline.',
     'Pengumuman berhasil disebarkan!':'Announcement published!',
+    'Tidak dapat mengirim pengumuman saat offline.':'Cannot publish announcements while offline.',
     'Gagal mengirim pengumuman. Pesan Anda tetap tersedia.':'The announcement could not be published. Your message has been retained.',
     'Pesan pengumuman tidak boleh kosong!':'The announcement cannot be empty!',
 

@@ -161,15 +161,9 @@
     function statusHtml(item, options = {}) {
         if (!item || !['admin', 'mhs'].includes(currentUser?.role)
             || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) return '';
-        const status = String(item.status || '').trim().toLowerCase();
-        const studentActs = ['revision', 'accepted'].includes(status);
-        const ownAction = studentActs ? currentUser.role === 'mhs' : isAdmin();
-        const owner = ownAction ? text('Anda', 'You') : studentActs ? text('Mahasiswa', 'Student') : 'Admin';
-        const wait = caseWaiting(item);
-        const timing = wait ? `<details class="request-state-details"><summary>${escape(text('Rincian waktu', 'Timing details'))}${wait.overdue ? `<span class="request-state-attention">${escape(text('Perlu perhatian', 'Needs attention'))}</span>` : ''}</summary>${waitingHtml(item)}</details>` : '';
         return `<section class="request-state${options.compact ? ' request-state-compact' : ''}" aria-label="${escape(text('Status dan langkah pengajuan', 'Request status and next step'))}">
-            <div class="request-state-heading">${getStatusBadge(item.status)}<span class="request-state-owner">${escape(status === 'accepted' ? text('Tahap selanjutnya', 'Next stage') : text('Tindakan berikutnya', 'Next action'))}: <strong>${escape(owner)}</strong></span></div>
-            <p class="request-state-next">${escape(caseNextStep(item))}</p>${wait?`<p class="request-state-target">${text('Target internal','Internal target')}: ${wait.target} ${text('hari',wait.target===1?'day':'days')}${wait.overdue?' · '+text('Perlu perhatian','Needs attention'):''}</p>`:''}${timing}</section>`;
+            <div class="request-state-heading">${getStatusBadge(item.status)}</div>
+            <p class="request-state-next">${escape(caseNextStep(item))}</p></section>`;
     }
 
     function updateKeyboardState() {

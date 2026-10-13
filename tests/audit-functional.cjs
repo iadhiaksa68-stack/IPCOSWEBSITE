@@ -18,6 +18,21 @@ test('relative notification dates use WIB for timestamps without an offset', () 
   assert.equal(context.timeAgo('invalid'), '-');
 });
 
+test('internal overdue filtering uses a WIB timestamp at the 24-hour boundary', () => {
+  let clock = Date.parse('2026-10-14T04:29:59Z');
+  class FixedDate extends Date {static now() {return clock;}}
+  const context = vm.createContext({Date: FixedDate, serviceSetting: () => ({adminDays: 1, studentDays: 1})});
+  vm.runInContext(section('function displayDate(', 'function formatDate('), context);
+  const features = fs.readFileSync(path.join(__dirname, '../features.js'), 'utf8');
+  vm.runInContext(features.slice(features.indexOf('function caseWaiting('), features.indexOf('function caseDocumentOptions(')), context);
+  const item = {status: 'Pending', jenis: 'Proposal', date: '2026-10-13 11:30:00', note: '[]'};
+  assert.equal(context.caseWaiting(item).days, 0);
+  assert.equal(context.caseWaiting(item).overdue, false);
+  clock = Date.parse('2026-10-14T04:30:00Z');
+  assert.equal(context.caseWaiting(item).days, 1);
+  assert.equal(context.caseWaiting(item).overdue, true);
+});
+
 test('Yudisium countdown follows the next calendar deadline and closes each date in WIB', () => {
   const context = vm.createContext({
     getChecklistData: () => [
@@ -89,6 +104,135 @@ test('global search trims surrounding spaces and renders keyboard-operable resul
   context.renderSearchResults('  magang  ');
   assert.match(container.innerHTML, /<button type="button" class="search-result"/);
   assert.match(container.innerHTML, /Kewajiban Magang/);
+});
+
+test('global search requires login and cancels a previous close animation on reopen', () => {
+  const modal = {id: 'modal-global-search', style: {display: 'none'}, contains: () => true};
+  const input = {value: '', focus() {}};
+  const cancelled = [], timers = new Map([['modal-global-search', 42]]);
+  const context = vm.createContext({
+    currentUser: {role: ''}, getSessionToken: () => '',
+    document: {getElementById: id => id === 'modal-global-search' ? modal : input},
+    modalCloseTimers: timers, clearTimeout: id => cancelled.push(id), setTimeout() {}, renderSearchResults() {},
+  });
+  vm.runInContext(section('function openGlobalSearch(', "document.getElementById('global-search-input')?.addEventListener"), context);
+  context.openGlobalSearch();
+  assert.equal(modal.style.display, 'none');
+  context.currentUser.role = 'mhs'; context.getSessionToken = () => 'student-token';
+  context.openGlobalSearch();
+  assert.equal(modal.style.display, 'flex');
+  assert.deepEqual(cancelled, [42]);
+  assert.equal(timers.has('modal-global-search'), false);
+});
+
+test('returning to registration keeps a prepared review and selected files', () => {
+  const review = {hidden: false}, file = {files: [{name: 'selected.pdf'}]};
+  let resets = 0, reads = 0;
+  const context = vm.createContext({
+    document: {getElementById: id => id === 'registration-review' ? review : {}, querySelectorAll: () => [file]},
+    sessionStorage: {getItem: () => {reads++; return JSON.stringify({'reg-jenis-utama': 'Proposal'});}},
+    toggleExamForm: () => resets++,
+  });
+  vm.runInContext(section('function loadFormDraft(', 'function clearFormDraft('), context);
+  context.loadFormDraft();
+  review.hidden = true;
+  context.loadFormDraft();
+  assert.equal(resets, 0);
+  assert.equal(reads, 0);
+  assert.equal(file.files[0].name, 'selected.pdf');
+});
+
+test('notification and search respect a rejected leave-form confirmation', () => {
+  let navigated = false;
+  const reads = [], opened = [], closed = [], dropdown = {style: {display: 'block'}};
+  const context = vm.createContext({
+    switchTab: () => navigated, getReadNotificationIds: () => [], saveReadNotificationIds: values => reads.push(values),
+    renderNotifications() {}, document: {getElementById: () => dropdown}, openCaseDetail: id => opened.push(id),
+    closeModal: id => closed.push(id),
+  });
+  vm.runInContext(section('function openNotification(', 'function toggleNotifDropdown('), context);
+  vm.runInContext(section('function executeSearchNavigation(', '// ==========================================\n// 4.'), context);
+  context.openNotification('unread', 'case-a', 'student-status');
+  context.executeSearchNavigation('dashboard');
+  assert.equal(reads.length, 0);
+  assert.equal(opened.length, 0);
+  assert.equal(closed.length, 0);
+  assert.equal(dropdown.style.display, 'block');
+  navigated = true;
+  context.openNotification('unread', 'case-a', 'student-status');
+  context.executeSearchNavigation('dashboard');
+  assert.equal(reads.length, 1);
+  assert.deepEqual(opened, ['case-a']);
+  assert.deepEqual(closed, ['modal-global-search']);
+  assert.equal(dropdown.style.display, 'none');
+});
+
+function announcementContext() {
+  const values = new Map(), session = new Map(), nodes = new Map(), timeouts = new Map();
+  let nextTimer = 0;
+  const node = id => {
+    if (!nodes.has(id)) {
+      const attributes = new Map();
+      nodes.set(id, {id, tagName: 'DIV', checked: false, style: {display: 'none'}, innerText: '',
+        getAttribute: name => attributes.get(name) || null, setAttribute: (name, value) => attributes.set(name, String(value))});
+    }
+    return nodes.get(id);
+  };
+  const store = map => ({getItem: key => map.get(key) || null, setItem: (key, value) => map.set(key, value)});
+  const context = vm.createContext({
+    document: {getElementById: node}, currentUser: {role: 'mhs', nim: 'A'}, sessionEpoch: 1,
+    sessionStorage: store(session), localStorage: store(values), modalCloseTimers: new Map(),
+    setTimeout: fn => {timeouts.set(++nextTimer, fn); return nextTimer;}, clearTimeout: id => timeouts.delete(id),
+    window: {}, applyJourneySnapshot() {}, serviceSettings: [], renderServiceSettings() {}, normalizeData: values => values,
+    renderNotifications() {}, refreshServiceAvailability() {}, DB_MAHASISWA: {}, isDbLoaded: false,
+    loadStudentStatus() {}, renderActivityTimeline() {}, setSyncPhase() {},
+  });
+  vm.runInContext(section('function notificationHash(', 'function notificationReadKey('), context);
+  vm.runInContext(section('function announcementDismissalKey(', '// ==========================================\n// FITUR BARU'), context);
+  vm.runInContext(section('function closeModal(', 'function syncThemeControl('), context);
+  vm.runInContext(section('function applyDatabaseSnapshot(', 'function switchLoginMode('), context);
+  return {context, node, values, session, flush: () => {const pending = [...timeouts.values()]; timeouts.clear(); pending.forEach(fn => fn());}};
+}
+
+test('broadcast sync retains the dismissal choice and separates it between student accounts', () => {
+  const fixture = announcementContext(), {context, node} = fixture;
+  const snapshot = () => ({registrations: [], announcements: [{Id: 'announcement-1', Tipe: 'important', Pesan: 'Important announcement'}]});
+  context.applyDatabaseSnapshot(snapshot());
+  node('chk-dont-show-announcement').checked = true;
+  context.applyDatabaseSnapshot(snapshot());
+  assert.equal(node('chk-dont-show-announcement').checked, true);
+  context.closeAnnouncementModal(); fixture.flush();
+  const keyA = context.announcementDismissalKey('hide', 'announcement-1');
+  assert.equal(fixture.values.get(keyA), 'true');
+  context.applyDatabaseSnapshot(snapshot());
+  assert.equal(node('modal-important-announcement').style.display, 'none');
+  context.currentUser.nim = 'B'; context.applyDatabaseSnapshot(snapshot());
+  assert.equal(node('modal-important-announcement').style.display, 'flex');
+  assert.notEqual(context.announcementDismissalKey('hide', 'announcement-1'), keyA);
+});
+
+test('generic announcement dismissal is remembered while logout cleanup does not dismiss it', () => {
+  const fixture = announcementContext(), {context, node} = fixture;
+  node('modal-important-announcement').setAttribute('data-current-ann-id', 'announcement-2');
+  context.closeModal('modal-important-announcement');
+  assert.equal(fixture.session.get(context.announcementDismissalKey('seen', 'announcement-2')), 'true');
+  node('modal-important-announcement').setAttribute('data-current-ann-id', 'announcement-3');
+  context.closeModal('modal-important-announcement', true);
+  assert.equal(fixture.session.has(context.announcementDismissalKey('seen', 'announcement-3')), false);
+});
+
+test('a dismissed banner stays hidden across sync but a new broadcast remains visible', () => {
+  const fixture = announcementContext(), {context, node} = fixture;
+  const snapshot = id => ({registrations: [], announcements: [{Id: id, Tipe: 'info', Pesan: 'Broadcast ' + id}]});
+  context.applyDatabaseSnapshot(snapshot('first'));
+  context.dismissAnnouncementBanner();
+  context.applyDatabaseSnapshot(snapshot('first'));
+  assert.equal(node('announcement-banner').style.display, 'none');
+  context.applyDatabaseSnapshot(snapshot('second'));
+  assert.equal(node('announcement-banner').style.display, 'flex');
+  context.currentUser.nim = 'B';
+  context.applyDatabaseSnapshot(snapshot('first'));
+  assert.equal(node('announcement-banner').style.display, 'flex');
 });
 
 test('admin login sends the password exactly as entered', async () => {

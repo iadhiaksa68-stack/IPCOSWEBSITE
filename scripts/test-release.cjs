@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const assets = require('./assets.cjs');
-const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud', 'language-layout', 'sop', 'experience', 'next', 'review-tools', 'review-enhancements', 'review-version', 'academic-international', 'accessibility'];
+const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'services', 'journey', 'journey-cloud', 'language-layout', 'sop', 'experience', 'next', 'review-tools', 'review-enhancements', 'review-version', 'academic-international', 'accessibility', 'portal-polish'];
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.mjs':'text/javascript', '.wasm':'application/wasm', '.txt':'text/plain' };
 // Whitelisted files and mocked API routes make these tests independent of live data.
 const server = createServer((req, res) => {
@@ -25,6 +25,7 @@ async function run(file, args = []) {
     for (const file of assets.filter(name => name.endsWith('.js'))) await run(file, ['--check']);
     await run('tests/release-gate.cjs', ['--test']);
     await run('tests/audit-functional.cjs', ['--test']);
+    await run('tests/lazy-modules.cjs', ['--test']);
     await run('tests/document-checks.cjs', ['--test']);
     await run('tests/backend-journey.cjs', ['--test']);
     await run('tests/backend-sop.cjs', ['--test']);

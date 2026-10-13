@@ -46,14 +46,10 @@ function caseWaiting(item) {
     if (!['pending','revision','resubmitted'].includes(status)) return null;
     let logs=[]; try { logs=JSON.parse(item.note || '[]'); } catch (_) {}
     const last=Array.isArray(logs) ? logs.slice().reverse().find(log => log.status === item.status || (status==='revision' ? log.role==='admin' : log.role==='mhs')) : null;
-    const start=new Date(last?.time || item.date).getTime();
+    const start=displayDate(last?.time || item.date).getTime();
     const days=Number.isFinite(start) ? Math.max(0,Math.floor((Date.now()-start)/86400000)) : 0;
     const target=Number(serviceSetting(item.jenis)[status==='revision'?'studentDays':'adminDays']);
     return {days,target,overdue:days>=target,role:status==='revision'?'mahasiswa':'admin'};
-}
-function waitingHtml(item) {
-    const wait=caseWaiting(item);
-    return wait ? `<p class="waiting-badge ${wait.overdue?'waiting-overdue':''}">${uxText('Menunggu','Waiting for')} ${wait.role === 'mahasiswa' ? uxText('mahasiswa','student') : 'admin'}: ${wait.days} ${uxText('hari',wait.days === 1 ? 'day' : 'days')} · ${uxText('target internal','internal target')} ${wait.target} ${uxText('hari','days')}${wait.overdue ? uxText(' · Perlu perhatian',' · Needs attention') : ''}</p>` : '';
 }
 function caseDocumentOptions(item) { return registrationSpecs(item.jenis).map(([,label])=>label); }
 function renderRevisionAssociations() {

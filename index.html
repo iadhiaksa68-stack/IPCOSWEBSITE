@@ -266,8 +266,7 @@
     <!-- MODAL PENGUMUMAN PENTING (DENGAN CHECKBOX JANGAN TAMPILKAN LAGI) -->
     <div id="modal-important-announcement" class="overlay" style="display: none; z-index: 3000;" role="dialog" aria-modal="true" aria-labelledby="important-announcement-title">
         <div class="modal-card" style="border-top: 6px solid var(--umy-maroon);">
-            <div style="font-size: 48px; margin-bottom: 12px;">📢</div>
-            <h2 id="important-announcement-title" class="lang" data-id="Pengumuman Baru!" data-en="New Announcement!">Pengumuman Baru!</h2>
+            <h2 id="important-announcement-title" class="lang" data-id="Pengumuman" data-en="Announcement">Pengumuman</h2>
             <p id="important-announcement-text"
                 style="font-size: 15px; line-height: 1.6; margin-bottom: 16px; color: var(--text-color); font-weight: 500;">
             </p>
@@ -444,13 +443,11 @@
             </div>
         </div>
 
-        <div id="announcement-banner"
-            style="display: none; background: var(--umy-gold); color: var(--text-color); padding: 15px 20px; border-radius: 16px; margin-bottom: 25px; font-weight: bold; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(248, 196, 99, 0.3);">
-            <div style="display: flex; align-items: center; gap: 10px;"><span id="announcement-text">Pengumuman penting
+        <div id="announcement-banner" class="announcement-banner" style="display: none;">
+            <div><span id="announcement-text">Pengumuman penting
                     di sini...</span></div>
-            <button aria-label="Tutup Pengumuman"
-                onclick="document.getElementById('announcement-banner').style.display='none'"
-                style="background: rgba(0,0,0,0.1); border: none; cursor: pointer; border-radius: 50%; width: 32px; height: 32px; font-weight: bold;">X</button>
+            <button type="button" class="announcement-dismiss" aria-label="Tutup Pengumuman"
+                onclick="dismissAnnouncementBanner()">×</button>
         </div>
 
         <!-- Student Header Card -->
@@ -470,21 +467,20 @@
 
         <!-- 1. Dashboard Baru yang Lebih Ringkas -->
         <div id="dashboard" class="tab-content active">
-            <div class="page-intro"><span class="eyebrow lang" data-id="WORKSPACE / BERANDA" data-en="WORKSPACE / HOME">WORKSPACE / BERANDA</span><h1 class="lang" data-id="Beranda" data-en="Home">Beranda</h1><p class="lang" data-id="Semua progres Anda. Satu langkah berikutnya." data-en="All your progress. One clear next step.">Semua progres Anda. Satu langkah berikutnya.</p></div>
+            <div class="page-intro"><h1 class="lang" data-id="Beranda" data-en="Home">Beranda</h1><p class="lang" data-id="Semua progres Anda. Satu langkah berikutnya." data-en="All your progress. One clear next step.">Semua progres Anda. Satu langkah berikutnya.</p></div>
             <section id="task-home" aria-label="Tugas dan pengajuan Anda" aria-live="polite"></section>
 
             <details class="dashboard-secondary"><summary>Ringkasan & layanan akademik</summary>
             <!-- ADMIN DASHBOARD -->
             <div class="bento-grid admin-only">
-                <!-- KOTAK BROADCAST SUDAH DIPERBAIKI: HANYA ADA SATU CLASS & TIDAK ADA INLINE STYLE -->
-                <div class="bento-card bento-col-3 card-broadcast-admin">
-                    <div style="flex-grow: 1;">
-                        <h3 style="margin-bottom: 5px; color: var(--heading-color);">Kirim Pengumuman Instan</h3>
-                        <input type="text" id="input-broadcast-dashboard" placeholder="Ketik pengumuman di sini..."
-                            style="margin-bottom: 0;">
+                <form class="bento-card bento-col-3 card-broadcast-admin announcement-composer" onsubmit="event.preventDefault(); postAnnouncementFromDashboard();">
+                    <div class="announcement-fields">
+                        <h3 id="dashboard-broadcast-title">Kirim Pengumuman Instan</h3>
+                        <p id="dashboard-broadcast-help" class="form-helper lang" data-id="Ditampilkan kepada seluruh mahasiswa." data-en="Shown to all students.">Ditampilkan kepada seluruh mahasiswa.</p>
+                        <input type="text" id="input-broadcast-dashboard" placeholder="Ketik pengumuman di sini..." aria-labelledby="dashboard-broadcast-title" aria-describedby="dashboard-broadcast-help" autocomplete="off" required>
                     </div>
-                    <button class="btn-primary btn-broadcast" onclick="postAnnouncementFromDashboard()">Sebarkan</button>
-                </div>
+                    <button type="submit" class="btn-primary btn-broadcast announcement-submit">Sebarkan</button>
+                </form>
 
                 <div class="bento-card bento-col-2">
                     <div class="bento-header">
@@ -878,25 +874,18 @@
 
             <details class="card service-management"><summary>Periode dan target layanan</summary><p>Tanggal mengikuti WIB. Kosongkan tanggal untuk membuka tanpa batas periode. Target adalah pengingat internal, bukan batas otomatis untuk revisi.</p><form onsubmit="saveServiceSettings(event)"><div id="service-settings"></div><button type="submit" class="btn-primary" id="save-service-settings">Simpan Pengaturan</button></form></details>
             <details class="card service-management"><summary>Cadangan dan pemulihan</summary><p id="backup-status" aria-live="polite">Memuat status cadangan...</p><div class="button-row"><button type="button" class="btn-secondary" onclick="refreshBackupStatus()">Segarkan Status</button><a id="backup-folder" class="btn-secondary" target="_blank" rel="noopener noreferrer" hidden>Buka Cadangan Privat</a><a class="btn-secondary" href="recovery-guide.html" target="_blank" rel="noopener noreferrer">Panduan Pemulihan</a></div><p>Cadangan berisi salinan database, berkas pengajuan, dan pengaturan layanan. Akses folder mengikuti akun pemilik Drive.</p></details>
-            <!-- BAGIAN BARU: PENAMBAHAN KOTAK BROADCAST (AGAR JS BERFUNGSI) -->
-            <div class="card" style="margin-bottom: 24px;">
+            <form class="card announcement-composer announcement-management" onsubmit="event.preventDefault(); postAnnouncement();">
                 <h2>Kirim Pengumuman Global</h2>
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px;">
-                    <textarea id="input-broadcast" rows="3"
-                        placeholder="Ketik pesan pengumuman untuk seluruh mahasiswa di sini..."
-                        style="width: 100%; margin-bottom: 0; padding: 12px; border-radius: 12px; border: 1px solid var(--item-border); font-family: inherit; font-size: 14px; outline: none; resize: vertical;"></textarea>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="check-important-broadcast"
-                            style="width: 18px; height: 18px; min-height: auto; margin: 0; cursor: pointer;">
-                        <label for="check-important-broadcast"
-                            style="font-size: 13px; font-weight: 600; margin: 0; color: var(--text-color); cursor: pointer;">Tandai
-                            sebagai Pengumuman Penting (Pop-up)</label>
-                    </div>
-                    <button class="btn-primary"
-                        style="background: var(--umy-maroon); width: fit-content; padding: 10px 24px; min-height: 40px;"
-                        onclick="postAnnouncement()">Sebarkan Pengumuman</button>
+                <div class="announcement-fields">
+                    <label for="input-broadcast" class="lang" data-id="Isi pengumuman" data-en="Announcement message">Isi pengumuman</label>
+                    <textarea id="input-broadcast" rows="3" placeholder="Ketik pesan pengumuman untuk seluruh mahasiswa di sini..." required></textarea>
+                    <label for="check-important-broadcast" class="announcement-important">
+                        <input type="checkbox" id="check-important-broadcast">
+                        <span class="lang" data-id="Tampilkan juga sebagai pop-up" data-en="Also show as a pop-up">Tampilkan juga sebagai pop-up</span>
+                    </label>
+                    <button type="submit" class="btn-primary announcement-submit">Sebarkan Pengumuman</button>
                 </div>
-            </div>
+            </form>
 
             <div class="card">
                 <h2>Manajemen Akses Mahasiswa</h2>
@@ -1010,17 +999,6 @@
         </div>
         <footer class="workspace-copyright">&copy; 2026 Developed by IPCOS Team</footer>
     </main>
-
-    <!-- WhatsApp Floating Widget -->
-    <a id="wa-float-btn" class="wa-float-container" href="https://wa.me/6285172228960" target="_blank" rel="noopener noreferrer" aria-label="Hubungi Mincos lewat WhatsApp">
-        <div class="wa-bumper lang" data-id="Hubungi Mincos" data-en="Contact Mincos">Hubungi Mincos</div>
-        <div class="wa-icon-circle">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
-                <path
-                    d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766 0 1.011.263 1.996.763 2.862l-.815 2.977 3.047-.8c.84.463 1.79.707 2.77.707h.001c3.18 0 5.767-2.586 5.767-5.766 0-3.18-2.587-5.767-5.765-5.767zm0 10.428c-.854 0-1.69-.229-2.42-.662l-.174-.103-1.8.472.483-1.753-.113-.18c-.475-.758-.727-1.638-.727-2.548 0-2.651 2.156-4.807 4.808-4.807 2.651 0 4.808 2.156 4.808 4.808 0 2.652-2.157 4.808-4.809 4.808z" />
-            </svg>
-        </div>
-    </a>
 
     <!-- Confetti Canvas untuk Status Selesai 100% -->
     <canvas id="confetti-canvas"

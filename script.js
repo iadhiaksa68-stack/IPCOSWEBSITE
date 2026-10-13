@@ -193,7 +193,10 @@ document.addEventListener('keydown', function (event) {
 });
 
 function openGlobalSearch() {
+    if (!getSessionToken() || !['mhs','admin'].includes(currentUser.role)) return;
     const modal = document.getElementById('modal-global-search');
+    clearTimeout(modalCloseTimers.get(modal.id));
+    modalCloseTimers.delete(modal.id);
     modal.style.display = 'flex';
     const input = document.getElementById('global-search-input');
     input.value = '';
@@ -241,8 +244,7 @@ function renderSearchResults(query) {
 }
 
 function executeSearchNavigation(tabId) {
-    switchTab(null, tabId);
-    closeModal('modal-global-search');
+    if (switchTab(null, tabId)) closeModal('modal-global-search');
 }
 
 // ==========================================
@@ -404,7 +406,7 @@ function clearPrivateCache() {
     ['ipcos_students', 'ipcos_registrations', 'ipcos_dosens', 'ipcos_announcements', 'ipcos_form_draft', 'ipcos_pending_submission'].forEach(key => sessionStorage.removeItem(key));
     DB_MAHASISWA = {}; isDbLoaded = false; selectedCaseId = ''; lastSubmittedCaseId = '';
     currentAdminPage = 1; adminFilteredData = []; currentNotificationIds = [];
-    isSubmittingRegistration = false; isPreparingCorrection = false; isPreparingReviewDecision = false; activeUpdateIds.clear(); postingAnnouncement = false; hideLoader();
+    isSubmittingRegistration = false; isPreparingCorrection = false; isPreparingReviewDecision = false; activeUpdateIds.clear(); postingAnnouncement = false; setAnnouncementBusy(false); hideLoader();
     ['btn-submit-registration', 'btn-edit-registration'].forEach(id => { const button = document.getElementById(id); if (button) button.disabled = false; });
     document.getElementById('btn-submit-registration').textContent = uxText('Konfirmasi & Kirim', 'Confirm & Send');
     document.getElementById('dynamic-exam-form').reset();
@@ -504,26 +506,30 @@ function applyDatabaseSnapshot(data) {
             if (data.announcements && data.announcements.length > 0) {
                 const latest = data.announcements[data.announcements.length - 1];
                 if (currentUser.role === 'mhs') {
+                    const annType = latest.Tipe || latest.type;
+                    const annId = latest.Id || latest.id || latest.date || latest.Tanggal || latest.Pesan || latest.message;
                     const bannerText = document.getElementById('announcement-text');
                     if (bannerText) {
                         bannerText.innerText = latest.Pesan || latest.message;
-                        document.getElementById('announcement-banner').style.display = 'flex';
+                        const banner = document.getElementById('announcement-banner');
+                        banner.setAttribute('data-current-ann-id', annId);
+                        banner.style.display = sessionStorage.getItem(announcementDismissalKey('banner', annId)) ? 'none' : 'flex';
                     }
 
-                    const annType = latest.Tipe || latest.type;
-                    const annId = latest.Id || latest.date || latest.message;
-
-                    const isHiddenPermanently = localStorage.getItem('hide_announcement_' + annId);
-                    const isHiddenSession = sessionStorage.getItem('seen_announcement_' + annId);
+                    const isHiddenPermanently = localStorage.getItem(announcementDismissalKey('hide', annId));
+                    const isHiddenSession = sessionStorage.getItem(announcementDismissalKey('seen', annId));
 
                     if (annType === 'important' && !isHiddenPermanently && !isHiddenSession) {
                         document.getElementById('important-announcement-text').innerText = latest.Pesan || latest.message;
                         const modal = document.getElementById('modal-important-announcement');
-                        if (modal) {
+                        if (modal && !(modal.style.display === 'flex' && modal.getAttribute('data-current-ann-id') === String(annId))) {
+                            clearTimeout(modalCloseTimers.get(modal.id));
+                            modalCloseTimers.delete(modal.id);
                             document.getElementById('chk-dont-show-announcement').checked = false;
                             modal.setAttribute('data-current-ann-id', annId);
                             modal.style.display = 'flex';
-                            setTimeout(() => { modal.style.opacity = '1'; }, 10);
+                            const epoch = sessionEpoch;
+                            setTimeout(() => { if (epoch === sessionEpoch && modal.style.display === 'flex' && modal.getAttribute('data-current-ann-id') === String(annId)) modal.style.opacity = '1'; }, 10);
                         }
                     }
                 }
@@ -807,9 +813,9 @@ function saveReadNotificationIds(ids) {
     try { localStorage.setItem(notificationReadKey(), JSON.stringify([...new Set(ids)].slice(-100))); } catch (_) {}
 }
 function openNotification(key, caseId, tabName) {
+    if (!switchTab(null, tabName)) return;
     saveReadNotificationIds([...getReadNotificationIds(), key]);
     renderNotifications();
-    switchTab(null, tabName);
     const dropdown = document.getElementById('notif-dropdown');
     if (dropdown) dropdown.style.display = 'none';
     if (caseId) openCaseDetail(caseId);
@@ -971,6 +977,8 @@ function saveFormDraft() {
 }
 
 function loadFormDraft() {
+    // Returning from a guide preserves the live form, including its review step.
+    if (!document.getElementById('registration-review').hidden || [...document.querySelectorAll('#registration-fields input[type="file"]')].some(input => input.files.length)) return;
     const saved = sessionStorage.getItem('ipcos_form_draft');
     if (!saved) return;
     try {
@@ -1177,7 +1185,7 @@ function renderTaskHome() {
         : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', revisions === 1 ? 'request needs your corrections.' : 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
     home.innerHTML = `<div class="task-home-header"><div><h2>${title}</h2><p>${subtitle}</p></div>
         <button type="button" class="btn-primary" onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : "switchTab(null, 'pendaftaran')"}">${admin ? uxText('Buka Antrean', 'Open Queue') : uxText('Buat Pengajuan', 'New Request')}</button></div>
-        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div><h3>${escapeHtml(systemText(item.jenis))}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}</div>
+        <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div><h3>${escapeHtml(systemText(item.jenis))}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}</div>
         <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
         : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
         <div class="task-home-footer"><button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>${admin ? '' : `<button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Buka Perjalanan Akademik', 'Open Academic Journey')}</button>`}</div>`;
@@ -2127,7 +2135,7 @@ function openCaseDetail(id, languageRefresh = false) {
         <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
         <aside class="case-action-column">${window.IPCOSAcademic?.caseHtml(item)||''}${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
         <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
-        ${window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}
+        ${window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
         <div id="case-action-panel" hidden></div></aside></div>`;
     if(savedDetailsOpen!==undefined)content.querySelector('.case-academic-details').open=savedDetailsOpen;
@@ -2153,7 +2161,7 @@ function openCaseDetail(id, languageRefresh = false) {
 function caseMobileCard(item, isAdmin) {
     return `<article class="case-mobile-card"><div class="case-mobile-top"><small>${escapeHtml(formatDate(isAdmin ? getCaseEventTime(item) : item.date))}</small></div>
         <strong>${escapeHtml(systemText(item.jenis))}</strong>${isAdmin ? `<p>${escapeHtml(item.nama)}<br><small>${escapeHtml(item.nim)}</small></p>` : ''}
-        ${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}
+        ${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}
         <button type="button" class="btn-primary" data-case-id="${escapeHtml(item.id)}">${systemText('Buka Detail & Tindakan')}</button></article>`;
 }
 
@@ -2210,7 +2218,7 @@ function loadStudentStatus() {
                 <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
                 <td style="vertical-align:top;"><b>${escapeHtml(systemText(item.jenis))}</b></td>
                 <td style="font-size:14px; vertical-align:top;">${detailText}</td>
-                <td style="text-align:center; vertical-align:top;">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}</td>
+                <td style="text-align:center; vertical-align:top;">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>`}</td>
                 <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
             </tr>`;
         });
@@ -2350,7 +2358,7 @@ function renderAdminTable() {
             <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
             <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
             <td><strong>${escapeHtml(systemText(item.jenis))}</strong></td>
-            <td colspan="2">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`+waitingHtml(item)}</td>
+            <td colspan="2">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}</td>
             <td><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${uxText('Buka Pengajuan','Open Request')}</button></td>
         </tr>`;
     });
@@ -2596,6 +2604,7 @@ function closeModal(modalId, force = false) {
     if (!force && modalId === 'modal-case-detail' && (isPreparingCorrection || activeUpdateIds.has(selectedCaseId))) return;
     const modal = document.getElementById(modalId);
     if (!modal) return;
+    if (modalId === 'modal-important-announcement' && !force) rememberAnnouncementDismissal();
     if (modalId === 'modal-case-detail') clearCaseBlobUrls();
     clearTimeout(modalCloseTimers.get(modalId));
     if (modal.tagName && modal.tagName.toLowerCase() === 'dialog') {
@@ -2634,17 +2643,17 @@ function canAccessTab(tabId) {
     return true;
 }
 function switchTab(event, tabId) {
-    if (!canAccessTab(tabId)) return;
-    if (window.IPCOSSop && !window.IPCOSSop.beforeNavigate(tabId)) return;
+    const target = document.getElementById(tabId);
+    if (!target || !canAccessTab(tabId)) return false;
+    if (window.IPCOSSop && !window.IPCOSSop.beforeNavigate(tabId)) return false;
     if (tabId === 'academic-journey') renderAcademicJourney();
-    if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return;
+    if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return false;
     window.IPCOSExperience?.beforeTab(tabId);
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     if (event && event.currentTarget) event.currentTarget.classList.add('active');
     else document.querySelectorAll('.nav-item').forEach(item => { if ((item.getAttribute('onclick') || '').includes("'" + tabId + "'")) item.classList.add('active'); });
-    const target = document.getElementById(tabId);
     if (target) {
         target.classList.remove('active'); void target.offsetWidth; target.classList.add('active');
     }
@@ -2663,6 +2672,7 @@ function switchTab(event, tabId) {
             form.dataset.draftBound = 'true';
         }
     }
+    return true;
 }
 
 function silentSyncDatabase() {
@@ -2672,14 +2682,9 @@ function silentSyncDatabase() {
 // Active-tab timer lives in workflow.js.
 
 // ==========================================
-// 14. SIDEBAR INTERAKTIF & WHATSAPP FLOAT
+// 14. SIDEBAR INTERAKTIF
 // ==========================================
 function toggleDesktopSidebar() { document.getElementById('main-sidebar').classList.toggle('collapsed'); document.querySelector('.main-content').classList.toggle('expanded'); window.IPCOSExperience?.drawerChanged(); }
-let waScrollTimer;
-window.addEventListener('scroll', () => {
-    const waBtn = document.getElementById('wa-float-btn');
-    if (waBtn) { waBtn.classList.add('wa-hidden'); clearTimeout(waScrollTimer); waScrollTimer = setTimeout(() => { waBtn.classList.remove('wa-hidden'); }, 800); }
-}, { passive: true });
 
 // ==========================================
 // 15. DASHBOARD CHART ANALYTICS & STATS (BENTO ADMIN)
@@ -2821,27 +2826,37 @@ function renderDashboardCharts(records) {
 function postAnnouncementFromDashboard() {
     const input = document.getElementById('input-broadcast-dashboard');
     const msg = input ? input.value.trim() : '';
-    if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return; }
+    if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return Promise.resolve(false); }
+    const requestEpoch = sessionEpoch;
 
-    return postAnnouncement(msg, 'info').then(success => { if (success && input) input.value = ''; });
+    return postAnnouncement(msg, 'info').then(success => {
+        if (success && requestEpoch === sessionEpoch && input?.value.trim() === msg) input.value = '';
+        return success;
+    });
 }
 
 let postingAnnouncement = false;
+function setAnnouncementBusy(busy) {
+    document.querySelectorAll('.announcement-submit').forEach(button => button.disabled = busy);
+    document.querySelectorAll('.announcement-composer').forEach(form => form.setAttribute('aria-busy',String(busy)));
+}
 async function postAnnouncement(customMsg = null, customType = null) {
-    if (postingAnnouncement) return false;
-    if (isOffline) { showToast("Tidak dapat mengirim broadcast saat offline.", "error"); return false; }
+    if (postingAnnouncement || currentUser.role !== 'admin' || !getSessionToken()) return false;
+    if (isOffline) { showToast("Tidak dapat mengirim pengumuman saat offline.", "error"); return false; }
 
     const masterInput = document.getElementById('input-broadcast');
     const checkImportant = document.getElementById('check-important-broadcast');
 
     const msg = customMsg !== null ? customMsg : (masterInput ? masterInput.value.trim() : '');
 
-    if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return; }
+    if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return false; }
 
     postingAnnouncement = true;
     const requestEpoch = sessionEpoch;
+    const requestToken = getSessionToken();
     const annType = customType !== null ? customType : (checkImportant && checkImportant.checked ? 'important' : 'info');
 
+    setAnnouncementBusy(true);
     showLoader();
     try {
         await apiPostSuccess(GAS_URL, {
@@ -2850,18 +2865,20 @@ async function postAnnouncement(customMsg = null, customType = null) {
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
 
+        if (requestEpoch !== sessionEpoch || requestToken !== getSessionToken()) return false;
         showToast("Pengumuman berhasil disebarkan!", "success");
 
-        if (!customMsg && masterInput) masterInput.value = '';
-        if (!customType && checkImportant) checkImportant.checked = false;
+        const unchangedDraft = customMsg === null && masterInput?.value.trim() === msg;
+        if (unchangedDraft) masterInput.value = '';
+        if (unchangedDraft && customType === null && checkImportant?.checked === (annType === 'important')) checkImportant.checked = false;
 
         await syncDatabase();
-        return true;
+        return requestEpoch === sessionEpoch && requestToken === getSessionToken();
     } catch (e) {
         if (!e.staleSession && requestEpoch === sessionEpoch) showToast("Gagal mengirim pengumuman. Pesan Anda tetap tersedia.", "error");
         return false;
     } finally {
-        if (requestEpoch === sessionEpoch) { postingAnnouncement = false; hideLoader(); }
+        if (requestEpoch === sessionEpoch) { postingAnnouncement = false; setAnnouncementBusy(false); hideLoader(); }
     }
 }
 
@@ -2904,20 +2921,32 @@ function toggleCheckFromRow(event, id) {
     }
 }
 
-function closeAnnouncementModal() {
+function announcementDismissalKey(kind, annId) {
+    return `${kind}_announcement_${notificationHash(`${currentUser.role}:${currentUser.nim}:${annId}`)}`;
+}
+function dismissAnnouncementBanner() {
+    const banner = document.getElementById('announcement-banner');
+    if (!banner) return;
+    const annId = banner.getAttribute('data-current-ann-id');
+    if (annId) sessionStorage.setItem(announcementDismissalKey('banner', annId), 'true');
+    banner.style.display = 'none';
+}
+function rememberAnnouncementDismissal() {
     const modal = document.getElementById('modal-important-announcement');
     const annId = modal.getAttribute('data-current-ann-id');
     const chkDontShow = document.getElementById('chk-dont-show-announcement');
 
     if (annId) {
         if (chkDontShow && chkDontShow.checked) {
-            localStorage.setItem('hide_announcement_' + annId, 'true');
+            localStorage.setItem(announcementDismissalKey('hide', annId), 'true');
         } else {
-            sessionStorage.setItem('seen_announcement_' + annId, 'true');
+            sessionStorage.setItem(announcementDismissalKey('seen', annId), 'true');
         }
     }
 
     if (chkDontShow) chkDontShow.checked = false;
+}
+function closeAnnouncementModal() {
     closeModal('modal-important-announcement');
 }
 
