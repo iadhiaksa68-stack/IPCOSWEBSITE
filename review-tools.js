@@ -93,13 +93,13 @@
     }
     function opened(item,{languageRefresh=false}={}) {
         if(languageRefresh)window.IPCOSDocuments?.languageChanged();
-        renderReviews(item,languageRefresh&&editingId===String(item.id));if(!languageRefresh)window.IPCOSAdminDrafts?.offer(item);if(currentUser.role==='admin'&&el('modal-case-detail').classList.contains('has-document-preview'))document.querySelector('.case-action-column')?.prepend(el('document-review-tools'));renderArchives();
+        renderReviews(item,languageRefresh&&editingId===String(item.id));if(!languageRefresh)window.IPCOSAdminDrafts?.offer(item);if(currentUser.role==='admin'&&!el('modal-case-detail').classList.contains('admin-review-mode')&&el('modal-case-detail').classList.contains('has-document-preview'))document.querySelector('.case-action-column')?.prepend(el('document-review-tools'));renderArchives();
         let toggle=el('workspace-view-toggle');if(!toggle){toggle=document.createElement('div');toggle.id='workspace-view-toggle';toggle.className='workspace-view-toggle';el('case-detail-content').before(toggle);}
         toggle.innerHTML=`<button type="button" data-workspace-view="documents">${t('Dokumen','Documents')}</button><button type="button" data-workspace-view="review">${t('Pemeriksaan','Review')}</button>`;
-        toggle.hidden=!el('modal-case-detail').classList.contains('has-document-preview');syncToggle();
+        toggle.hidden=currentUser.role!=='admin'&&!el('modal-case-detail').classList.contains('has-document-preview');syncToggle();
     }
     function syncToggle(){const modal=el('modal-case-detail');el('workspace-view-toggle')?.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.workspaceView===(modal.dataset.workspaceView||'documents'))));}
-    function previewReady(){el('modal-case-detail').classList.add('has-document-preview');el('modal-case-detail').dataset.workspaceView='documents';if(el('workspace-view-toggle'))el('workspace-view-toggle').hidden=false;syncToggle();const panel=el('case-file-preview'),content=el('case-detail-content');if(panel&&content)content.scrollTop+=panel.getBoundingClientRect().top-content.getBoundingClientRect().top;const review=el('document-review-tools');if(currentUser.role==='admin'&&review)document.querySelector('.case-action-column')?.prepend(review);}
+    function previewReady(){const modal=el('modal-case-detail');modal.classList.add('has-document-preview');if(!modal.classList.contains('admin-review-mode')||!modal.dataset.workspaceView)modal.dataset.workspaceView='documents';if(el('workspace-view-toggle'))el('workspace-view-toggle').hidden=false;syncToggle();const panel=el('case-file-preview'),content=el('case-detail-content');if(panel&&content&&!modal.classList.contains('admin-review-mode'))content.scrollTop+=panel.getBoundingClientRect().top-content.getBoundingClientRect().top;const review=el('document-review-tools');if(currentUser.role==='admin'&&review&&!modal.classList.contains('admin-review-mode'))document.querySelector('.case-action-column')?.prepend(review);}
     function archiveCandidates(){
         const from=el('archive-from')?.value||'',to=el('archive-to')?.value||'',type=el('archive-service')?.value||'';
         if(!from||!to||from>to)return [];

@@ -3,6 +3,7 @@
     'use strict';
     let queueIds = [], activeId = '', previousId = '', nextId = '', queuePosition = -1;
     let movedActionRow = null, actionMarker = null;
+    let activeActionPanel = null, activePanelAction = '';
 
     const text = (id, en) => uxText(id, en);
     const escape = value => escapeHtml(String(value ?? ''));
@@ -134,6 +135,12 @@
         if (!card || !isOpen() || !['admin', 'mhs'].includes(currentUser?.role)) { restoreActions(); return; }
         const panel = document.getElementById('case-action-panel');
         const panelActive = panel && !panel.hidden;
+        if (panelActive && modal().classList.contains('admin-review-mode') && (activeActionPanel !== panel || activePanelAction !== panel.dataset.action)) {
+            modal().dataset.workspaceView = 'review';
+            document.querySelectorAll('#workspace-view-toggle [data-workspace-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.workspaceView === 'review')));
+        }
+        activeActionPanel = panelActive ? panel : null;
+        activePanelAction = panelActive ? panel.dataset.action : '';
         // The current row may already be in the footer. Keep its nodes and focus
         // intact when only a busy flag or button text has changed.
         const desired = panelActive
@@ -183,6 +190,7 @@
 
     function reset() {
         restoreActions();
+        activeActionPanel = null; activePanelAction = '';
         queueIds = []; activeId = ''; previousId = ''; nextId = ''; queuePosition = -1;
         document.getElementById('case-review-navigation')?.remove();
         document.getElementById('case-review-identity')?.remove();

@@ -144,13 +144,13 @@ function releaseCasePreview(request) {
     if (pendingCasePreview===request) pendingCasePreview=null;
 }
 function isPrivateDriveUrl(url) { try { return ['drive.google.com','docs.google.com'].includes(new URL(url).hostname); } catch (_) { return false; } }
-function clearCaseBlobUrls() {
+function clearCaseBlobUrls(preserveAdminView=false) {
     releaseCasePreview(pendingCasePreview);
     documentRequestVersion++; caseDocumentEpoch++;
     caseBlobUrls.forEach(url=>URL.revokeObjectURL(url)); caseBlobUrls.clear();
     window.IPCOSDocuments?.reset(document.getElementById('case-file-preview'));
     window.IPCOSDocuments?.clearLocal();
-    const modal=document.getElementById('modal-case-detail');if(modal){modal.classList.remove('has-document-preview','has-document-comparison');delete modal.dataset.workspaceView;}
+    const modal=document.getElementById('modal-case-detail');if(modal){const view=preserveAdminView&&currentUser.role==='admin'&&modal.classList.contains('admin-review-mode')?(modal.dataset.workspaceView||'documents'):null;modal.classList.remove('has-document-preview','has-document-comparison');delete modal.dataset.workspaceView;if(view)modal.dataset.workspaceView=view;}
 }
 async function accessCaseDocument(index,preview=false,button=null) {
     const item=currentCase(), file=item && getCaseFiles(item)[index];
@@ -162,7 +162,7 @@ async function accessCaseDocument(index,preview=false,button=null) {
             return pendingCasePreview.promise;
         }
     }
-    if(preview)clearCaseBlobUrls();
+    if(preview)clearCaseBlobUrls(true);
     const epoch=sessionEpoch, id=String(item.id), version=preview?++documentRequestVersion:0, contextVersion=caseDocumentEpoch;
     let previewRequest=null;
     if(preview) {
@@ -210,7 +210,7 @@ async function compareCaseDocuments(label,oldIndex=null,newIndex=null) {
     const versions=comparableCaseFiles(item,label);if(versions.length<2)return;
     const before=versions.find(file=>file.index===oldIndex)||versions.at(-2),after=versions.find(file=>file.index===newIndex)||versions.at(-1);
     if(before.url===after.url){showToast(uxText('Pilih dua versi berkas yang berbeda.','Choose two different file versions.'),'error');return;}
-    clearCaseBlobUrls();const epoch=sessionEpoch,id=String(item.id),context=caseDocumentEpoch,request=++documentRequestVersion;
+    clearCaseBlobUrls(true);const epoch=sessionEpoch,id=String(item.id),context=caseDocumentEpoch,request=++documentRequestVersion;
     const panel=document.getElementById('case-file-preview');panel.hidden=false;panel.querySelector('p').textContent=uxText('Bandingkan isi dua versi. Tampilan ini tidak menilai atau menyetujui perubahan secara otomatis.','Compare the two versions. This view does not evaluate or approve changes automatically.');
     const shell=document.createElement('div');shell.className='document-comparison';
     for(const [side,file] of [['before',before],['after',after]]){
@@ -222,7 +222,7 @@ async function compareCaseDocuments(label,oldIndex=null,newIndex=null) {
         viewer.querySelector('p').textContent=uxText('Memuat berkas melalui sesi IPCOS…','Loading the file through your IPCOS session…');column.append(heading,select,viewer);shell.append(column);
         select.addEventListener('change',()=>compareCaseDocuments(label,Number(shell.querySelector('[data-compare-side=before]').value),Number(shell.querySelector('[data-compare-side=after]').value)));
     }
-    const close=document.createElement('button');close.type='button';close.className='btn-secondary comparison-tools';close.dataset.documentId='Tutup Perbandingan';close.dataset.documentEn='Close Comparison';close.textContent=uxText(close.dataset.documentId,close.dataset.documentEn);close.addEventListener('click',()=>{clearCaseBlobUrls();panel.hidden=true;document.querySelector('[data-compare-label]')?.focus();});
+    const close=document.createElement('button');close.type='button';close.className='btn-secondary comparison-tools';close.dataset.documentId='Tutup Perbandingan';close.dataset.documentEn='Close Comparison';close.textContent=uxText(close.dataset.documentId,close.dataset.documentEn);close.addEventListener('click',()=>{clearCaseBlobUrls(true);panel.hidden=true;document.querySelector('[data-compare-label]')?.focus();});
     panel.prepend(close,shell);document.getElementById('modal-case-detail').classList.add('has-document-comparison');window.IPCOSReviewTools?.previewReady();
     const active=()=>epoch===sessionEpoch&&selectedCaseId===id&&context===caseDocumentEpoch&&request===documentRequestVersion&&shell.isConnected&&document.getElementById('modal-case-detail').style.display!=='none';
     // Sequential fetches avoid doubling Apps Script requests and peak decoding memory.

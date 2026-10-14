@@ -38,6 +38,7 @@
     <link rel="stylesheet" href="review-tools.css">
     <link rel="stylesheet" href="academic-ui.css">
     <link rel="stylesheet" href="international-ui.css">
+    <link rel="stylesheet" href="admin-ui.css">
 </head>
 
 <body class="transaction-view">
@@ -770,11 +771,11 @@
         </div>
 
         <div id="admin-data" class="tab-content">
-            <h1>Antrean Pengajuan Mahasiswa</h1>
-            <div id="admin-queue-summary" class="admin-queue-summary" aria-label="Ringkasan antrean pengajuan"></div>
-            <div class="card" style="padding: 16px;">
+            <h1 id="admin-queue-title" class="lang" data-id="Antrean Pengajuan" data-en="Request Queue">Antrean Pengajuan</h1>
+            <div id="admin-queue-summary" class="admin-queue-summary queue-status-tabs" role="group" aria-label="Status antrean pengajuan"></div>
+            <section class="card admin-queue-panel" aria-labelledby="admin-queue-title">
                 <div class="admin-table-controls">
-                    <input type="text" id="admin-search-input" placeholder="Cari Nama / NIM..."
+                    <input type="search" id="admin-search-input" placeholder="Cari Nama / NIM..." autocomplete="off"
                         oninput="debounceAdminSearch()">
                     <select id="admin-status-filter" onchange="currentAdminPage=1;filterAdminData()">
                         <option value="ACTION_REQUIRED" selected>Perlu Ditinjau</option>
@@ -812,12 +813,11 @@
                     <table id="admin-table-main">
                         <thead>
                             <tr>
-                                <th class="sticky-th" onclick="toggleSortDate()" style="cursor: pointer;">Aktivitas Terakhir <span
-                                        id="admin-sort-icon"></span></th>
+                                <th id="admin-activity-heading" class="sticky-th" aria-sort="descending"><button type="button" class="queue-sort-button" onclick="toggleSortDate()"><span class="lang" data-id="Aktivitas Terakhir" data-en="Latest Activity">Aktivitas Terakhir</span> <span id="admin-sort-icon" aria-hidden="true"></span></button></th>
                                 <th class="sticky-th">Mahasiswa</th>
                                 <th class="sticky-th">Jenis Formulir</th>
-                                <th class="sticky-th lang" colspan="2" data-id="Status & langkah berikutnya" data-en="Status & next step">Status & langkah berikutnya</th>
-                                <th class="sticky-th">Detail</th>
+                                <th class="sticky-th lang" data-id="Status & langkah berikutnya" data-en="Status & next step">Status & langkah berikutnya</th>
+                                <th class="sticky-th"><span class="sr-only lang" data-id="Tindakan" data-en="Actions">Tindakan</span></th>
                             </tr>
                         </thead>
                         <tbody id="table-admin-reg"></tbody>
@@ -831,7 +831,7 @@
                     <button id="admin-btn-next" class="btn-secondary" style="width: auto;"
                         onclick="changeAdminPage(1)">Maju</button>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- TAB BARU: DATA DOSEN -->

@@ -6,21 +6,19 @@
     function setup() {
         const page=el('admin-data'), card=page.querySelector('.card'), controls=card.querySelector('.admin-table-controls');
         const advanced=document.createElement('details');advanced.id='queue-advanced';advanced.className='queue-advanced';
-        advanced.innerHTML='<summary class="lang" data-id="Filter Lanjutan" data-en="Advanced Filters">Filter Lanjutan</summary><div class="advanced-filters"></div>';
-        controls.after(advanced);const fields=advanced.querySelector('div');
-        fields.append(el('admin-type-filter'),card.querySelector('.overdue-filter'),card.querySelector('.queue-extra-controls'),el('queue-date-error'));
+        advanced.innerHTML='<summary id="queue-advanced-summary" class="lang" data-id="Filter Lanjutan" data-en="Advanced Filters">Filter Lanjutan</summary><div class="advanced-filters" aria-labelledby="queue-advanced-summary"></div>';
+        const shell=document.createElement('div');shell.className='queue-control-shell';controls.before(shell);shell.append(controls,advanced);const fields=advanced.querySelector('div');
+        fields.append(el('admin-status-filter'),el('admin-type-filter'),card.querySelector('.overdue-filter'),card.querySelector('.queue-extra-controls'),el('queue-date-error'));
         for(const [id,key] of [['admin-search-input','search'],['admin-status-filter','status'],['admin-type-filter','type']]) {
             const input=el(id),wrap=document.createElement('div'),label=document.createElement('label');
+            wrap.className=key==='search'?'queue-search-field':'queue-filter-field';
             label.htmlFor=id;label.className='lang';label.dataset.id=pairs[key][0];label.dataset.en=pairs[key][1];label.textContent=text(...pairs[key]);
-            input.before(wrap);wrap.append(label,input);
+            input.before(wrap);if(key==='search'){wrap.append(input);input.setAttribute('aria-label',text(...pairs.search));}else wrap.append(label,input);
         }
-        const filters=document.createElement('div');filters.id='queue-filter-summary';filters.className='queue-filter-summary';filters.setAttribute('aria-live','polite');advanced.after(filters);
+        const filters=document.createElement('div');filters.id='queue-filter-summary';filters.className='queue-filter-summary';filters.setAttribute('aria-live','polite');shell.after(filters);
         const utilities=document.createElement('details');utilities.id='queue-tools';utilities.className='queue-tools';
         utilities.innerHTML='<summary class="lang" data-id="Rekap & Kesehatan Layanan" data-en="Reports & Service Health">Rekap & Kesehatan Layanan</summary><div class="queue-tools-content"></div>';
         card.append(utilities);utilities.querySelector('div').append(card.querySelector('.data-management'),el('admin-archives'),card.querySelector('.health-management'));
-        const presets=document.createElement('div');presets.className='queue-presets';
-        presets.innerHTML=[['review','Perlu Ditinjau','Needs Review'],['corrections','Perbaikan Masuk','Corrections Received'],['overdue','Lewat Target','Past Target']].map(([key,id,en])=>`<button type="button" class="btn-secondary lang" data-queue-preset="${key}" data-id="${id}" data-en="${en}">${text(id,en)}</button>`).join('');
-        controls.before(presets);
         const receipt=document.createElement('section');receipt.id='last-request-card';receipt.className='last-request-card';receipt.hidden=true;el('pendaftaran').querySelector('h1').after(receipt);
         const picker=document.createElement('dialog');picker.id='sop-picker';picker.setAttribute('aria-labelledby','sop-picker-title');
         picker.innerHTML='<div class="picker-heading"><h2 id="sop-picker-title"></h2><button type="button" class="btn-secondary" data-picker-close></button></div><p id="sop-picker-description"></p><div class="sop-picker-options"></div>';
@@ -31,17 +29,13 @@
         if(!ready||currentUser.role!=='admin')return;
         const chips=[],append=(field,label,value)=>{if(value)chips.push(`<button type="button" class="filter-chip" data-clear-filter="${field}">${escapeHtml(label)}: ${escapeHtml(value)} <span aria-hidden="true">×</span><span class="sr-only"> ${text('Hapus filter','Remove filter')}</span></button>`);};
         append('admin-search-input',text('Cari','Search'),el('admin-search-input').value.trim());
-        const status=el('admin-status-filter');if(status.value!=='ALL')append(status.id,text('Status','Status'),status.selectedOptions[0]?.textContent);
+        const status=el('admin-status-filter');if(!['ALL','ACTION_REQUIRED','Resubmitted','Revision'].includes(status.value))append(status.id,text('Status','Status'),status.selectedOptions[0]?.textContent);
         const type=el('admin-type-filter');append(type.id,text('Layanan','Service'),type.value?serviceLabel(type.value):'');
         append('admin-overdue-filter',text('Target','Target'),el('admin-overdue-filter').checked?text('Lewat Target','Past Target'):'');
         append('admin-date-from',text('Mulai','From'),el('admin-date-from').value?formatDate(el('admin-date-from').value):'');
         append('admin-date-to',text('Sampai','Until'),el('admin-date-to').value?formatDate(el('admin-date-to').value):'');
         const order=el('admin-queue-order');if(order.value!=='activity')append(order.id,text('Urutan','Order'),order.selectedOptions[0]?.textContent);
         el('queue-filter-summary').innerHTML=`<p>${adminFilteredData.length} ${text('pengajuan ditemukan',adminFilteredData.length===1?'request found':'requests found')}${el('admin-date-from').value||el('admin-date-to').value?' · '+text('Tanggal kirim (WIB)','Submission date (WIB)'):''}</p><div class="filter-chip-list">${chips.join('')}${chips.length?`<button type="button" class="text-link" data-clear-all>${text('Hapus Semua Filter','Clear All Filters')}</button>`:''}</div>`;
-        document.querySelectorAll('[data-queue-preset]').forEach(button=>{
-            const active=button.dataset.queuePreset==='overdue'?el('admin-overdue-filter').checked:!el('admin-overdue-filter').checked&&status.value===(button.dataset.queuePreset==='review'?'ACTION_REQUIRED':'Resubmitted');
-            button.setAttribute('aria-pressed',String(active));
-        });
     }
     function receipt(data) {
         if(data)receiptData={id:String(data.id||''),jenis:data.jenis,date:data.date};
@@ -63,6 +57,7 @@
     }
     function refresh() {
         if(!ready)return;
+        el('admin-search-input').setAttribute('aria-label',text(...pairs.search));
         for(const id of ['reg-jenis-utama','admin-type-filter'])el(id).querySelectorAll('option').forEach(option=>{if(serviceLabels[option.value])option.textContent=serviceLabel(option.value);});
         const bottom=document.querySelector('[data-bottom-target="sop-magang"]');bottom?.setAttribute('aria-haspopup','dialog');
         bottom?.setAttribute('aria-controls','sop-picker');queue();receipt();refreshPicker();
@@ -78,15 +73,16 @@
         el('queue-filter-summary')?.replaceChildren();
     }
     document.addEventListener('click',event=>{
+        const advanced=el('queue-advanced');if(advanced?.open&&!event.target.closest('.queue-control-shell'))advanced.open=false;
         const destination=event.target.closest('[data-sop-destination]');if(destination){el('sop-picker').close();if(getSessionToken()&&currentUser.role==='mhs')switchTab(null,destination.dataset.sopDestination);}
         if(event.target.closest('[data-last-request]')&&currentUser.role==='mhs'){switchTab(null,'student-status');if(receiptData?.id)openCaseDetail(receiptData.id);}
         if(currentUser.role!=='admin')return;
-        const chip=event.target.closest('[data-clear-filter]'),all=event.target.closest('[data-clear-all]'),preset=event.target.closest('[data-queue-preset]');
+        const chip=event.target.closest('[data-clear-filter]'),all=event.target.closest('[data-clear-all]');
         if(chip)clearField(chip.dataset.clearFilter);
         if(all){isAdminSortDesc=true;el('admin-sort-icon').textContent='↓';['admin-search-input','admin-status-filter','admin-type-filter','admin-overdue-filter','admin-date-from','admin-date-to','admin-queue-order'].forEach(clearField);}
-        if(preset){const kind=preset.dataset.queuePreset;el('admin-status-filter').value=kind==='overdue'?'ALL':kind==='corrections'?'Resubmitted':'ACTION_REQUIRED';el('admin-overdue-filter').checked=kind==='overdue';}
-        if(chip||all||preset){currentAdminPage=1;filterAdminData();}
+        if(chip||all){currentAdminPage=1;filterAdminData();}
     });
+    document.addEventListener('keydown',event=>{const advanced=el('queue-advanced');if(event.key==='Escape'&&advanced?.open&&advanced.contains(event.target)){event.preventDefault();advanced.open=false;advanced.querySelector('summary').focus({preventScroll:true});}});
     window.IPCOSPolish={refresh,queue,receipt,reset,openSopPicker};
     setup();window.addEventListener('load',refresh);
 })();

@@ -1239,7 +1239,7 @@ function previewCaseFile(index,button=null) {
     const file = item && getCaseFiles(item)[index];
     if (!file) return;
     if (isPrivateDriveUrl(file.url)) return accessCaseDocument(index,true,button);
-    clearCaseBlobUrls();
+    clearCaseBlobUrls(true);
     const preview = document.getElementById('case-file-preview');
     preview.hidden = false;
     window.IPCOSDocuments?.reset(preview);
@@ -2135,6 +2135,8 @@ function openCaseDetail(id, languageRefresh = false) {
     const restoreFocus=languageRefresh && document.getElementById('modal-case-detail').contains(active) ? {node:active,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection,scroll:document.getElementById('case-detail-content').scrollTop} : null;
     window.IPCOSReview?.restoreActions();
     const savedDetailsOpen=languageRefresh?document.querySelector('.case-academic-details')?.open:undefined;
+    const savedContextOpen=languageRefresh?document.querySelector('.admin-case-context')?.open:undefined;
+    const savedPaneScroll = languageRefresh ? ['admin-document-navigation','admin-document-stage','admin-review-rail'].map(name => ({name, top:document.querySelector('#modal-case-detail .' + name)?.scrollTop || 0})) : [];
     const savedPanel = languageRefresh && document.getElementById('case-action-panel');
     const savedPreview = languageRefresh && document.getElementById('case-file-preview');
     const savedReviewTools = languageRefresh && document.getElementById('document-review-tools');
@@ -2154,22 +2156,41 @@ function openCaseDetail(id, languageRefresh = false) {
         actions = `<button type="button" class="btn-primary" onclick="caseDetailAction('reply')">${systemText('Upload Perbaikan')}</button>`;
     }
     const content = document.getElementById('case-detail-content');
-    content.innerHTML = `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
+    const modal = document.getElementById('modal-case-detail');
+    modal.classList.toggle('admin-review-mode', isAdmin);
+    document.getElementById('case-detail-title').textContent = isAdmin ? uxText('Pemeriksaan Pengajuan','Review Request') : uxText('Detail Pengajuan','Request Details');
+    if (isAdmin && !languageRefresh) modal.dataset.workspaceView = 'documents';
+    if (!languageRefresh) delete content.dataset.activeDocumentIndex;
+    const previewHtml = `<div id="case-file-preview" hidden><iframe title="${uxText('Pratinjau berkas','Document preview')}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>`;
+    const detailsHtml = `<details class="case-academic-details" ${isAdmin ? '' : 'open'}><summary>${uxText('Detail Pengajuan','Request Details')}</summary><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div></details>`;
+    const historyHtml = `<details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details>`;
+    const stateHtml = window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`;
+    const fileCount = getCaseFiles(item).length;
+    content.innerHTML = isAdmin ? `<div class="case-workspace admin-review-workspace">
+        <aside class="admin-document-navigation" aria-labelledby="admin-document-title"><div class="admin-pane-heading"><h3 id="admin-document-title">${uxText('Berkas Pengajuan','Request Documents')}</h3><p>${fileCount} ${uxText('berkas',fileCount === 1 ? 'file' : 'files')}</p></div><div class="case-content-block case-documents">${caseFileListHtml(item)}</div></aside>
+        <section class="case-document-column admin-document-stage" aria-labelledby="admin-preview-title"><h3 id="admin-preview-title">${uxText('Pratinjau Dokumen','Document Preview')}</h3><div class="admin-preview-placeholder"><h4>${fileCount ? uxText('Pilih berkas untuk diperiksa','Choose a file to review') : uxText('Pengajuan ini belum memiliki berkas','This request has no files')}</h4><p>${fileCount ? uxText('Gunakan Pratinjau pada daftar berkas. Dokumen dan catatan pemeriksaan dapat dibuka berdampingan.','Select Preview in the file list. View the document alongside your review notes.') : uxText('Detail dan riwayat pengajuan tetap dapat diperiksa pada bagian Pemeriksaan.','You can still review the request details and history in Review.')}</p></div>${previewHtml}</section>
+        <aside class="case-action-column admin-review-rail" aria-label="${uxText('Pemeriksaan dan tindakan pengajuan','Request review and actions')}">
+        ${stateHtml}${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
+        <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div><div id="case-action-panel" hidden></div>
+        <div class="admin-academic-tools">${window.IPCOSAcademic?.caseHtml(item)||''}</div>
+        <details class="admin-case-context"><summary>${uxText('Informasi Pengajuan','Request Information')}</summary><dl class="receipt-list"><dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd></dl>${detailsHtml}${historyHtml}<button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button></details>
+        <button type="button" class="text-link admin-journey-link" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button></aside></div>`
+        : `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
         <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(systemText(item.jenis))}</dd>
         <dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
         ${isAdmin ? `<dt>${uxText('Mahasiswa','Student')}</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
         <dt>${uxText('Nomor','ID')}</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
         <h3>${uxText('Berkas','Documents')}</h3><div class="case-content-block case-documents">${caseFileListHtml(item)}</div>
-        <div id="case-file-preview" hidden><iframe title="${uxText('Pratinjau berkas','Document preview')}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe><p class="field-helper"></p></div>
-        <details class="case-academic-details" open><summary>${uxText('Detail Pengajuan','Request Details')}</summary><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div></details>
+        ${previewHtml}${detailsHtml}
         <button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
-        <details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details></div>
+        ${historyHtml}</div>
         <aside class="case-action-column">${window.IPCOSAcademic?.caseHtml(item)||''}${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
         <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
-        ${window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}
+        ${stateHtml}
         <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
         <div id="case-action-panel" hidden></div></aside></div>`;
     if(savedDetailsOpen!==undefined)content.querySelector('.case-academic-details').open=savedDetailsOpen;
+    if(savedContextOpen!==undefined)content.querySelector('.admin-case-context').open=savedContextOpen;
     if (savedPanel) { content.querySelector('#case-action-panel').replaceWith(savedPanel); content.querySelector('#case-detail-actions').hidden = !savedPanel.hidden; }
     if (savedPreview) content.querySelector('#case-file-preview').replaceWith(savedPreview);
     if (savedReviewTools) content.querySelector('#case-action-panel').before(savedReviewTools);
@@ -2178,9 +2199,16 @@ function openCaseDetail(id, languageRefresh = false) {
         const index=Number(button.dataset.previewIndex);
         if (languageRefresh && pendingCasePreview?.epoch===sessionEpoch && pendingCasePreview.id===selectedCaseId && pendingCasePreview.context===caseDocumentEpoch && getCaseFiles(item)[index]?.url===pendingCasePreview.url)
             markCasePreviewBusy(pendingCasePreview,button);
-        button.addEventListener('click', () => previewCaseFile(index,button));
+        if (isAdmin) button.setAttribute('aria-pressed', String(content.dataset.activeDocumentIndex === String(index)));
+        button.closest('.case-file-row')?.classList.toggle('is-selected', isAdmin && content.dataset.activeDocumentIndex === String(index));
+        button.addEventListener('click', () => {
+            if (isAdmin) {
+                content.dataset.activeDocumentIndex = String(index);
+                content.querySelectorAll('[data-preview-index]').forEach(control => {const selected = control === button;control.setAttribute('aria-pressed',String(selected));control.closest('.case-file-row')?.classList.toggle('is-selected',selected);});
+            }
+            previewCaseFile(index,button);
+        });
     });
-    const modal = document.getElementById('modal-case-detail');
     clearTimeout(modalCloseTimers.get(modal.id));
     modal.style.display = 'flex';
     modal.style.opacity = '1';
@@ -2192,6 +2220,7 @@ function openCaseDetail(id, languageRefresh = false) {
         if (typeof restoreFocus.start==='number') restoreFocus.node.setSelectionRange(restoreFocus.start,restoreFocus.end,restoreFocus.direction || 'none');
         document.getElementById('case-detail-content').scrollTop=restoreFocus.scroll;
     }
+    savedPaneScroll.forEach(({name,top}) => {const pane = content.querySelector('.' + name);if (pane) pane.scrollTop = top;});
 }
 
 function caseMobileCard(item, isAdmin) {
@@ -2301,29 +2330,35 @@ function filterAdminData() {
     const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const searchVal = (document.getElementById('admin-search-input')?.value || '').toLowerCase().trim();
     const filterVal = document.getElementById('admin-status-filter')?.value || 'ALL';
-    const counts = { pending: 0, resubmitted: 0, revision: 0, accepted: 0 };
-    records.forEach(item => { const status = String(item.status || '').trim().toLowerCase(); if (status in counts) counts[status]++; });
-    const summary = document.getElementById('admin-queue-summary');
-    if (summary) summary.innerHTML = `
-        <button type="button" onclick="setAdminQueueFilter('ACTION_REQUIRED')"><strong>${counts.pending + counts.resubmitted}</strong><span>${uxText('Perlu Ditinjau','Needs Review')}</span></button>
-        <button type="button" onclick="setAdminQueueFilter('Pending')"><strong>${counts.pending}</strong><span>${uxText('Baru Masuk','New Requests')}</span></button>
-        <button type="button" onclick="setAdminQueueFilter('Resubmitted')"><strong>${counts.resubmitted}</strong><span>${uxText('Perbaikan Masuk','Corrections Received')}</span></button>
-        <button type="button" onclick="setAdminQueueFilter('Revision')"><strong>${counts.revision}</strong><span>${uxText('Menunggu Mahasiswa','Awaiting Student')}</span></button>`;
-
-    adminFilteredData = records.filter(item => {
+    const type = document.getElementById('admin-type-filter')?.value || '';
+    const overdueOnly = document.getElementById('admin-overdue-filter')?.checked;
+    const from=document.getElementById('admin-date-from').value,to=document.getElementById('admin-date-to').value;
+    const matchingContext = records.filter(item => {
         if(window.IPCOSReviewTools?.archived(item))return false;
         const matchSearch = String(item.nama || '').toLowerCase().includes(searchVal) || String(item.nim || '').toLowerCase().includes(searchVal);
-        const stat = String(item.status || '').trim().toLowerCase();
-        const matchFilter = filterVal === 'ALL' || (filterVal === 'ACTION_REQUIRED' ? ['pending', 'resubmitted'].includes(stat) : stat === filterVal.toLowerCase());
-        const type = document.getElementById('admin-type-filter')?.value || '';
-        const overdueOnly = document.getElementById('admin-overdue-filter')?.checked;
-        const from=document.getElementById('admin-date-from').value,to=document.getElementById('admin-date-to').value;
         const submitted=displayDate(item.date),day=Number.isFinite(submitted.getTime())?submitted.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}):'';
-        return matchSearch && matchFilter && (!type || item.jenis === type) && (!overdueOnly || caseWaiting(item)?.overdue) && (!from || day>=from) && (!to || day<=to) && (!from || !to || from<=to);
+        return matchSearch && (!type || item.jenis === type) && (!overdueOnly || caseWaiting(item)?.overdue) && (!from || day>=from) && (!to || day<=to) && (!from || !to || from<=to);
+    });
+    const counts = { pending: 0, resubmitted: 0, revision: 0, accepted: 0 };
+    matchingContext.forEach(item => { const status = String(item.status || '').trim().toLowerCase(); if (status in counts) counts[status]++; });
+    const summary = document.getElementById('admin-queue-summary');
+    if (summary) {
+        summary.setAttribute('aria-label',uxText('Status antrean pengajuan','Request queue status'));
+        const focusedStatus=summary.contains(document.activeElement)?document.activeElement.closest('[data-queue-status]')?.dataset.queueStatus:null;
+        const tabs=[['ACTION_REQUIRED','Perlu Ditinjau','Needs Review',counts.pending+counts.resubmitted],['Resubmitted','Perbaikan Masuk','Corrections',counts.resubmitted],['Revision','Menunggu Mahasiswa','Awaiting Student',counts.revision],['ALL','Semua','All',matchingContext.length]];
+        summary.innerHTML=tabs.map(([value,id,en,count])=>`<button type="button" class="queue-status-tab" data-queue-status="${value}" aria-pressed="${filterVal===value}" aria-label="${escapeHtml(uxText(id,en)+' · '+count+' '+uxText('pengajuan',count===1?'request':'requests'))}" onclick="setAdminQueueFilter('${value}')"><span>${uxText(id,en)}</span><strong class="queue-status-count">${count}</strong></button>`).join('');
+        if(focusedStatus)[...summary.querySelectorAll('[data-queue-status]')].find(button=>button.dataset.queueStatus===focusedStatus)?.focus({preventScroll:true});
+    }
+
+    adminFilteredData = matchingContext.filter(item => {
+        const stat = String(item.status || '').trim().toLowerCase();
+        return filterVal === 'ALL' || (filterVal === 'ACTION_REQUIRED' ? ['pending', 'resubmitted'].includes(stat) : stat === filterVal.toLowerCase());
     });
 
-    const from=document.getElementById('admin-date-from').value,to=document.getElementById('admin-date-to').value;
     document.getElementById('queue-date-error').textContent=from&&to&&from>to?uxText('Tanggal mulai harus sebelum atau sama dengan tanggal akhir.','The start date must be on or before the end date.'):'';
+    const activityOrder=document.getElementById('admin-queue-order').value==='activity';
+    document.getElementById('admin-activity-heading')?.setAttribute('aria-sort',activityOrder?(isAdminSortDesc?'descending':'ascending'):'none');
+    document.getElementById('admin-sort-icon').textContent=activityOrder?(isAdminSortDesc?'↓':'↑'):'';
     adminFilteredData.sort((a, b) => {
         const order=document.getElementById('admin-queue-order').value;
         if(order==='oldest' || order==='overdue') {
@@ -2357,14 +2392,17 @@ function setAdminQueueFilter(value) {
     filterAdminData();
 }
 
+function adminQueueCard(item) {
+    return `<article class="case-mobile-card queue-request-card" data-queue-case="${escapeHtml(item.id)}"><div class="queue-row-identity"><div><strong>${escapeHtml(item.nama)}</strong><span>${escapeHtml(item.nim)}</span></div><time>${escapeHtml(formatDate(getCaseEventTime(item)))}</time></div><p class="queue-request-service">${escapeHtml(systemText(item.jenis))}</p>${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}<button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${uxText('Periksa Pengajuan','Review Request')} <span aria-hidden="true">→</span></button></article>`;
+}
+
 function renderAdminTable() {
     const tbody = document.getElementById('table-admin-reg');
     tbody.innerHTML = '';
 
     if (adminFilteredData.length === 0) {
         currentAdminPage = 1;
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 30px;">
-            <div style="font-size: 30px; opacity: 0.5; margin-bottom: 10px;">-</div>
+        tbody.innerHTML = `<tr><td colspan="5" class="queue-empty" style="text-align:center; padding: 30px;">
             <span class="lang" data-id="Tidak ada data yang sesuai pencarian." data-en="No matching data found.">${currentLang === 'id' ? 'Tidak ada data yang sesuai pencarian.' : 'No matching data found.'}</span>
         </td></tr>`;
         document.getElementById('admin-page-info').innerText = systemText('Halaman 1 / 1');
@@ -2383,19 +2421,19 @@ function renderAdminTable() {
     const endIndex = startIndex + rowsPerPage;
     const paginatedItems = adminFilteredData.slice(startIndex, endIndex);
     const mobileList = document.getElementById('admin-mobile-list');
-    if (mobileList) mobileList.innerHTML = paginatedItems.map(item => caseMobileCard(item, true)).join('');
+    if (mobileList) mobileList.innerHTML = paginatedItems.map(adminQueueCard).join('');
 
     document.getElementById('admin-page-info').innerText = `${uxText('Halaman','Page')} ${currentAdminPage} / ${totalPages}`;
     document.getElementById('admin-btn-prev').disabled = currentAdminPage <= 1;
     document.getElementById('admin-btn-next').disabled = currentAdminPage >= totalPages;
 
     paginatedItems.forEach(item => {
-        tbody.innerHTML += `<tr>
+        tbody.innerHTML += `<tr data-queue-case="${escapeHtml(item.id)}">
             <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
             <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
             <td><strong>${escapeHtml(systemText(item.jenis))}</strong></td>
-            <td colspan="2">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}</td>
-            <td><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${uxText('Buka Pengajuan','Open Request')}</button></td>
+            <td>${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}</td>
+            <td><button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${uxText('Periksa','Review')} <span aria-hidden="true">→</span></button></td>
         </tr>`;
     });
     applyDynamicLanguage();
