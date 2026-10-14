@@ -98,3 +98,11 @@ The admin queue keeps search/status and result chips ahead of the table; advance
 - Review textareas retain focus and selection across language changes. Missing revision notes have associated field errors that persist when translating and clear when corrected. Approval buttons describe request approval rather than exam completion.
 - Restoring a correction-action draft into an already open panel retains the existing action footer. Review/correction checkbox labels offer 44px targets, and service input spacing leaves more room on narrow phones. Dark success text has readable contrast; case notifications stay inline and survive language changes without covering action buttons.
 - Regression scenarios cover input recovery, limits, active requirements, translated approval labels, missing review notes, caret preservation and footer restoration. All use synthetic API fixtures. No backend/schema changes or actual academic writes.
+
+## Small workflow improvements (14 October 2026)
+
+- The student home button follows the next useful action: continue a correction, resume an owned draft, view an active request, or start a new request. Corrections open the existing request's reply form; late cloud draft recovery refreshes the same button.
+- Returning to the same service from its stage guide preserves the submission summary and selected files, and focuses the summary or first missing requirement. Changing service still confirms unsent input.
+- Repeated clicks on the same private file preview share one pending request. The existing button exposes its busy state and becomes available again after success or failure; downloads and stale-session protection remain independent.
+- Closing admin case detail restores focus to the current matching queue row after background refresh. If the row has left the active filter, focus returns to queue search. Home instructions use a short review count.
+- Regression checks exercise both roles, delayed responses, keyboard focus, retained summaries/files, draft ownership and language preferences with synthetic data. No backend deployment is required.

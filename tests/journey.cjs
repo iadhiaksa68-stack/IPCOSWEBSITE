@@ -68,6 +68,15 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
         for (const id of fileIds) await page.setInputFiles('#'+id,pdf);
         await page.waitForFunction(total=>document.querySelector('#registration-readiness .stage-progress').textContent===`${total}/${total} siap`,total);
         await page.click('#btn-review-registration');assert(await page.locator('#registration-review').isVisible());
+        if(type==='Outline') {
+            const title=await page.inputValue('#reg-judul');
+            permit=true;await page.evaluate(()=>switchTab(null,'skripsi'));await page.click('[data-start-service="Outline"]');permit=false;
+            assert(await page.locator('#registration-review').isVisible());
+            assert.equal(await page.inputValue('#reg-judul'),title);
+            assert.equal(await page.locator('#file-transkrip').evaluate(input=>input.files.length),1);
+            assert.equal(await page.evaluate(()=>document.activeElement.id),'review-heading');
+            console.log('PASS Returning through the same academic stage preserves the prepared review, selected files and title');
+        }
         await page.click('#btn-edit-registration');
     }
     await page.selectOption('#reg-jenis-utama','Proposal');

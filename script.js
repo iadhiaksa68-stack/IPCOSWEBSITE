@@ -1167,6 +1167,36 @@ function revisionInstructionsHtml(item) {
         ${rev.files.length ? `<ul>${rev.files.map(label => `<li>${escapeHtml(systemText(label))}</li>`).join('')}</ul>` : ''}
         <p class="preserve-lines">${escapeHtml(rev.instruction)}</p></section>`;
 }
+function studentHomeAction(records = readStoredJSON(sessionStorage, 'ipcos_registrations', [])) {
+    const mine = records.filter(item => String(item.nim) === String(currentUser.nim));
+    const status = item => String(item.status || '').trim().toLowerCase();
+    const active = mine.filter(item => ['revision','resubmitted','pending'].includes(status(item)))
+        .sort((a,b) => ({revision:0,resubmitted:1,pending:2}[status(a)] - {revision:0,resubmitted:1,pending:2}[status(b)]) || displayDate(getCaseEventTime(a)) - displayDate(getCaseEventTime(b)));
+    const revision = active.find(item => status(item) === 'revision');
+    if (revision) return {kind:'revision', id:String(revision.id), label:uxText('Lanjutkan Revisi','Continue Corrections')};
+    const draft = readStoredJSON(sessionStorage, 'ipcos_form_draft', {});
+    const type = draft['reg-jenis-utama'] || draft.jenis;
+    if (draft.ownerNim === currentUser.nim && SERVICE_TYPES.includes(type) && !active.some(item => item.jenis === type))
+        return {kind:'draft', label:uxText('Lanjutkan Draf','Continue Draft')};
+    if (active.length) return {kind:'case', id:String(active[0].id), label:uxText('Lihat Pengajuan','View Request')};
+    return {kind:'new', label:uxText('Buat Pengajuan','New Request')};
+}
+function continueStudentHome() {
+    if (currentUser.role !== 'mhs' || !getSessionToken()) return false;
+    // Keep any open case editor or submission intact; the home button is inert
+    // behind that modal, and programmatic callers must respect the same state.
+    if (caseEditorDirty() || isPreparingCorrection || activeUpdateIds.has(selectedCaseId)) return false;
+    const action = studentHomeAction();
+    if (action.kind === 'new' || action.kind === 'draft') return switchTab(null, 'pendaftaran');
+    if (!switchTab(null, 'student-status')) return false;
+    const origin = [...document.querySelectorAll('#student-status [data-case-id]')].find(button => String(button.dataset.caseId) === action.id && !button.disabled && button.getClientRects().length);
+    origin?.focus({preventScroll:true});
+    openCaseDetail(action.id);
+    const modal = document.getElementById('modal-case-detail');
+    if (selectedCaseId !== action.id || modal.style.display !== 'flex') return false;
+    if (action.kind === 'revision') caseDetailAction('reply');
+    return true;
+}
 function renderTaskHome() {
     renderAcademicJourney();
     const home = document.getElementById('task-home');
@@ -1180,13 +1210,14 @@ function renderTaskHome() {
     actionable.sort((a,b) => priority(a)-priority(b) || displayDate(getCaseEventTime(a))-displayDate(getCaseEventTime(b)));
     const visibleCases = actionable.length ? actionable.slice(0,3) : records.slice().sort((a,b) => displayDate(getCaseEventTime(b))-displayDate(getCaseEventTime(a))).slice(0,1);
     const revisions = records.filter(item => String(item.status).toLowerCase() === 'revision').length;
+    const primaryAction = admin ? null : studentHomeAction(records);
     const title = admin ? uxText('Antrean kerja Anda', 'Your review queue') : uxText('Pengajuan Anda', 'Your requests');
-    const subtitle = admin ? `${actionable.length} ${uxText('pengajuan perlu ditinjau. Di beranda, perbaikan masuk didahulukan, lalu aktivitas paling lama. Pilih urutan lain di Antrean.', actionable.length === 1 ? 'request needs review. Home shows corrections first, then oldest activity. Choose another order in the Queue.' : 'requests need review. Home shows corrections first, then oldest activity. Choose another order in the Queue.')}`
+    const subtitle = admin ? actionable.length ? `${actionable.length} ${uxText('pengajuan perlu ditinjau.', actionable.length === 1 ? 'request needs review.' : 'requests need review.')}` : uxText('Lihat riwayat atau buka antrean pengajuan.', 'View request history or open the review queue.')
         : revisions ? `${revisions} ${uxText('pengajuan membutuhkan perbaikan Anda.', revisions === 1 ? 'request needs your corrections.' : 'requests need your corrections.')}` : uxText('Lihat langkah berikutnya atau mulai pengajuan baru.', 'See your next step or start a new request.');
     home.innerHTML = `<div class="task-home-header"><div><h2>${title}</h2><p>${subtitle}</p></div>
-        <button type="button" class="btn-primary" onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : "switchTab(null, 'pendaftaran')"}">${admin ? uxText('Buka Antrean', 'Open Queue') : uxText('Buat Pengajuan', 'New Request')}</button></div>
+        <button type="button" class="btn-primary" ${admin ? '' : 'data-student-home-action'} onclick="${admin ? "switchTab(null, 'admin-data');setAdminQueueFilter('ACTION_REQUIRED')" : 'continueStudentHome()'}">${admin ? uxText('Buka Antrean', 'Open Queue') : primaryAction.label}</button></div>
         <div class="task-home-list">${(admin ? actionable.length : visibleCases.length) ? visibleCases.map(item => `<article class="task-card"><div><h3>${escapeHtml(systemText(item.jenis))}</h3>${admin ? `<p>${escapeHtml(item.nama)} · ${escapeHtml(item.nim)}</p>` : ''}${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}</div>
-        <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
+        <button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${admin ? uxText('Periksa Pengajuan','Review Request') : primaryAction.id === String(item.id) ? uxText('Detail Pengajuan','Request Details') : String(item.status).toLowerCase() === 'revision' ? uxText('Lanjutkan Perbaikan','Continue Corrections') : String(item.status).toLowerCase() === 'accepted' ? uxText('Lihat Hasil','View Result') : uxText('Lihat Pengajuan','View Request')}</button></article>`).join('')
         : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
         <div class="task-home-footer"><button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>${admin ? '' : `<button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Buka Perjalanan Akademik', 'Open Academic Journey')}</button>`}</div>`;
 }
@@ -1203,11 +1234,11 @@ function caseFileListHtml(item) {
     return `<h4>${systemText('Versi terbaru')}</h4>`+current.map(html).join('')+(old.length?`<details class="case-history"><summary>${uxText('Versi sebelumnya dan berkas lama','Previous versions & older files')} (${old.length})</summary>`+old.map(html).join('')+'</details>':'');
 }
 
-function previewCaseFile(index) {
+function previewCaseFile(index,button=null) {
     const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
     const file = item && getCaseFiles(item)[index];
     if (!file) return;
-    if (isPrivateDriveUrl(file.url)) { accessCaseDocument(index,true); return; }
+    if (isPrivateDriveUrl(file.url)) return accessCaseDocument(index,true,button);
     clearCaseBlobUrls();
     const preview = document.getElementById('case-file-preview');
     preview.hidden = false;
@@ -2143,7 +2174,12 @@ function openCaseDetail(id, languageRefresh = false) {
     if (savedPreview) content.querySelector('#case-file-preview').replaceWith(savedPreview);
     if (savedReviewTools) content.querySelector('#case-action-panel').before(savedReviewTools);
     if (savedFeedback) content.appendChild(savedFeedback);
-    content.querySelectorAll('[data-preview-index]').forEach(button => button.addEventListener('click', () => previewCaseFile(Number(button.dataset.previewIndex))));
+    content.querySelectorAll('[data-preview-index]').forEach(button => {
+        const index=Number(button.dataset.previewIndex);
+        if (languageRefresh && pendingCasePreview?.epoch===sessionEpoch && pendingCasePreview.id===selectedCaseId && pendingCasePreview.context===caseDocumentEpoch && getCaseFiles(item)[index]?.url===pendingCasePreview.url)
+            markCasePreviewBusy(pendingCasePreview,button);
+        button.addEventListener('click', () => previewCaseFile(index,button));
+    });
     const modal = document.getElementById('modal-case-detail');
     clearTimeout(modalCloseTimers.get(modal.id));
     modal.style.display = 'flex';
@@ -2648,6 +2684,7 @@ function switchTab(event, tabId) {
     if (window.IPCOSSop && !window.IPCOSSop.beforeNavigate(tabId)) return false;
     if (tabId === 'academic-journey') renderAcademicJourney();
     if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return false;
+    if (tabId === 'dashboard') renderTaskHome();
     window.IPCOSExperience?.beforeTab(tabId);
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));

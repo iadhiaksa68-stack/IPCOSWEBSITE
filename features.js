@@ -127,8 +127,25 @@ document.addEventListener('change',event=>{if(event.target.id==='case-reply-file
 const caseBlobUrls = new Set();
 let documentRequestVersion = 0;
 let caseDocumentEpoch = 0;
+let pendingCasePreview = null;
+function markCasePreviewBusy(request,button) {
+    if (!button || request.buttons.has(button)) return;
+    request.buttons.set(button,{disabled:button.disabled,busy:button.getAttribute('aria-busy')});
+    button.ipcosPendingPreview=request; button.disabled=true; button.setAttribute('aria-busy','true');
+}
+function releaseCasePreview(request) {
+    if (!request) return;
+    for (const [button,previous] of request.buttons) {
+        if (button.ipcosPendingPreview!==request) continue;
+        delete button.ipcosPendingPreview; button.disabled=previous.disabled;
+        if (previous.busy===null) button.removeAttribute('aria-busy'); else button.setAttribute('aria-busy',previous.busy);
+    }
+    request.buttons.clear(); request.complete();
+    if (pendingCasePreview===request) pendingCasePreview=null;
+}
 function isPrivateDriveUrl(url) { try { return ['drive.google.com','docs.google.com'].includes(new URL(url).hostname); } catch (_) { return false; } }
 function clearCaseBlobUrls() {
+    releaseCasePreview(pendingCasePreview);
     documentRequestVersion++; caseDocumentEpoch++;
     caseBlobUrls.forEach(url=>URL.revokeObjectURL(url)); caseBlobUrls.clear();
     window.IPCOSDocuments?.reset(document.getElementById('case-file-preview'));
@@ -138,11 +155,24 @@ function clearCaseBlobUrls() {
 async function accessCaseDocument(index,preview=false,button=null) {
     const item=currentCase(), file=item && getCaseFiles(item)[index];
     if(!file || !isPrivateDriveUrl(file.url)) return;
+    if(preview) {
+        button ||= [...document.querySelectorAll('#case-detail-content [data-preview-index]')].find(control=>Number(control.dataset.previewIndex)===index);
+        if(pendingCasePreview?.epoch===sessionEpoch && pendingCasePreview.id===String(item.id) && pendingCasePreview.url===file.url && pendingCasePreview.context===caseDocumentEpoch) {
+            markCasePreviewBusy(pendingCasePreview,button);
+            return pendingCasePreview.promise;
+        }
+    }
     if(preview)clearCaseBlobUrls();
     const epoch=sessionEpoch, id=String(item.id), version=preview?++documentRequestVersion:0, contextVersion=caseDocumentEpoch;
+    let previewRequest=null;
+    if(preview) {
+        let complete; const promise=new Promise(resolve=>complete=resolve);
+        previewRequest={epoch,id,url:file.url,context:contextVersion,buttons:new Map(),promise,complete};
+        pendingCasePreview=previewRequest;markCasePreviewBusy(previewRequest,button);
+    }
     const panel=document.getElementById('case-file-preview');
     if(preview) { window.IPCOSDocuments.reset(panel);panel.hidden=false; panel.querySelector('p').textContent=uxText('Memuat berkas melalui sesi IPCOS…','Loading the file through your IPCOS session…'); panel.querySelector('iframe').src='about:blank'; }
-    if(button) button.disabled=true;
+    if(button && !preview) button.disabled=true;
     try {
         const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'get_document',id,url:file.url}),headers:{'Content-Type':'text/plain;charset=utf-8'}});
         const result=await readApiResult(response);
@@ -161,7 +191,7 @@ async function accessCaseDocument(index,preview=false,button=null) {
             const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
         }
     } catch(error) { if(epoch===sessionEpoch && contextVersion===caseDocumentEpoch && (!preview || version===documentRequestVersion)) { showToast(error.message || 'Berkas belum dapat dibaca.','error'); if(preview && panel.isConnected) panel.querySelector('p').textContent=uxText('Berkas belum dapat dimuat. Coba lagi atau hubungi admin.','The file could not be loaded. Try again or contact admin.'); } }
-    finally { if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }
+    finally { if(preview)releaseCasePreview(previewRequest); else if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-document-index]');if(button)accessCaseDocument(Number(button.dataset.documentIndex),false,button);});
 

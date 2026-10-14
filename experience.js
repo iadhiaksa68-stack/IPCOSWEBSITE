@@ -10,6 +10,22 @@
     const canFocus = node => node?.isConnected && !node.disabled && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden' && !node.closest('[hidden],[inert]');
     let activeModal = null, lastFocused = document.activeElement;
     const modalReturnFocus = new WeakMap(), modalBackground = new Map();
+    function captureModalOrigin(node) {
+        return {node,epoch:sessionEpoch,caseId:node?.closest?.('[data-case-id]')?.dataset.caseId,tabId:node?.closest?.('.tab-content')?.id};
+    }
+    function restoreModalOrigin(origin,next) {
+        if (!origin || origin.epoch!==sessionEpoch) return false;
+        let target=origin.node;
+        if (!canFocus(target) && origin.caseId && !next) {
+            const tab=document.getElementById(origin.tabId);
+            if (!tab?.classList.contains('active')) return false;
+            target=[...tab.querySelectorAll('[data-case-id]')].find(node=>node.dataset.caseId===origin.caseId && canFocus(node));
+            if (!target && origin.tabId==='admin-data') target=document.getElementById('admin-search-input');
+            if (!target) target=[...tab.querySelectorAll('button,a[href],input,summary')].find(canFocus);
+        }
+        if (!canFocus(target) || (next && !next.contains(target))) return false;
+        target.focus({preventScroll:true});return true;
+    }
     function topModal() {
         if (document.fullscreenElement) return document.fullscreenElement;
         const visible = [...document.querySelectorAll('.overlay,dialog[open]')].filter(node => node.getClientRects().length && getComputedStyle(node).display !== 'none');
@@ -36,7 +52,7 @@
         const previous = activeModal;
         for (const [node,inert] of modalBackground) if (node.isConnected) node.inert = inert;
         modalBackground.clear(); activeModal = next;
-        if (next && !modalReturnFocus.has(next)) modalReturnFocus.set(next, next.contains(document.activeElement) ? lastFocused : document.activeElement);
+        if (next && !modalReturnFocus.has(next)) modalReturnFocus.set(next, captureModalOrigin(next.contains(document.activeElement) ? lastFocused : document.activeElement));
         document.body.classList.toggle('modal-overlay-open',!!next);
         if (next) {
             for (const node of document.body.children) {
@@ -48,14 +64,14 @@
         // Restore only when closing a layer, including a preview over an editor.
         if (previous && !previous.getClientRects().length) {
             modalReturnFocus.delete(previous);
-            if (canFocus(origin) && (!next || next.contains(origin))) origin.focus({preventScroll:true});
-            else if (next && !next.contains(document.activeElement)) focusModal(next);
+            const restored=restoreModalOrigin(origin,next);
+            if (!restored && next && !next.contains(document.activeElement)) focusModal(next);
         } else if (next && !next.contains(document.activeElement)) focusModal(next);
     }
     function setupModalAccessibility() {
         document.addEventListener('focusin',event => {
             const next = topModal();
-            if (next && next !== activeModal && !modalReturnFocus.has(next) && !next.contains(lastFocused)) modalReturnFocus.set(next,lastFocused);
+            if (next && next !== activeModal && !modalReturnFocus.has(next) && !next.contains(lastFocused)) modalReturnFocus.set(next,captureModalOrigin(lastFocused));
             lastFocused = event.target;
         },true);
         const observer = new MutationObserver(mutations => {

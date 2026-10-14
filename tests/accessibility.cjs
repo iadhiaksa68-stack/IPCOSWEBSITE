@@ -11,7 +11,7 @@ async function mock(context) {
             let result;
             if (data.action === 'student_login') result = {status:'success',token:'student',nama:'Mahasiswa Uji'};
             else if (data.action === 'admin_login') result = {status:'success',token:'admin'};
-            else if (data.action === 'get_data') result = {status:'success',registrations:[],students:[],dosens:[{Nama:'Dosen Uji',Terpakai:0,Maksimal:5}],contents:[],announcements:[],services:[]};
+            else if (data.action === 'get_data') result = {status:'success',registrations:[{id:'focus-request',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal',status:'Pending',date:'2026-10-13T01:00:00Z',detail:'Judul uji',link:'',note:'[]'}],students:[],dosens:[{Nama:'Dosen Uji',Terpakai:0,Maksimal:5}],contents:[],announcements:[],services:[]};
             else if (data.action === 'get_journey') result = {status:'success',journey:{checks:{},revision:1}};
             else if (data.action === 'get_backup_status') result = {status:'success',lastBackup:null};
             else throw new Error('Unexpected request '+data.action);
@@ -72,6 +72,14 @@ async function boundary(page,selector) {
     assert.equal(await page.locator('#main-workspace').evaluate(node => node.inert),false);
     assert.equal(await page.locator('#main-sidebar').evaluate(node => node.inert),true,'The closed mobile drawer keeps its original inert state');
     console.log('PASS Native dialogs take focus above an expanded panel; closing nested layers restores background and drawer accessibility');
+
+    await page.setViewportSize({width:1365,height:900});await page.evaluate(()=>switchTab(null,'admin-data'));
+    await page.locator('#table-admin-reg [data-case-id="focus-request"]').click();await page.evaluate(()=>syncDatabase());await page.keyboard.press('Escape');await page.waitForSelector('#modal-case-detail',{state:'hidden'});
+    await focused(page,'#table-admin-reg [data-case-id="focus-request"]');
+    await page.locator('#table-admin-reg [data-case-id="focus-request"]').click();
+    await page.evaluate(()=>{const records=JSON.parse(sessionStorage.getItem('ipcos_registrations'));records[0].status='Accepted';sessionStorage.setItem('ipcos_registrations',JSON.stringify(records));filterAdminData();});
+    await page.keyboard.press('Escape');await page.waitForSelector('#modal-case-detail',{state:'hidden'});await focused(page,'#admin-search-input');
+    console.log('PASS Closing a review after queue DOM replacement restores the request button or the current queue search when the request leaves the filter');
 
     await page.evaluate(() => toggleLanguage()); await searchTrigger.click();
     assert.equal(await page.locator('#global-search-input').getAttribute('aria-label'),'Search menus, forms, or guides');

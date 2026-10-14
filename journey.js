@@ -70,15 +70,21 @@ function openStageRegistration(type) {
     const existing = activeSameType(type);
     if (existing) { openCaseDetail(existing.id); return; }
     const select = document.getElementById('reg-jenis-utama');
+    const resume = select.value === type;
     if (select.value && select.value !== type && registrationDirty && !confirm(uxText('Ada isian pengajuan lain yang belum dikirim. Beralih ke jenis pengajuan ini?', 'Another request has unsent inputs. Switch to this request type?'))) return;
-    switchTab(null, 'pendaftaran');
+    if (!switchTab(null, 'pendaftaran')) return;
     if (!document.getElementById('pendaftaran').classList.contains('active')) return;
-    select.value = type;
-    toggleExamForm();
-    saveFormDraft();
-    registrationDirty = true;
-    document.getElementById('readiness-heading')?.scrollIntoView({block:'start'});
-    select.focus({preventScroll:true});
+    if (!resume) {
+        select.value = type;
+        toggleExamForm();
+        saveFormDraft();
+        registrationDirty = true;
+    }
+    const target = !document.getElementById('registration-review').hidden
+        ? document.getElementById('review-heading')
+        : document.getElementById(registrationRequirements(type).find(item => !item.ready)?.id) || select;
+    target?.scrollIntoView({block:'center'});
+    target?.focus({preventScroll:true});
 }
 
 document.addEventListener('click', event => {

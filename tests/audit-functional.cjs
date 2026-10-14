@@ -167,6 +167,102 @@ test('notification and search respect a rejected leave-form confirmation', () =>
   assert.equal(dropdown.style.display, 'none');
 });
 
+function homeActionContext() {
+  let records = [], draft = {}, dirty = false, navigationAllowed = true;
+  const modal = {style: {display: 'none'}}, calls = [];
+  const context = vm.createContext({
+    currentUser: {role: 'mhs', nim: 'A'}, currentLang: 'id', selectedCaseId: '',
+    sessionStorage: {}, SERVICE_TYPES: ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'],
+    readStoredJSON: (storage, key) => key === 'ipcos_registrations' ? records : draft,
+    uxText: (id, en) => context.currentLang === 'en' ? en : id,
+    getCaseEventTime: item => item.date, getSessionToken: () => 'student-token',
+    caseEditorDirty: () => dirty, isPreparingCorrection: false, activeUpdateIds: new Set(),
+    switchTab: (event, tab) => {calls.push(['navigate', tab]); return navigationAllowed;},
+    openCaseDetail: id => {calls.push(['case', id]); context.selectedCaseId = id; modal.style.display = 'flex';},
+    caseDetailAction: action => calls.push(['action', action]), document: {getElementById: () => modal, querySelectorAll: () => []},
+  });
+  vm.runInContext(section('function displayDate(', 'function formatDate('), context);
+  vm.runInContext(section('function studentHomeAction(', 'function renderTaskHome('), context);
+  return {context, calls, records: value => {records = value;}, draft: value => {draft = value;}, dirty: value => {dirty = value;}, allow: value => {navigationAllowed = value;}};
+}
+
+test('student home prioritizes own corrections, then an owned valid draft, then active requests', () => {
+  const fixture = homeActionContext(), {context} = fixture;
+  fixture.records([
+    {id: 'other', nim: 'B', status: 'Revision', date: '2026-10-01T00:00:00Z'},
+    {id: 'pending', nim: 'A', jenis: 'Proposal', status: 'Pending', date: '2026-10-02T00:00:00Z'},
+    {id: 'revision', nim: 'A', jenis: 'Outline', status: 'Revision', date: '2026-10-03T00:00:00Z'},
+  ]);
+  fixture.draft({ownerNim: 'A', 'reg-jenis-utama': 'Pendadaran'});
+  assert.equal(context.studentHomeAction().id, 'revision');
+  assert.equal(context.studentHomeAction().label, 'Lanjutkan Revisi');
+  fixture.records([{id: 'pending', nim: 'A', jenis: 'Proposal', status: 'Pending', date: '2026-10-02T00:00:00Z'}]);
+  assert.equal(context.studentHomeAction().kind, 'draft');
+  assert.equal(context.studentHomeAction().label, 'Lanjutkan Draf');
+  fixture.draft({ownerNim: 'B', 'reg-jenis-utama': 'Pendadaran'});
+  assert.equal(context.studentHomeAction().id, 'pending');
+  fixture.draft({ownerNim: 'A', 'reg-jenis-utama': 'Unknown'});
+  assert.equal(context.studentHomeAction().label, 'Lihat Pengajuan');
+  fixture.draft({ownerNim: 'A', 'reg-jenis-utama': 'Proposal'});
+  assert.equal(context.studentHomeAction().kind, 'case', 'An existing request takes precedence over a stale draft of the same type');
+  fixture.records([{id: 'other', nim: 'B', status: 'Revision'}]); fixture.draft({});
+  assert.equal(context.studentHomeAction().kind, 'new');
+  context.currentLang = 'en';
+  assert.equal(context.studentHomeAction().label, 'New Request');
+});
+
+test('student home actions honor navigation and case guards and recheck the latest status', () => {
+  const fixture = homeActionContext(), {context, calls} = fixture;
+  fixture.records([{id: 'revision', nim: 'A', jenis: 'Outline', status: 'Revision', date: '2026-10-03T00:00:00Z'}]);
+  fixture.allow(false);
+  assert.equal(context.continueStudentHome(), false);
+  assert.equal(calls.filter(call => call[0] === 'case').length, 0);
+  calls.length = 0; fixture.allow(true); fixture.dirty(true);
+  assert.equal(context.continueStudentHome(), false);
+  assert.equal(calls.length, 0);
+  fixture.dirty(false);
+  assert.equal(context.continueStudentHome(), true);
+  assert.deepEqual(calls, [['navigate','student-status'],['case','revision'],['action','reply']]);
+  calls.length = 0;
+  fixture.records([{id: 'revision', nim: 'A', jenis: 'Outline', status: 'Accepted'}]);
+  context.continueStudentHome();
+  assert.deepEqual(calls, [['navigate','pendaftaran']], 'A status update removes the obsolete correction action');
+  calls.length = 0; context.currentUser.role = 'admin';
+  assert.equal(context.continueStudentHome(), false);
+  assert.equal(calls.length, 0);
+});
+
+test('stage shortcuts preserve same-type review and files while a different type still requires confirmation', () => {
+  let focused = '', resets = 0, saves = 0, permit = false;
+  const nodes = {
+    'reg-jenis-utama': {value: 'Outline', focus: () => {focused = 'type';}, scrollIntoView() {}},
+    'registration-review': {hidden: false},
+    'review-heading': {focus: () => {focused = 'review';}, scrollIntoView() {}},
+    'reg-judul': {value: 'Preserved title', focus: () => {focused = 'title';}, scrollIntoView() {}},
+    'file-transkrip': {files: [{name: 'preserved.pdf'}]},
+    pendaftaran: {classList: {contains: () => true}},
+  };
+  const context = vm.createContext({
+    document: {getElementById: id => nodes[id]}, currentUser: {role: 'mhs'}, SERVICE_TYPES: ['Outline','Proposal'],
+    isSubmittingRegistration: false, registrationDirty: true, activeSameType: () => null,
+    confirm: () => permit, uxText: text => text, switchTab: () => true, toggleExamForm: () => resets++, saveFormDraft: () => saves++,
+    registrationRequirements: () => [{id: 'reg-judul', ready: false}],
+  });
+  const journey = fs.readFileSync(path.join(__dirname, '../journey.js'), 'utf8');
+  vm.runInContext(journey.slice(journey.indexOf('function openStageRegistration('), journey.indexOf("document.addEventListener('click'")), context);
+  context.openStageRegistration('Outline');
+  assert.equal(focused, 'review'); assert.equal(resets, 0); assert.equal(saves, 0);
+  assert.equal(nodes['registration-review'].hidden, false);
+  assert.equal(nodes['reg-judul'].value, 'Preserved title');
+  assert.equal(nodes['file-transkrip'].files[0].name, 'preserved.pdf');
+  nodes['registration-review'].hidden = true; context.openStageRegistration('Outline');
+  assert.equal(focused, 'title'); assert.equal(resets, 0);
+  context.openStageRegistration('Proposal');
+  assert.equal(nodes['reg-jenis-utama'].value, 'Outline'); assert.equal(resets, 0);
+  permit = true; context.openStageRegistration('Proposal');
+  assert.equal(nodes['reg-jenis-utama'].value, 'Proposal'); assert.equal(resets, 1); assert.equal(saves, 1);
+});
+
 function announcementContext() {
   const values = new Map(), session = new Map(), nodes = new Map(), timeouts = new Map();
   let nextTimer = 0;

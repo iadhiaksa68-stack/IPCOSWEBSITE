@@ -32,7 +32,7 @@
         toggleExamForm();guidance();
         if(saved.exists) {sessionStorage.setItem('ipcos_form_draft',JSON.stringify({ownerNim:currentUser.nim,savedAt:saved.updatedAt,...saved.fields}));registrationDirty=true;}
         else {sessionStorage.removeItem('ipcos_form_draft');registrationDirty=false;}
-        renderRegistrationReadiness();return true;
+        renderRegistrationReadiness();renderTaskHome();return true;
     }
     async function startDraft() {
         if(!owner() || draft.epoch===sessionEpoch)return;
