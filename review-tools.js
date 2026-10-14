@@ -52,6 +52,7 @@
         let root=el('document-review-tools');if(!root){root=document.createElement('section');root.id='document-review-tools';el('case-action-panel').before(root);}
         const canEdit=currentUser.role==='admin'&&['pending','resubmitted'].includes(String(item.status).toLowerCase())&&!archived(item);
         if(!preserve){editingId=String(item.id);baseRecord={...item};draft=reviews(item);dirty=false;retry=null;invalidNotes.clear();}
+        if(currentUser.role==='mhs'){root.textContent='';return;}
         if(supported!==true){root.textContent=currentUser.role==='admin'&&supported===false?t('Pemeriksaan per berkas menunggu aktivasi backend. Tindakan pengajuan tetap tersedia.','Per-document reviews are awaiting backend activation. Existing request actions remain available.'):'';return;}
         if(!draft.length){root.textContent='';return;}
         const preservedControls=preserve?[...root.querySelectorAll('select,textarea')]:[];
@@ -95,11 +96,11 @@
         if(languageRefresh)window.IPCOSDocuments?.languageChanged();
         renderReviews(item,languageRefresh&&editingId===String(item.id));if(!languageRefresh)window.IPCOSAdminDrafts?.offer(item);if(currentUser.role==='admin'&&!el('modal-case-detail').classList.contains('admin-review-mode')&&el('modal-case-detail').classList.contains('has-document-preview'))document.querySelector('.case-action-column')?.prepend(el('document-review-tools'));renderArchives();
         let toggle=el('workspace-view-toggle');if(!toggle){toggle=document.createElement('div');toggle.id='workspace-view-toggle';toggle.className='workspace-view-toggle';el('case-detail-content').before(toggle);}
-        toggle.innerHTML=`<button type="button" data-workspace-view="documents">${t('Dokumen','Documents')}</button><button type="button" data-workspace-view="review">${t('Pemeriksaan','Review')}</button>`;
+        toggle.innerHTML=`<button type="button" data-workspace-view="documents">${t('Dokumen','Documents')}</button><button type="button" data-workspace-view="review">${currentUser.role==='mhs'?t('Tindak Lanjut','Follow-up'):t('Pemeriksaan','Review')}</button>`;
         toggle.hidden=currentUser.role!=='admin'&&!el('modal-case-detail').classList.contains('has-document-preview');syncToggle();
     }
     function syncToggle(){const modal=el('modal-case-detail');el('workspace-view-toggle')?.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.workspaceView===(modal.dataset.workspaceView||'documents'))));}
-    function previewReady(){const modal=el('modal-case-detail');modal.classList.add('has-document-preview');if(!modal.classList.contains('admin-review-mode')||!modal.dataset.workspaceView)modal.dataset.workspaceView='documents';if(el('workspace-view-toggle'))el('workspace-view-toggle').hidden=false;syncToggle();const panel=el('case-file-preview'),content=el('case-detail-content');if(panel&&content&&!modal.classList.contains('admin-review-mode'))content.scrollTop+=panel.getBoundingClientRect().top-content.getBoundingClientRect().top;const review=el('document-review-tools');if(currentUser.role==='admin'&&review&&!modal.classList.contains('admin-review-mode'))document.querySelector('.case-action-column')?.prepend(review);}
+    function previewReady(){const modal=el('modal-case-detail');modal.classList.add('has-document-preview');if(!modal.dataset.workspaceView)modal.dataset.workspaceView='documents';if(el('workspace-view-toggle'))el('workspace-view-toggle').hidden=false;syncToggle();const panel=el('case-file-preview'),content=el('case-detail-content');if(panel&&content&&!modal.classList.contains('admin-review-mode')&&modal.dataset.workspaceView==='documents')content.scrollTop+=panel.getBoundingClientRect().top-content.getBoundingClientRect().top;const review=el('document-review-tools');if(currentUser.role==='admin'&&review&&!modal.classList.contains('admin-review-mode'))document.querySelector('.case-action-column')?.prepend(review);}
     function archiveCandidates(){
         const from=el('archive-from')?.value||'',to=el('archive-to')?.value||'',type=el('archive-service')?.value||'';
         if(!from||!to||from>to)return [];

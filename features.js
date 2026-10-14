@@ -144,13 +144,13 @@ function releaseCasePreview(request) {
     if (pendingCasePreview===request) pendingCasePreview=null;
 }
 function isPrivateDriveUrl(url) { try { return ['drive.google.com','docs.google.com'].includes(new URL(url).hostname); } catch (_) { return false; } }
-function clearCaseBlobUrls(preserveAdminView=false) {
+function clearCaseBlobUrls(preserveView=false) {
     releaseCasePreview(pendingCasePreview);
     documentRequestVersion++; caseDocumentEpoch++;
     caseBlobUrls.forEach(url=>URL.revokeObjectURL(url)); caseBlobUrls.clear();
     window.IPCOSDocuments?.reset(document.getElementById('case-file-preview'));
     window.IPCOSDocuments?.clearLocal();
-    const modal=document.getElementById('modal-case-detail');if(modal){const view=preserveAdminView&&currentUser.role==='admin'&&modal.classList.contains('admin-review-mode')?(modal.dataset.workspaceView||'documents'):null;modal.classList.remove('has-document-preview','has-document-comparison');delete modal.dataset.workspaceView;if(view)modal.dataset.workspaceView=view;}
+    const modal=document.getElementById('modal-case-detail');if(modal){const view=preserveView&&['admin','mhs'].includes(currentUser.role)?(modal.dataset.workspaceView||'documents'):null;modal.classList.remove('has-document-preview','has-document-comparison');delete modal.dataset.workspaceView;if(view){modal.dataset.workspaceView=view;if(currentUser.role==='mhs')modal.classList.add('has-document-preview');}}
 }
 async function accessCaseDocument(index,preview=false,button=null) {
     const item=currentCase(), file=item && getCaseFiles(item)[index];
@@ -171,7 +171,7 @@ async function accessCaseDocument(index,preview=false,button=null) {
         pendingCasePreview=previewRequest;markCasePreviewBusy(previewRequest,button);
     }
     const panel=document.getElementById('case-file-preview');
-    if(preview) { window.IPCOSDocuments.reset(panel);panel.hidden=false; panel.querySelector('p').textContent=uxText('Memuat berkas melalui sesi IPCOS…','Loading the file through your IPCOS session…'); panel.querySelector('iframe').src='about:blank'; }
+    if(preview) { window.IPCOSDocuments.reset(panel);panel.hidden=false; panel.querySelector('p').textContent=uxText('Memuat berkas melalui sesi IPCOS…','Loading the file through your IPCOS session…'); panel.querySelector('iframe').src='about:blank'; window.IPCOSReviewTools?.previewReady(); }
     if(button && !preview) button.disabled=true;
     try {
         const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'get_document',id,url:file.url}),headers:{'Content-Type':'text/plain;charset=utf-8'}});

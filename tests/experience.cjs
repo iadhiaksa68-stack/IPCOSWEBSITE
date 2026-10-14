@@ -117,7 +117,7 @@ async function editSop(page) {await openSop(page);await page.evaluate(()=>IPCOSS
         }
         await target.setViewportSize({width:1365,height:900});await target.evaluate(()=>{if(currentLang!=='id')toggleLanguage();});
         await target.locator('#profile-summary-name').click();await visibleAction(target,'#student-header .btn-logout','Profile name opens a usable menu');
-        await target.locator('#task-home h2').click();assert(!await target.locator('#workspace-profile').evaluate(el=>el.open));
+        await target.locator('#task-home h2').first().click();assert(!await target.locator('#workspace-profile').evaluate(el=>el.open));
     }
     fs.mkdirSync('../qa-profile',{recursive:true});
     for(const role of ['mhs','admin']) {

@@ -1197,14 +1197,44 @@ function continueStudentHome() {
     if (action.kind === 'revision') caseDetailAction('reply');
     return true;
 }
+function studentRequestTitle(item) {
+    const doc = new DOMParser().parseFromString(String(item.detail || ''), 'text/html');
+    return doc.body.textContent.replace(/^\s*(?:Judul|Title)\s*:\s*/i, '').trim();
+}
+function studentProgressHtml(item) {
+    const status = String(item.status || '').trim().toLowerCase();
+    const complete = status === 'accepted', correction = status === 'revision';
+    const current = complete ? 2 : 1;
+    const steps = [uxText('Terkirim','Submitted'), correction ? uxText('Perlu perbaikan','Corrections needed') : uxText('Pemeriksaan','Review'), uxText('Selesai','Completed')];
+    return `<ol class="student-request-progress" aria-label="${uxText('Tahap pengajuan','Request stage')}">${steps.map((step,index)=>`<li class="${index < current || complete ? 'is-complete' : index === current ? 'is-current' : ''}" ${index === current ? 'aria-current="step"' : ''}><span aria-hidden="true">${index < current || complete ? '✓' : index + 1}</span>${step}</li>`).join('')}</ol>`;
+}
+function renderStudentHome(home, records) {
+    const state = item => String(item.status || '').trim().toLowerCase();
+    const rank = item => ({revision:0,resubmitted:1,pending:2,accepted:3}[state(item)] ?? 4);
+    const sorted = records.slice().sort((a,b)=>rank(a)-rank(b) || (state(a)==='accepted' ? -1 : 1)*(displayDate(getCaseEventTime(a))-displayDate(getCaseEventTime(b))));
+    const action = studentHomeAction(records), focus = records.find(item=>String(item.id) === action.id);
+    const revisions = records.filter(item=>state(item)==='revision').length;
+    const waiting = records.filter(item=>['pending','resubmitted'].includes(state(item))).length;
+    const completed = records.filter(item=>state(item)==='accepted').length;
+    const heading = action.kind==='revision' ? uxText('Ada perbaikan untuk Anda','Your corrections are needed') : action.kind==='draft' ? uxText('Draf Anda siap dilanjutkan','Your draft is ready to continue') : action.kind==='case' ? uxText('Pengajuan Anda sedang diperiksa','Your request is under review') : uxText('Siap untuk langkah berikutnya?','Ready for your next step?');
+    const description = focus ? caseNextStep(focus) : action.kind==='draft' ? uxText('Lanjutkan isian yang tersimpan, lalu periksa kembali sebelum mengirim.','Continue your saved details, then review them before submitting.') : uxText('Pilih layanan akademik dan siapkan berkas sebelum mengirim pengajuan.','Choose an academic service and prepare your files before submitting a request.');
+    home.classList.add('student-dashboard');
+    home.innerHTML = `<section class="student-next-step" aria-labelledby="student-next-title"><div class="student-next-copy"><span class="student-eyebrow">${uxText('LANGKAH BERIKUTNYA','YOUR NEXT STEP')}</span><h2 id="student-next-title">${heading}</h2>${focus ? `<p class="student-focus-service">${escapeHtml(systemText(focus.jenis))}</p>` : ''}<p>${escapeHtml(description)}</p><button type="button" class="btn-primary" data-student-home-action onclick="continueStudentHome()">${action.label}<span aria-hidden="true"> →</span></button></div><div class="student-next-context">${focus ? studentProgressHtml(focus) : `<strong>${uxText('Satu tempat untuk progres Anda','One place for your progress')}</strong><p>${uxText('Pengajuan, berkas, dan catatan admin tetap terhubung.','Your requests, files, and admin notes stay connected.')}</p>`}</div></section>
+    <dl class="student-overview" aria-label="${uxText('Ringkasan pengajuan','Request overview')}">${[[revisions,uxText('Perlu perbaikan','Needs corrections')],[waiting,uxText('Dalam pemeriksaan','Under review')],[completed,uxText('Selesai diverifikasi','Verified')]].map(([count,label])=>`<div><dt>${label}</dt><dd>${count}</dd></div>`).join('')}</dl>
+    <div class="student-section-heading"><h2>${uxText('Pengajuan Anda','Your requests')}</h2><button type="button" class="task-history" onclick="switchTab(null,'student-status')">${uxText('Lihat Semua','View All')} (${records.length})</button></div>
+    <div class="task-home-list">${sorted.length ? sorted.slice(0,3).map(item=>`<article class="task-card student-request-card"><div><p class="student-request-date">${escapeHtml(formatDate(getCaseEventTime(item)))}</p><h3>${escapeHtml(systemText(item.jenis))}</h3>${studentRequestTitle(item) ? `<p class="student-request-title">${escapeHtml(studentRequestTitle(item))}</p>` : ''}${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)}</div><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${state(item)==='revision' ? uxText('Lihat Perbaikan','View Corrections') : state(item)==='accepted' ? uxText('Lihat Hasil','View Result') : uxText('Detail Pengajuan','Request Details')}</button></article>`).join('') : `<div class="student-empty"><h3>${uxText('Belum ada pengajuan','No requests yet')}</h3><p>${uxText('Pengajuan yang Anda kirim akan tampil di sini, bersama status dan tindak lanjutnya.','Your submitted requests will appear here with their status and next steps.')}</p></div>`}</div>
+    <nav class="student-shortcuts" aria-label="${uxText('Akses cepat akademik','Academic shortcuts')}"><button type="button" class="btn-secondary" onclick="switchTab(null,'pendaftaran')">${uxText('Pusat Pendaftaran','Submit a Request')}</button><button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Perjalanan Akademik','Academic Journey')}</button><button type="button" class="btn-secondary" onclick="switchTab(null,'sop-magang')">${uxText('Panduan & Persyaratan','Guidance & Requirements')}</button></nav>`;
+}
 function renderTaskHome() {
     renderAcademicJourney();
     const home = document.getElementById('task-home');
     if (!home) return;
+    home.classList.remove('student-dashboard');
     if (!['admin','mhs'].includes(currentUser.role)) { home.innerHTML = ''; return; }
     const all = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const admin = currentUser.role === 'admin';
     const records = admin ? all : all.filter(item => String(item.nim) === String(currentUser.nim));
+    if (!admin) { renderStudentHome(home, records); return; }
     const priority = item => { const status = String(item.status).toLowerCase(); return admin ? ({resubmitted:0,pending:1,revision:2,accepted:3}[status] ?? 4) : ({revision:0,resubmitted:1,pending:2,accepted:3}[status] ?? 4); };
     const actionable = records.filter(item => admin ? ['pending','resubmitted'].includes(String(item.status).toLowerCase()) : String(item.status).toLowerCase() !== 'accepted');
     actionable.sort((a,b) => priority(a)-priority(b) || displayDate(getCaseEventTime(a))-displayDate(getCaseEventTime(b)));
@@ -1221,13 +1251,22 @@ function renderTaskHome() {
         : `<div class="task-empty">${admin ? uxText('Semua pengajuan sudah ditindaklanjuti.', 'All requests have been addressed.') : records.length ? uxText('Pengajuan Anda sudah selesai diverifikasi.', 'Your requests have been verified.') : uxText('Belum ada pengajuan. Mulai dengan memilih jenis pendaftaran.', 'No requests yet. Start by choosing a request type.')}</div>`}</div>
         <div class="task-home-footer"><button type="button" class="task-history" onclick="switchTab(null, '${admin ? 'admin-data' : 'student-status'}')${admin ? ";setAdminQueueFilter('ALL')" : ''}">${uxText('Lihat Semua Pengajuan', 'View All Requests')} (${records.length})</button>${admin ? '' : `<button type="button" class="btn-secondary" onclick="switchTab(null,'academic-journey')">${uxText('Buka Perjalanan Akademik', 'Open Academic Journey')}</button>`}</div>`;
 }
+function studentFileReviewHtml(item, url) {
+    if (currentUser.role !== 'mhs') return '';
+    let logs=[]; try { logs=JSON.parse(item.note || '[]'); } catch (_) {}
+    const reviews=Array.isArray(logs) ? logs.slice().reverse().find(log=>['document_review','request_type_change'].includes(log.kind))?.reviews || [] : [];
+    const review=reviews.find(review=>review.url===url);
+    if (!review) return '';
+    const label=review.status==='revision' ? uxText('Perlu Perbaikan','Needs Corrections') : review.status==='accepted' ? uxText('Sudah Sesuai','Meets Requirements') : uxText('Belum Diperiksa','Not Reviewed');
+    return `<div class="student-file-review ${review.status==='revision'?'needs-correction':''}"><strong>${label}</strong>${review.note ? `<p class="preserve-lines">${escapeHtml(review.note)}</p>` : ''}</div>`;
+}
 function caseFileListHtml(item) {
     const files = getCaseFiles(item);
     let logs=[]; try { logs=JSON.parse(item.note || '[]'); } catch (_) {}
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
     const rows=files.map((file,index)=>{const doc=metadata.slice().reverse().find(doc=>doc.url===file.url); return {...file,index,document:doc};});
     const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
-    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${row.document&&latest.get(row.document.label)===row&&comparableCaseFiles(item,row.document.label).length>1?`<button type="button" class="btn-secondary" data-compare-label="${escapeHtml(row.document.label)}">${uxText('Bandingkan Revisi','Compare Revisions')}</button>`:''}${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div></div>`;
+    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${row.document&&latest.get(row.document.label)===row&&comparableCaseFiles(item,row.document.label).length>1?`<button type="button" class="btn-secondary" data-compare-label="${escapeHtml(row.document.label)}">${uxText('Bandingkan Revisi','Compare Revisions')}</button>`:''}${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div>${studentFileReviewHtml(item,row.url)}</div>`;
     const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
     const old=rows.filter(row=>!current.includes(row));
     if(!current.length) return files.length?`<p class="field-helper">${systemText('Berkas lama belum memiliki penanda versi. Periksa tanggal dan nama berkas sebelum meninjau.')}</p>`+rows.map(html).join(''):uxText('Belum ada berkas.','No files available.');
@@ -2135,6 +2174,7 @@ function openCaseDetail(id, languageRefresh = false) {
     const restoreFocus=languageRefresh && document.getElementById('modal-case-detail').contains(active) ? {node:active,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection,scroll:document.getElementById('case-detail-content').scrollTop} : null;
     window.IPCOSReview?.restoreActions();
     const savedDetailsOpen=languageRefresh?document.querySelector('.case-academic-details')?.open:undefined;
+    const savedHistoryOpen=languageRefresh?[...document.querySelectorAll('#case-detail-content .case-history')].map(detail=>detail.open):[];
     const savedContextOpen=languageRefresh?document.querySelector('.admin-case-context')?.open:undefined;
     const savedPaneScroll = languageRefresh ? ['admin-document-navigation','admin-document-stage','admin-review-rail'].map(name => ({name, top:document.querySelector('#modal-case-detail .' + name)?.scrollTop || 0})) : [];
     const savedPanel = languageRefresh && document.getElementById('case-action-panel');
@@ -2158,6 +2198,7 @@ function openCaseDetail(id, languageRefresh = false) {
     const content = document.getElementById('case-detail-content');
     const modal = document.getElementById('modal-case-detail');
     modal.classList.toggle('admin-review-mode', isAdmin);
+    modal.classList.toggle('student-detail-mode', !isAdmin);
     document.getElementById('case-detail-title').textContent = isAdmin ? uxText('Pemeriksaan Pengajuan','Review Request') : uxText('Detail Pengajuan','Request Details');
     if (isAdmin && !languageRefresh) modal.dataset.workspaceView = 'documents';
     if (!languageRefresh) delete content.dataset.activeDocumentIndex;
@@ -2175,20 +2216,13 @@ function openCaseDetail(id, languageRefresh = false) {
         <div class="admin-academic-tools">${window.IPCOSAcademic?.caseHtml(item)||''}</div>
         <details class="admin-case-context"><summary>${uxText('Informasi Pengajuan','Request Information')}</summary><dl class="receipt-list"><dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd></dl>${detailsHtml}${historyHtml}<button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button></details>
         <button type="button" class="text-link admin-journey-link" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button></aside></div>`
-        : `<div class="case-workspace"><div class="case-document-column"><div class="case-summary">
-        <dl class="receipt-list"><dt>${uxText('Jenis','Type')}</dt><dd>${escapeHtml(systemText(item.jenis))}</dd>
-        <dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd>
-        ${isAdmin ? `<dt>${uxText('Mahasiswa','Student')}</dt><dd>${escapeHtml(item.nama)} (${escapeHtml(item.nim)})</dd>` : ''}
-        <dt>${uxText('Nomor','ID')}</dt><dd>${escapeHtml(item.id)}</dd></dl></div>
-        <h3>${uxText('Berkas','Documents')}</h3><div class="case-content-block case-documents">${caseFileListHtml(item)}</div>
-        ${previewHtml}${detailsHtml}
-        <button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button>
-        ${historyHtml}</div>
-        <aside class="case-action-column">${window.IPCOSAcademic?.caseHtml(item)||''}${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
-        <button type="button" class="btn-secondary" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button>
-        ${stateHtml}
-        <div id="case-detail-actions" class="case-detail-actions">${actions || `<p>${uxText('Tidak ada tindakan yang perlu dikirim saat ini.', 'No action is required at this time.')}</p>`}</div>
-        <div id="case-action-panel" hidden></div></aside></div>`;
+        : `<section class="student-detail-overview" aria-label="${uxText('Status dan langkah berikutnya','Status and next step')}">${stateHtml}${studentProgressHtml(item)}<dl class="student-detail-meta"><div><dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd></div><div><dt>${uxText('Terakhir diperbarui','Last updated')}</dt><dd>${escapeHtml(formatDateTime(getCaseEventTime(item)).replace(/<[^>]*>/g, ' '))}</dd></div></dl></section>
+        <div class="case-workspace student-detail-workspace"><section class="case-document-column" aria-labelledby="student-files-title"><div class="student-section-heading"><h3 id="student-files-title">${uxText('Berkas Pengajuan','Request Documents')}</h3><span>${fileCount} ${uxText('berkas',fileCount === 1 ? 'file' : 'files')}</span></div><div class="case-content-block case-documents">${caseFileListHtml(item)}</div>${previewHtml}</section>
+        <aside class="case-action-column" aria-label="${uxText('Tindak lanjut pengajuan','Request follow-up')}">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
+        <div id="case-detail-actions" class="case-detail-actions">${actions || `<p class="student-no-action">${status==='accepted' ? uxText('Pengajuan ini sudah selesai diverifikasi.','This request has been verified.') : uxText('Belum ada berkas yang perlu Anda kirim ulang.','No files need to be resubmitted at this time.')}</p>`}</div><div id="case-action-panel" hidden></div>
+        ${detailsHtml}${window.IPCOSAcademic?.caseHtml(item)||''}${historyHtml}
+        <div class="student-detail-links"><button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button><button type="button" class="text-link" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik','View Academic Journey')}</button></div></aside></div>`;
+    savedHistoryOpen.forEach((open,index)=>{const detail=content.querySelectorAll('.case-history')[index];if(detail)detail.open=open;});
     if(savedDetailsOpen!==undefined)content.querySelector('.case-academic-details').open=savedDetailsOpen;
     if(savedContextOpen!==undefined)content.querySelector('.admin-case-context').open=savedContextOpen;
     if (savedPanel) { content.querySelector('#case-action-panel').replaceWith(savedPanel); content.querySelector('#case-detail-actions').hidden = !savedPanel.hidden; }

@@ -135,7 +135,7 @@
         if (!card || !isOpen() || !['admin', 'mhs'].includes(currentUser?.role)) { restoreActions(); return; }
         const panel = document.getElementById('case-action-panel');
         const panelActive = panel && !panel.hidden;
-        if (panelActive && modal().classList.contains('admin-review-mode') && (activeActionPanel !== panel || activePanelAction !== panel.dataset.action)) {
+        if (panelActive && (modal().classList.contains('admin-review-mode') || modal().classList.contains('has-document-preview')) && (activeActionPanel !== panel || activePanelAction !== panel.dataset.action)) {
             modal().dataset.workspaceView = 'review';
             document.querySelectorAll('#workspace-view-toggle [data-workspace-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.workspaceView === 'review')));
         }
