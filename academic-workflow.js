@@ -9,7 +9,28 @@
     editing = "",
     base = null,
     retry = null,
-    typeDrafts = {};
+    typeDrafts = {},
+    snapshotEpoch = -1,
+    snapshotRole = "",
+    snapshotOwner = "";
+  function sessionMatches() {
+    return snapshotEpoch === sessionEpoch && snapshotRole === currentUser.role
+      && ["admin", "mhs"].includes(currentUser.role) && !!getSessionToken()
+      && snapshotOwner === String(currentUser.nim ?? "").trim();
+  }
+  function validProgress(value) {
+    return !!value && !value.unavailable && typeof value.exists === "boolean"
+      && Number.isInteger(value.level) && value.level >= 0 && value.level <= 3;
+  }
+  function progress(nim) {
+    const target = String(nim ?? (currentUser.role === "mhs" ? currentUser.nim : "") ?? "").trim();
+    const supported = enabled && sessionMatches();
+    const inaccessible = !target || (currentUser.role === "mhs" && target !== String(currentUser.nim ?? "").trim());
+    const value = supported && !inaccessible ? (currentUser.role === "mhs" ? mine : byNim[target]) : null;
+    const available = validProgress(value);
+    return Object.freeze({supported: supported && !inaccessible, available, exists: available && value.exists,
+      level: available && value.exists ? value.level : null});
+  }
   const levels = () => [
     t("Belum menyelesaikan Outline", "Outline not completed"),
     t("Outline selesai", "Outline completed"),
@@ -97,7 +118,7 @@
   }
   function reason(type) {
     if (
-      !enabled ||
+      !enabled || !sessionMatches() ||
       currentUser.role !== "mhs" ||
       !["Outline", "Proposal", "Pendadaran"].includes(type)
     )
@@ -133,7 +154,7 @@
       root.className = "card student-only";
       $("task-home")?.before(root);
     }
-    root.hidden = !enabled || currentUser.role !== "mhs";
+    root.hidden = !enabled || !sessionMatches() || currentUser.role !== "mhs";
     if (!root.hidden)
       root.innerHTML = `<h2>${t("Tahap Akademik Anda", "Your Academic Stage")}</h2><p>${escapeHtml(summary(mine))}</p>${stageHtml(mine)}<p class="field-helper">${t("Status ini ditetapkan admin. Jika ujian sudah dilakukan sebelum website digunakan, hubungi admin untuk mencatatnya.", "Admin verifies these stages. Contact admin to record an exam completed before this website was introduced.")}</p>`;
     const select = $("reg-jenis-utama");
@@ -155,15 +176,17 @@
       }
     document.querySelectorAll("[data-academic-nim]").forEach((node) => {
       const nim = node.dataset.academicNim;
-      node.innerHTML = `<span>${escapeHtml(enabled ? summary(byNim[nim] || { exists: false, level: 0 }) : t("Menunggu aktivasi backend", "Awaiting backend activation"))}</span>${enabled ? `<button type="button" class="text-link" data-edit-academic="${escapeHtml(nim)}">${t("Kelola Tahap", "Manage Stage")}</button>` : ""}`;
+      node.innerHTML = `<span>${escapeHtml(enabled && sessionMatches() ? summary(byNim[nim] || { exists: false, level: 0 }) : t("Menunggu aktivasi backend", "Awaiting backend activation"))}</span>${enabled && sessionMatches() ? `<button type="button" class="text-link" data-edit-academic="${escapeHtml(nim)}">${t("Kelola Tahap", "Manage Stage")}</button>` : ""}`;
     });
   }
   function apply(data) {
+    snapshotEpoch = sessionEpoch;
+    snapshotRole = currentUser.role;
+    snapshotOwner = String(currentUser.nim ?? "").trim();
     enabled = data.academicSupported === true;
-    mine = data.academicUnavailable
-      ? { unavailable: true }
-      : data.academic || null;
-    byNim = data.academicByNim || {};
+    mine = !data.academicUnavailable && validProgress(data.academic)
+      ? data.academic : { unavailable: true };
+    byNim = Object.fromEntries(Object.entries(data.academicByNim || {}).map(([nim, value]) => [String(nim).trim(), validProgress(value) ? value : { unavailable: true }]));
     render();
   }
   async function api(data) {
@@ -191,7 +214,7 @@
     return modal;
   }
   async function open(nim) {
-    if (currentUser.role !== "admin" || !enabled || busy) return;
+    if (currentUser.role !== "admin" || !enabled || !sessionMatches() || busy) return;
     const epoch = sessionEpoch;
     editing = nim;
     base = null;
@@ -229,7 +252,7 @@
     }
   }
   async function save() {
-    if (busy || !base || currentUser.role !== "admin") return;
+    if (busy || !base || currentUser.role !== "admin" || !sessionMatches()) return;
     const epoch = sessionEpoch,
       nim = editing,
       level = Number($("academic-level").value),
@@ -298,7 +321,7 @@
   }
   async function changeType() {
     const item = currentCase();
-    if (currentUser.role !== "admin" || !enabled || busy || !item) return;
+    if (currentUser.role !== "admin" || !enabled || !sessionMatches() || busy || !item) return;
     if (
       (window.IPCOSReviewTools?.dirty() ||
         $("case-action-panel")?.dataset.dirty === "true") &&
@@ -386,7 +409,7 @@
     }
   }
   function caseHtml(item) {
-    if (!enabled) return "";
+    if (!enabled || !sessionMatches()) return "";
     const draft = typeDrafts[String(item.id)] || {
       type: item.jenis,
       reason: "",
@@ -459,7 +482,7 @@
     if (event.target.closest("[data-save-academic]")) save();
     if (event.target.closest("[data-change-request-type]")) changeType();
   });
-  window.addEventListener("ipcos:logout", () => {
+  function reset() {
     enabled = false;
     mine = null;
     byNim = {};
@@ -468,16 +491,23 @@
     base = null;
     retry = null;
     typeDrafts = {};
+    snapshotEpoch = -1;
+    snapshotRole = "";
+    snapshotOwner = "";
     $("modal-academic-editor")?.remove();
     $("verified-academic-status")?.replaceChildren();
-  });
+    if ($("verified-academic-status")) $("verified-academic-status").hidden = true;
+  }
+  window.addEventListener("ipcos:logout", reset);
   window.IPCOSAcademic = {
     apply,
     render,
     languageChanged,
     reason,
     caseHtml,
+    progress,
+    reset,
     dirty: () => $("correct-request-reason")?.value.trim().length > 0,
-    enabled: () => enabled,
+    enabled: () => enabled && sessionMatches(),
   };
 })();

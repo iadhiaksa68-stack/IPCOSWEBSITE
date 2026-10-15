@@ -388,6 +388,7 @@ function clearPrivateCache() {
     window.IPCOSSop?.reset();
     window.IPCOSNext?.reset();
     window.IPCOSStudentRequests?.reset();
+    window.IPCOSAcademic?.reset();
     window.IPCOSPolish?.reset();
     activeReceipt = null; latestBackup = null;
     languageBlocks.clear();

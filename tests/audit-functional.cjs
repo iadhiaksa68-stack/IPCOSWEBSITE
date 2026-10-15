@@ -412,7 +412,7 @@ function academicContext() {
       IPCOSReviewTools: {dirty: () => false, version: () => {versionCalls++; return version;}, discardLocal() {}},
       IPCOSReview: {actionsChanged() {}}, IPCOSAdminDrafts: {forget() {}},
     },
-    currentUser: {role: 'admin'}, sessionEpoch: 1, selectedCaseId: 'case-a',
+    currentUser: {role: 'admin'}, sessionEpoch: 1, selectedCaseId: 'case-a', getSessionToken: () => 'fixture-token',
     activeUpdateIds: new Set(), crypto: {randomUUID: () => 'request-id'},
     currentCase: () => ({id: 'case-a', jenis: 'Proposal', status: 'Pending', note: '[]'}),
     uxText: text => text, escapeHtml: text => String(text), serviceLabel: text => text,
@@ -423,9 +423,48 @@ function academicContext() {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../academic-workflow.js'), 'utf8'), context);
   context.window.IPCOSAcademic.apply({academicSupported: true});
   const click = () => listeners.click.forEach(fn => fn({target: {closest: selector => selector === '[data-change-request-type]' ? {} : null}}));
-  return {context, calls, click, releaseVersion, versionCalls: () => versionCalls, logout: () => listeners['ipcos:logout'].forEach(fn => fn())};
+  return {context, calls, click, releaseVersion, nodes, versionCalls: () => versionCalls, logout: () => listeners['ipcos:logout'].forEach(fn => fn())};
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
+
+test('academic snapshots cannot carry an old stage across accounts, roles or session epochs', () => {
+  const fixture = academicContext(), {context} = fixture, api = context.window.IPCOSAcademic;
+  context.currentUser = {role: 'mhs', nim: ' A '};
+  api.apply({academicSupported: true, academic: {exists: true, level: 2}});
+  assert.equal(api.progress('A').level, 2);
+  assert.equal(api.progress('B').available, false);
+  assert.equal(api.reason('Proposal'), 'Tahap ini sudah selesai. Pilih tahap berikutnya.');
+  context.currentUser = {role: 'mhs', nim: 'B'};
+  assert.equal(api.progress('B').available, false);
+  assert.equal(api.reason('Proposal'), '');
+  context.currentUser = {role: 'mhs', nim: ' A '}; context.sessionEpoch++;
+  assert.equal(api.progress('A').available, false);
+  api.render(); assert.equal(fixture.nodes.get('verified-academic-status').hidden, true);
+  api.apply({academicSupported: true, academic: {exists: true, level: 1}});
+  assert.equal(api.progress('A').level, 1);
+  api.reset();
+  assert.equal(api.enabled(), false);
+  assert.equal(api.progress('A').available, false);
+  assert.equal(fixture.nodes.get('verified-academic-status').hidden, true);
+});
+
+test('academic journey distinguishes unrecorded, unavailable and invalid stages from verified completion', () => {
+  const {context} = academicContext(), api = context.window.IPCOSAcademic;
+  context.currentUser = {role: 'mhs', nim: 'A'};
+  api.apply({academicSupported: true, academic: {exists: false, level: 0}});
+  assert.equal(api.progress().available, true);
+  assert.equal(api.progress().exists, false);
+  assert.equal(api.progress().level, null);
+  for (const data of [{academicSupported: false}, {academicSupported: true, academicUnavailable: true}, {academicSupported: true, academic: {exists: true, level: 99}}]) {
+    api.apply(data); assert.equal(api.progress().available, false); assert.equal(api.progress().level, null);
+  }
+  context.currentUser = {role: 'admin'};
+  api.apply({academicSupported: true, academicByNim: {' A ': {exists: true, level: 3}, B: {unavailable: true}}});
+  assert.equal(api.progress('A').level, 3);
+  assert.equal(api.progress('B').available, false);
+  assert.equal(api.progress('missing').available, false);
+  assert.equal(api.progress().available, false);
+});
 
 function draftLifecycleContext(read) {
   const ids = ['reg-jenis-utama','reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti','form-draft-status','draft-controls'];
