@@ -389,6 +389,7 @@ function clearPrivateCache() {
     window.IPCOSNext?.reset();
     window.IPCOSStudentRequests?.reset();
     window.IPCOSAcademic?.reset();
+    window.IPCOSResources?.reset();
     window.IPCOSPolish?.reset();
     activeReceipt = null; latestBackup = null;
     languageBlocks.clear();
@@ -1144,7 +1145,7 @@ function renderRegistrationReview() {
         ${detail.map(([label,id]) => `<dt>${escapeHtml(systemText(label))}</dt><dd>${escapeHtml(document.getElementById(id).value.trim())}</dd>`).join('')}</dl>
         <h4>${uxText('Berkas siap dikirim', 'Files ready to send')}</h4><ul class="review-files">${registrationSpecs(jenis).map(([id,label]) => {
             const f = document.getElementById(id).files[0];
-            return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span><button type="button" class="btn-secondary" data-local-preview="${id}">${uxText('Periksa Isi Berkas','Preview File Contents')}</button></li>`;
+            return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span><button type="button" class="btn-secondary" data-local-preview="${id}">${uxText('Periksa Isi Berkas','Preview File Contents')}</button><button type="button" class="btn-secondary" data-guide="templates-faq" data-guide-field="${id}">${uxText('Lihat Template','View Templates')}</button></li>`;
         }).join('')}</ul>${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p>${uxText('Format dasar berkas sudah diperiksa. Isi, tanda tangan, dan kelayakan akademik tetap diverifikasi admin.', 'Basic file formats have been checked. Admin will verify the contents, signatures and academic eligibility.')}</p><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
         <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration();window.IPCOSRegistration?.navigate('data')">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
 }
@@ -1723,18 +1724,14 @@ const defaultKalender = [
 ];
 
 const defaultTemplate = [
-    { title: "Daftar Berkas", items: [
-        { id: "t1", text: "Logbook Magang (.docx)", sub: "#" },
-        { id: "t2", text: "Lembar Pengesahan Skripsi (.docx)", sub: "#" },
-        { id: "t3", text: "Form Bebas Pustaka (.pdf)", sub: "#" }
-    ]}
+    { title: "Magang", titleEn: "Internship", items: [{ id: "t1", text: "Logbook Magang (.docx)", sub: "#" }] },
+    { title: "Tugas Akhir", titleEn: "Final Project", items: [{ id: "t2", text: "Lembar Pengesahan Skripsi (.docx)", sub: "#" }] },
+    { title: "Umum", titleEn: "General", items: [{ id: "t3", text: "Form Bebas Pustaka (.pdf)", sub: "#" }] }
 ];
 
 const defaultFaq = [
-    { title: "Daftar Pertanyaan", items: [
-        { id: "f1", text: "Bagaimana jika file PDF saya lebih dari 10MB?", sub: "Ekspor ulang dokumen dengan ukuran PDF yang lebih kecil, pastikan teks tetap terbaca, lalu periksa kembali sebelum mengunggah." },
-        { id: "f2", text: "Kapan batas waktu revisi proposal?", sub: "Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan." }
-    ]}
+    { title: "Berkas & Unggahan", titleEn: "Files & Uploads", items: [{ id: "f1", text: "Bagaimana jika file PDF saya lebih dari 10MB?", sub: "Ekspor ulang dokumen dengan ukuran PDF yang lebih kecil, pastikan teks tetap terbaca, lalu periksa kembali sebelum mengunggah." }] },
+    { title: "Tugas Akhir", titleEn: "Final Project", items: [{ id: "f2", text: "Kapan batas waktu revisi proposal?", sub: "Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan." }] }
 ];
 
 function getChecklistData(type) {
@@ -1753,7 +1750,7 @@ function getChecklistData(type) {
 }
 
 function renderDynamicContent() {
-    const types = ['magang', 'skripsi', 'kurikulum', 'remidial', 'kalender', 'template_berkas', 'faq'];
+    const types = ['magang', 'skripsi', 'kurikulum', 'remidial', 'kalender'];
 
     types.forEach(type => {
         const containerId = (type === 'magang' || type === 'skripsi') ? `${type}-checklist-container` : `${type}-content-container`;
@@ -1830,28 +1827,10 @@ function renderDynamicContent() {
                 });
             });
         }
-        else if (type === 'template_berkas') {
-            data.forEach(group => {
-                group.items.forEach(item => {
-                    html += `<li style="background: var(--item-bg); padding: 12px; border: 1px solid var(--item-border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 13.5px; font-weight: 600;">${item.text}</span>
-                            ${item.sub!=='#'?`<a href="${item.sub}" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="width: auto; min-height: 30px; padding: 5px 10px; font-size: 12px; text-decoration: none; display: flex; align-items: center;">${uxText('Unduh','Download')}</a>`:`<span class="field-helper">${uxText('Belum Tersedia','Not Available Yet')}</span>`}
-                        </li>`;
-                });
-            });
-        }
-        else if (type === 'faq') {
-            data.forEach(group => {
-                group.items.forEach(item => {
-                    html += `<details style="margin-bottom: 10px; border: 1px solid var(--item-border); border-radius: 8px;">
-                            <summary style="padding: 12px; font-weight: 600; font-size: 13.5px; cursor: pointer;">${item.text}</summary>
-                            <div style="padding: 12px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--item-border); line-height: 1.5;">${item.sub}</div>
-                        </details>`;
-                });
-            });
-        }
         container.innerHTML = html;
     });
+
+    window.IPCOSResources?.render();
 
     if (currentUser && currentUser.role === 'mhs') {
         loadProgressData();

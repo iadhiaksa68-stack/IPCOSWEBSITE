@@ -108,17 +108,62 @@
     function guidance() {
         document.querySelectorAll('#registration-fields input[type="file"]').forEach(input=>{
             let row=document.getElementById(input.id+'-guidance');if(!row){row=document.createElement('div');row.id=input.id+'-guidance';row.className='upload-guidance';input.after(row);}
-            row.innerHTML=`<button type="button" class="text-link" data-guide="templates-faq" data-guide-field="${input.id}">${text('Lihat Template','View Templates')}</button><button type="button" class="text-link" data-guide="sop-tugas-akhir" data-guide-field="${input.id}">${text('Baca SOP Tugas Akhir','Read Final Project SOP')}</button>`;
+            const html=`<button type="button" class="text-link" data-guide="templates-faq" data-guide-field="${input.id}">${text('Lihat Template','View Templates')}</button><button type="button" class="text-link" data-guide="sop-tugas-akhir" data-guide-field="${input.id}">${text('Baca SOP Tugas Akhir','Read Final Project SOP')}</button>`;
+            if(row.innerHTML!==html)row.innerHTML=html;
         });
+        renderGuideBack();
         renderReminder();
     }
-    let returnField='';
+    let guideContext=null;
+    function currentGuide() {
+        return guideContext && owner() && guideContext.epoch===sessionEpoch
+            && guideContext.owner===String(currentUser.nim).trim()
+            && guideContext.service===document.getElementById('reg-jenis-utama').value;
+    }
+    function clearGuide() {
+        guideContext=null;
+        document.getElementById('guide-back')?.remove();
+        window.IPCOSResources?.clearContext?.();
+    }
+    function renderGuideBack() {
+        if(!currentGuide()){if(guideContext)clearGuide();return;}
+        let back=document.getElementById('guide-back');
+        if(!back){back=document.createElement('div');back.id='guide-back';back.className='guide-back';back.innerHTML='<button type="button" id="guide-return-button" class="btn-secondary" data-guide-return></button><span></span>';}
+        const target=document.getElementById(guideContext.tab);
+        if(back.parentElement!==target)target.prepend(back);
+        back.querySelector('button').textContent=text('Kembali ke Pengajuan','Back to Request');
+        back.querySelector('span').textContent=text('Isian dan berkas Anda tetap tersedia.','Your inputs and selected files remain available.');
+    }
     function guide(tab,field) {
         // Reading a guide is a temporary detour; the in-tab form and files remain intact.
-        if(isSubmittingRegistration)return;
-        const dirty=registrationDirty;registrationDirty=false;try{switchTab(null,tab);}finally{registrationDirty=dirty;}
-        returnField=field;let back=document.getElementById('guide-back');if(!back){back=document.createElement('div');back.id='guide-back';back.className='guide-back';document.getElementById(tab).prepend(back);}
-        document.getElementById(tab).prepend(back);back.innerHTML=`<button type="button" class="btn-secondary" data-guide-return>${text('Kembali ke Pengajuan','Back to Request')}</button><span>${text('Isian dan berkas Anda tetap tersedia.','Your inputs and selected files remain available.')}</span>`;
+        const service=document.getElementById('reg-jenis-utama').value;
+        const requirement=registrationSpecs(service).find(([id])=>id===field);
+        if(!owner()||isSubmittingRegistration||preflightBusy||!requirement||!['templates-faq','sop-tugas-akhir'].includes(tab))return;
+        const dirty=registrationDirty;let switched=false;registrationDirty=false;
+        try{switched=switchTab(null,tab);}finally{registrationDirty=dirty;}
+        if(!switched||!document.getElementById(tab).classList.contains('active'))return;
+        guideContext={tab,field,service,owner:String(currentUser.nim).trim(),epoch:sessionEpoch};
+        renderGuideBack();
+        if(tab==='templates-faq')window.IPCOSResources?.context({service,field,label:requirement[1]});
+        else window.IPCOSResources?.clearContext?.();
+    }
+    function returnToRequest() {
+        if(!currentGuide()||isSubmittingRegistration||preflightBusy)return;
+        const field=guideContext.field;
+        if(!switchTab(null,'pendaftaran'))return;
+        const review=document.getElementById('registration-review');
+        const target=!review.hidden?document.getElementById('review-heading'):document.getElementById(field);
+        const destination=target?.getClientRects().length?target:document.getElementById('reg-jenis-utama');
+        const epoch=sessionEpoch;
+        const reveal=()=>{
+            if(epoch!==sessionEpoch||!owner()||!destination?.isConnected||!document.getElementById('pendaftaran').classList.contains('active'))return;
+            destination.scrollIntoView({block:'center',behavior:'instant'});
+            destination.focus({preventScroll:true});
+        };
+        reveal();
+        // Run after the workspace restores its saved tab scroll position.
+        requestAnimationFrame(reveal);
+        clearGuide();
     }
     function renderReminder() {
         const panel=document.getElementById('service-reminder');if(!panel)return;
@@ -175,11 +220,11 @@
         });
     }
     function refresh() {guidance();draftStatus();revisionLanguage();renderHealth();labels();}
-    function reset() {clearTimeout(timer);draft={epoch:-1,loaded:false,revision:0,generation:0,confirmed:0,saving:false,intent:null,request:null,conflict:null,error:false};revision=null;healthBusy=false;healthError=false;healthEvents=null;reported.clear();document.getElementById('draft-controls').textContent='';delete document.getElementById('draft-controls').dataset.renderKey;document.getElementById('health-results').textContent='';document.getElementById('guide-back')?.remove();const reminder=document.getElementById('service-reminder');reminder.hidden=true;reminder.textContent='';}
+    function reset() {clearTimeout(timer);draft={epoch:-1,loaded:false,revision:0,generation:0,confirmed:0,saving:false,intent:null,request:null,conflict:null,error:false};revision=null;healthBusy=false;healthError=false;healthEvents=null;reported.clear();document.getElementById('draft-controls').textContent='';delete document.getElementById('draft-controls').dataset.renderKey;document.getElementById('health-results').textContent='';clearGuide();const reminder=document.getElementById('service-reminder');reminder.hidden=true;reminder.textContent='';}
     document.addEventListener('click',event=>{
         const choice=event.target.closest('[data-draft-choice]');if(choice)chooseDraft(choice.dataset.draftChoice);
         const link=event.target.closest('[data-guide]');if(link)guide(link.dataset.guide,link.dataset.guideField);
-        if(event.target.closest('[data-guide-return]')){switchTab(null,'pendaftaran');document.getElementById(returnField)?.focus();document.getElementById('guide-back')?.remove();}
+        if(event.target.closest('[data-guide-return]'))returnToRequest();
         if(event.target.closest('[data-service-reminder]')){const type=document.getElementById('reg-jenis-utama').value;downloadServiceICS(type,serviceSetting(type).close,Number(document.getElementById('service-reminder-days').value));}
         if(event.target.closest('[data-health-refresh]'))health();
         if(event.target.closest('[data-revision-retry]')){document.getElementById('case-revision-fields')?.remove();revisionFields(currentCase(),document.getElementById('case-action-panel'));}

@@ -43,6 +43,7 @@
     <link rel="stylesheet" href="registration-ui.css">
     <link rel="stylesheet" href="student-requests.css">
     <link rel="stylesheet" href="journey-ui.css">
+    <link rel="stylesheet" href="resources-ui.css">
 </head>
 
 <body class="transaction-view">
@@ -974,31 +975,23 @@
 
         <!-- 8. Template Download & FAQ -->
         <div id="templates-faq" class="tab-content">
-            <h1>Template Berkas & FAQ</h1>
-            <p style="margin-bottom: 25px; color: var(--text-muted);">Unduh format dokumen resmi IPCOS dan temukan jawaban dari pertanyaan yang sering diajukan.</p>
-
-            <div class="bento-grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
-                <!-- KOTAK TEMPLATE BERKAS -->
-                <div class="bento-card" style="background: var(--card-bg);">
-                    <div class="bento-header" style="justify-content: space-between; width: 100%;">
-                        <h3 style="color: var(--heading-color);">📁 Unduh Template Dokumen</h3>
-                        <button class="btn-primary admin-only" onclick="openContentEditor('template_berkas')" style="width: auto; padding: 6px 12px; min-height: 30px; font-size: 12px; margin-bottom: 0;">Edit Template</button>
-                    </div>
-                    <!-- Wadah Dinamis Template -->
-                    <ul id="template_berkas-content-container" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
-                    </ul>
-                </div>
-
-                <!-- KOTAK FAQ -->
-                <div class="bento-card" style="background: var(--card-bg);">
-                    <div class="bento-header" style="justify-content: space-between; width: 100%;">
-                        <h3 style="color: var(--heading-color);">❓ FAQ (Tanya Jawab)</h3>
-                        <button class="btn-primary admin-only" onclick="openContentEditor('faq')" style="width: auto; padding: 6px 12px; min-height: 30px; font-size: 12px; margin-bottom: 0;">Edit FAQ</button>
-                    </div>
-                    <!-- Wadah Dinamis FAQ -->
-                    <div id="faq-content-container">
-                    </div>
-                </div>
+            <header class="resources-heading"><h1 class="lang" data-id="Template Berkas & FAQ" data-en="Document Templates & FAQ">Template Berkas & FAQ</h1><p class="lang" data-id="Temukan template dari admin dan jawaban untuk persiapan pengajuan Anda." data-en="Find templates from admin and answers to help prepare your request.">Temukan template dari admin dan jawaban untuk persiapan pengajuan Anda.</p></header>
+            <section class="resource-toolbar" aria-label="Pencarian template dan FAQ">
+                <div><label for="resource-search" class="lang" data-id="Cari Template & FAQ" data-en="Search Templates & FAQ">Cari Template & FAQ</label><input type="search" id="resource-search" autocomplete="off" placeholder="Cari dokumen atau pertanyaan..."></div>
+                <div><label for="resource-category" class="lang" data-id="Kategori" data-en="Category">Kategori</label><select id="resource-category" data-preserve-case><option value="all">Semua Kategori</option></select></div>
+                <button id="resource-reset" type="button" class="btn-secondary lang" data-id="Reset Pencarian" data-en="Reset Search" hidden>Reset Pencarian</button>
+            </section>
+            <section id="resource-context" aria-labelledby="resource-context-title" hidden></section>
+            <p id="resource-result-count" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div class="resource-layout">
+                <section class="resource-panel resource-template-panel" aria-labelledby="resource-template-title">
+                    <header class="resource-panel-heading"><div><h2 id="resource-template-title" class="lang" data-id="Template Dokumen" data-en="Document Templates">Template Dokumen</h2><span id="resource-template-count"></span></div><button type="button" class="btn-secondary admin-only lang" onclick="openContentEditor('template_berkas')" data-id="Edit Template" data-en="Edit Templates">Edit Template</button></header>
+                    <ul id="template_berkas-content-container"></ul>
+                </section>
+                <section class="resource-panel resource-faq-panel" aria-labelledby="resource-faq-title">
+                    <header class="resource-panel-heading"><div><h2 id="resource-faq-title" class="lang" data-id="Pertanyaan & Jawaban" data-en="Questions & Answers">Pertanyaan & Jawaban</h2><span id="resource-faq-count"></span></div><button type="button" class="btn-secondary admin-only lang" onclick="openContentEditor('faq')" data-id="Edit FAQ" data-en="Edit FAQ">Edit FAQ</button></header>
+                    <div id="faq-content-container"></div>
+                </section>
             </div>
         </div>
 
@@ -1037,6 +1030,7 @@
     <script src="academic-workflow.js" defer></script>
     <script src="registration-ui.js" defer></script>
     <script src="student-requests.js" defer></script>
+    <script src="resources-ui.js" defer></script>
 </body>
 
 </html>

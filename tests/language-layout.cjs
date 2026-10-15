@@ -172,7 +172,7 @@ async function layout(page,label) {
     pass('Approval labels describe request approval and remain translated without changing the academic stage');
 
     await admin.evaluate(()=>openContentEditor('faq'));
-    await admin.locator('.editor-translation-label input').fill('English FAQ');
+    await admin.locator('.editor-translation-label input').first().fill('English FAQ');
     await admin.locator('.editor-translations summary').first().click();
     await admin.locator('.editor-translations input').first().fill('Custom English question'); await admin.locator('.editor-translations textarea').first().fill('Custom English answer'); await admin.locator('.editor-translations textarea').first().press('Tab');
     await admin.evaluate(()=>toggleLanguage()); await admin.evaluate(()=>toggleLanguage());
@@ -180,7 +180,7 @@ async function layout(page,label) {
     for (const width of [320,390,768,1365]) { await admin.setViewportSize({width,height:1000}); await layout(admin,'English content editor '+width); }
     await admin.locator('#modal-edit-content button').filter({hasText:'Save changes'}).click(); await admin.waitForSelector('#modal-edit-content',{state:'hidden'});
     const contentCall = calls.find(call=>call.action === 'update_content'), content = JSON.parse(contentCall.content);
-    assert.equal(contentCall.type,'faq'); assert.equal(content[0].items[0].id,'f1'); assert.equal(content[0].items[0].text,'Bagaimana jika file PDF saya lebih dari 10MB?'); assert.equal(content[0].items[0].textEn,'Custom English question'); assert.equal(content[0].items[0].subEn,'Custom English answer');
+    assert.equal(contentCall.type,'faq'); assert.equal(content[0].titleEn,'English FAQ'); assert.equal(content[0].items[0].id,'f1'); assert.equal(content[0].items[0].text,'Bagaimana jika file PDF saya lebih dari 10MB?'); assert.equal(content[0].items[0].textEn,'Custom English question'); assert.equal(content[0].items[0].subEn,'Custom English answer');
     await page.bringToFront(); await page.evaluate(()=>{renderDynamicContent();switchTab(null,'templates-faq');}); assert((await page.locator('#faq-content-container').textContent()).includes('Custom English question'));
     pass('Admin can publish optional English guidance while preserving original content and the existing JSON schema');
     const pages = [{page,tabs:['dashboard','magang','skripsi','kurikulum','remidial','kalender','pendaftaran','student-status','academic-journey','templates-faq','feedback']},{page:admin,tabs:['dashboard','admin-data','admin-dosen','admin-master']}];
