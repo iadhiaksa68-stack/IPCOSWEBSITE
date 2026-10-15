@@ -94,7 +94,7 @@
     function opened(item, options = {}) {
         const heading = modal()?.querySelector('.case-detail-heading');
         if (!heading || !item || !['admin', 'mhs'].includes(currentUser?.role)
-            || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) return;
+            || (currentUser.role === 'mhs' && !isStudentOwner(item))) return;
         const previousQueue = queueIds.slice();
         const changed = activeId !== String(item.id);
         activeId = String(item.id);
@@ -167,7 +167,7 @@
 
     function statusHtml(item, options = {}) {
         if (!item || !['admin', 'mhs'].includes(currentUser?.role)
-            || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) return '';
+            || (currentUser.role === 'mhs' && !isStudentOwner(item))) return '';
         return `<section class="request-state${options.compact ? ' request-state-compact' : ''}" aria-label="${escape(text('Status dan langkah pengajuan', 'Request status and next step'))}">
             <div class="request-state-heading">${getStatusBadge(item.status)}</div>
             <p class="request-state-next">${escape(caseNextStep(item))}</p></section>`;

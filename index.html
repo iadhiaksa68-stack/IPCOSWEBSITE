@@ -41,6 +41,7 @@
     <link rel="stylesheet" href="admin-ui.css">
     <link rel="stylesheet" href="student-ui.css">
     <link rel="stylesheet" href="registration-ui.css">
+    <link rel="stylesheet" href="student-requests.css">
 </head>
 
 <body class="transaction-view">
@@ -767,24 +768,20 @@
         </div>
 
         <div id="student-status" class="tab-content">
-            <h1>Status Pengajuan Saya</h1>
-            <div id="student-mobile-list" class="case-mobile-list"></div>
-            <div class="card" style="padding: 16px;">
-                <div class="responsive-table-wrapper case-desktop-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Tanggal</th>
-                                <th>Jenis Formulir</th>
-                                <th>Detail</th>
-                                <th>Status Berkas</th>
-                                <th>Tindakan & Riwayat</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-my-status"></tbody>
-                    </table>
-                </div>
+            <div class="student-requests-heading"><div><h1 class="lang" data-id="Status Pengajuanku" data-en="My Requests">Status Pengajuanku</h1><p class="lang" data-id="Temukan pengajuan Anda dan lihat tindak lanjutnya." data-en="Find your requests and see what to do next.">Temukan pengajuan Anda dan lihat tindak lanjutnya.</p></div><button type="button" class="btn-secondary lang" data-student-new-request data-id="Buat Pengajuan" data-en="New Request">Buat Pengajuan</button></div>
+            <div id="student-request-summary" class="student-request-summary" role="group" aria-label="Status pengajuan">
+                <button type="button" data-student-status="all" aria-pressed="true"><span data-student-status-label>Semua</span><strong data-student-status-count>0</strong></button>
+                <button type="button" data-student-status="revision" aria-pressed="false"><span data-student-status-label>Perlu Perbaikan</span><strong data-student-status-count>0</strong></button>
+                <button type="button" data-student-status="processing" aria-pressed="false"><span data-student-status-label>Diproses</span><strong data-student-status-count>0</strong></button>
+                <button type="button" data-student-status="completed" aria-pressed="false"><span data-student-status-label>Selesai</span><strong data-student-status-count>0</strong></button>
             </div>
+            <section class="card student-request-toolbar" aria-label="Pencarian dan urutan pengajuan"><div class="student-request-search-field"><label for="student-request-search" class="lang" data-id="Cari pengajuan" data-en="Search requests">Cari pengajuan</label><input type="search" id="student-request-search" autocomplete="off" placeholder="Cari layanan, nomor, atau judul..."></div><div><label for="student-request-order" class="lang" data-id="Urutkan" data-en="Sort by">Urutkan</label><select id="student-request-order"><option value="activity" class="lang" data-id="Pembaruan Terbaru" data-en="Latest Update">Pembaruan Terbaru</option><option value="submitted" class="lang" data-id="Dikirim Terbaru" data-en="Newest Submission">Dikirim Terbaru</option></select></div><button type="button" id="student-request-reset" class="btn-secondary lang" data-id="Reset Filter" data-en="Reset Filters">Reset Filter</button></section>
+            <p id="student-request-count" class="student-request-count" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div id="student-mobile-list" class="case-mobile-list"></div>
+            <div id="student-request-table-panel" class="card student-request-table-panel">
+                <div class="responsive-table-wrapper case-desktop-table"><table><caption class="sr-only lang" data-id="Daftar pengajuan saya" data-en="My request list">Daftar pengajuan saya</caption><thead><tr><th scope="col" class="lang" data-id="Pengajuan" data-en="Request">Pengajuan</th><th scope="col" class="lang" data-id="Status & langkah berikutnya" data-en="Status & next step">Status & langkah berikutnya</th><th scope="col" id="student-request-date-title">Pembaruan Terakhir</th><th scope="col" class="lang" data-id="Tindakan" data-en="Action">Tindakan</th></tr></thead><tbody id="table-my-status"></tbody></table></div>
+            </div>
+            <section id="student-request-empty" class="card student-request-empty" hidden></section>
         </div>
 
         <div id="admin-data" class="tab-content">
@@ -1038,6 +1035,7 @@
     <script src="admin-review-drafts.js" defer></script>
     <script src="academic-workflow.js" defer></script>
     <script src="registration-ui.js" defer></script>
+    <script src="student-requests.js" defer></script>
 </body>
 
 </html>

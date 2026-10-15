@@ -21,6 +21,7 @@
             if (!tab?.classList.contains('active')) return false;
             target=[...tab.querySelectorAll('[data-case-id]')].find(node=>node.dataset.caseId===origin.caseId && canFocus(node));
             if (!target && origin.tabId==='admin-data') target=document.getElementById('admin-search-input');
+            if (!target && origin.tabId==='student-status') target=document.getElementById('student-request-search');
             if (!target) target=[...tab.querySelectorAll('button,a[href],input,summary')].find(canFocus);
         }
         if (!canFocus(target) || (next && !next.contains(target))) return false;

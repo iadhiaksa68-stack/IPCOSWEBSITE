@@ -182,7 +182,7 @@ function homeActionContext() {
     caseDetailAction: action => calls.push(['action', action]), document: {getElementById: () => modal, querySelectorAll: () => []},
   });
   vm.runInContext(section('function displayDate(', 'function formatDate('), context);
-  vm.runInContext(section('function studentHomeAction(', 'function renderTaskHome('), context);
+  vm.runInContext(section('function isStudentOwner(', 'function renderTaskHome('), context);
   return {context, calls, records: value => {records = value;}, draft: value => {draft = value;}, dirty: value => {dirty = value;}, allow: value => {navigationAllowed = value;}};
 }
 

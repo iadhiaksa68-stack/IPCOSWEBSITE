@@ -16,7 +16,7 @@ function serviceAvailability(type) {
     return '';
 }
 function activeSameType(type) {
-    return readStoredJSON(sessionStorage,'ipcos_registrations',[]).find(r => String(r.nim) === String(currentUser.nim) && r.jenis === type && ['pending','revision','resubmitted'].includes(String(r.status).toLowerCase()));
+    return readStoredJSON(sessionStorage,'ipcos_registrations',[]).find(r => isStudentOwner(r) && r.jenis === type && ['pending','revision','resubmitted'].includes(String(r.status).trim().toLowerCase()));
 }
 function refreshServiceAvailability() {
     const banner = document.getElementById('service-availability');

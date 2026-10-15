@@ -387,6 +387,7 @@ function clearPrivateCache() {
     window.IPCOSAdminDrafts?.clear();
     window.IPCOSSop?.reset();
     window.IPCOSNext?.reset();
+    window.IPCOSStudentRequests?.reset();
     window.IPCOSPolish?.reset();
     activeReceipt = null; latestBackup = null;
     languageBlocks.clear();
@@ -455,7 +456,8 @@ function syncDatabase() {
         renderTableSkeleton('table-admin-reg', 5, 6);
         renderTableSkeleton('table-master-mhs', 5, 4);
     } else if (currentUser.role === 'mhs') {
-        renderTableSkeleton('table-my-status', 3, 5);
+        if(window.IPCOSStudentRequests)window.IPCOSStudentRequests.render();
+        else renderTableSkeleton('table-my-status', 3, 4);
         renderTimelineSkeleton('activity-timeline-container', 3);
     }
     return apiRead()
@@ -746,7 +748,7 @@ function renderNotifications() {
     records.forEach(rec => {
         const status = String(rec.status || '').toLowerCase();
         const isStudent = currentUser.role === 'mhs';
-        if (isStudent && String(rec.nim) !== String(currentUser.nim)) return;
+        if (isStudent && !isStudentOwner(rec)) return;
         if (isStudent && !['revision', 'accepted'].includes(status)) return;
         if (!isStudent && currentUser.role === 'admin' && !['pending', 'resubmitted'].includes(status)) return;
         if (!['mhs', 'admin'].includes(currentUser.role)) return;
@@ -1178,8 +1180,12 @@ function revisionInstructionsHtml(item) {
         ${rev.files.length ? `<ul>${rev.files.map(label => `<li>${escapeHtml(systemText(label))}</li>`).join('')}</ul>` : ''}
         <p class="preserve-lines">${escapeHtml(rev.instruction)}</p></section>`;
 }
+function isStudentOwner(item) {
+    const nim=String(currentUser.nim ?? '').trim();
+    return !!nim && String(item?.nim ?? '').trim()===nim;
+}
 function studentHomeAction(records = readStoredJSON(sessionStorage, 'ipcos_registrations', [])) {
-    const mine = records.filter(item => String(item.nim) === String(currentUser.nim));
+    const mine = records.filter(isStudentOwner);
     const status = item => String(item.status || '').trim().toLowerCase();
     const active = mine.filter(item => ['revision','resubmitted','pending'].includes(status(item)))
         .sort((a,b) => ({revision:0,resubmitted:1,pending:2}[status(a)] - {revision:0,resubmitted:1,pending:2}[status(b)]) || displayDate(getCaseEventTime(a)) - displayDate(getCaseEventTime(b)));
@@ -1209,7 +1215,8 @@ function continueStudentHome() {
     return true;
 }
 function studentRequestTitle(item) {
-    const doc = new DOMParser().parseFromString(String(item.detail || ''), 'text/html');
+    const source=String(item.detail || '').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<\/(?:p|div|li)>/gi,'\n');
+    const doc = new DOMParser().parseFromString(source, 'text/html');
     return doc.body.textContent.replace(/^\s*(?:Judul|Title)\s*:\s*/i, '').trim();
 }
 function studentProgressHtml(item) {
@@ -1244,7 +1251,7 @@ function renderTaskHome() {
     if (!['admin','mhs'].includes(currentUser.role)) { home.innerHTML = ''; return; }
     const all = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const admin = currentUser.role === 'admin';
-    const records = admin ? all : all.filter(item => String(item.nim) === String(currentUser.nim));
+    const records = admin ? all : all.filter(isStudentOwner);
     if (!admin) { renderStudentHome(home, records); return; }
     const priority = item => { const status = String(item.status).toLowerCase(); return admin ? ({resubmitted:0,pending:1,revision:2,accepted:3}[status] ?? 4) : ({revision:0,resubmitted:1,pending:2,accepted:3}[status] ?? 4); };
     const actionable = records.filter(item => admin ? ['pending','resubmitted'].includes(String(item.status).toLowerCase()) : String(item.status).toLowerCase() !== 'accepted');
@@ -1308,7 +1315,7 @@ function supervisorOptions() {
 }
 function currentCase() {
     const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
-    if (!item || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) return null;
+    if (!item || (currentUser.role === 'mhs' && !isStudentOwner(item))) return null;
     return item;
 }
 function caseDetailAction(action) {
@@ -2182,11 +2189,12 @@ function caseTimelineHtml(item) {
 function openCaseDetail(id, languageRefresh = false) {
     const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
     const item = records.find(record => String(record.id) === String(id));
-    if (!item || !['admin','mhs'].includes(currentUser.role) || (currentUser.role === 'mhs' && String(item.nim) !== String(currentUser.nim))) {
+    if (!item || !['admin','mhs'].includes(currentUser.role) || (currentUser.role === 'mhs' && !isStudentOwner(item))) {
         showToast('Pengajuan belum tersedia. Coba segarkan data.', 'error');
         return;
     }
     if (!languageRefresh && (String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return;
+    if(!languageRefresh && currentUser.role==='mhs' && document.getElementById('student-status').classList.contains('active'))window.IPCOSStudentRequests?.reveal(id);
     const active=document.activeElement;
     const restoreFocus=languageRefresh && document.getElementById('modal-case-detail').contains(active) ? {node:active,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection,scroll:document.getElementById('case-detail-content').scrollTop} : null;
     window.IPCOSReview?.restoreActions();
@@ -2287,67 +2295,10 @@ document.addEventListener('click', event => {
 });
 
 function loadStudentStatus() {
-    const tbody = document.getElementById('table-my-status');
-    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
-    const myRecords = records.filter(r => String(r.nim).trim() === String(currentUser.nim).trim());
-
-    let hasRevision = false;
-
-    tbody.innerHTML = '';
-
-    if (myRecords.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 40px;">
-            <div style="font-size: 30px; opacity: 0.5; margin-bottom: 10px;">-</div>
-            <span class="lang" data-id="Anda belum mengajukan pendaftaran apapun." data-en="You have not submitted any registration.">${currentLang === 'id' ? 'Anda belum mengajukan pendaftaran apapun.' : 'You have not submitted any registration.'}</span>
-        </td></tr>`;
-    } else {
-        myRecords.reverse().forEach(item => {
-            const stat = String(item.status).trim().toLowerCase();
-            if (stat === 'revision') hasRevision = true;
-
-            let actionButtons = `<button type="button" class="btn-chat-log" data-case-id="${escapeHtml(item.id)}">${systemText('Lihat Detail & Riwayat')}</button>`;
-            if (stat === 'revision') {
-                actionButtons += `<button class="action-btn btn-resend lang" onclick="openReplyModal('${item.id}')" style="width:100%; margin-top:8px;" data-id="Upload Perbaikan" data-en="Upload Correction">${currentLang === 'id' ? 'Upload Perbaikan' : 'Upload Correction'}</button>`;
-            }
-
-            let detailText = localizedDetailHtml(item.detail);
-            if (item.dospem) {
-                detailText += `<br><br><b style="color:var(--umy-maroon);">${uxText('Dosen Pembimbing:', 'Supervisor:')}</b><br>${escapeHtml(item.dospem)}`;
-            }
-
-            const statCheck = String(item.status).trim().toLowerCase();
-            if (statCheck === 'revision' && item.note) {
-                let latestRevNote = uxText('Buka detail pengajuan untuk membaca instruksi perbaikan.', 'Open the request details to read the correction instructions.');
-                try {
-                    const parsedLogs = JSON.parse(item.note);
-                    const lastAdminLog = parsedLogs.slice().reverse().find(l => l.role === 'admin');
-                    if (lastAdminLog) {
-                        latestRevNote = lastAdminLog.message;
-                    }
-                } catch(e) {
-                    latestRevNote = item.note;
-                }
-                detailText += `<br><br><b style="color:var(--umy-maroon);">${uxText('Catatan Revisi Admin:', 'Admin correction notes:')}</b><br><span style="color:var(--text-muted);">${escapeHtml(latestRevNote)}</span>`;
-            }
-
-            tbody.innerHTML += `<tr>
-                <td style="font-size:13px; vertical-align:top;">${formatDate(item.date)}</td>
-                <td style="vertical-align:top;"><b>${escapeHtml(systemText(item.jenis))}</b></td>
-                <td style="font-size:14px; vertical-align:top;">${detailText}</td>
-                <td style="text-align:center; vertical-align:top;">${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p class="queue-next-step">${escapeHtml(caseNextStep(item))}</p>`}</td>
-                <td style="min-width:160px; vertical-align:top;">${actionButtons}</td>
-            </tr>`;
-        });
-    }
-
-    const mobileList = document.getElementById('student-mobile-list');
-    if (mobileList) mobileList.innerHTML = myRecords.length
-        ? myRecords.map(item => caseMobileCard(item, false)).join('')
-        : '<div class="case-mobile-card">Belum ada pengajuan.</div>';
-
-    const alertRev = document.getElementById('alert-revision-student');
-    if (alertRev) alertRev.style.display = hasRevision ? 'block' : 'none';
-
+    window.IPCOSStudentRequests?.render();
+    const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]);
+    const alertRev=document.getElementById('alert-revision-student');
+    if(alertRev)alertRev.style.display=records.some(item=>isStudentOwner(item)&&String(item.status).trim().toLowerCase()==='revision')?'block':'none';
     renderTaskHome();
     applyDynamicLanguage();
 }
@@ -2509,7 +2460,7 @@ function deleteAllRegistrations() {
 function openDocPreview(url) {
     // Old callers use the same authorized case preview instead of embedding Drive.
     const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]);
-    const item=records.find(record=>(currentUser.role==='admin' || (currentUser.role==='mhs' && String(record.nim)===String(currentUser.nim))) && getCaseFiles(record).some(file=>file.url===url));
+    const item=records.find(record=>(currentUser.role==='admin' || (currentUser.role==='mhs' && isStudentOwner(record))) && getCaseFiles(record).some(file=>file.url===url));
     if(!item){showToast(uxText('Berkas tidak termasuk pengajuan yang dapat Anda akses.','This file does not belong to an accessible request.'),'error');return;}
     openCaseDetail(item.id);
     if(selectedCaseId===String(item.id))previewCaseFile(getCaseFiles(item).findIndex(file=>file.url===url));
