@@ -31,6 +31,6 @@ async function run(suite) {
 }
 (async () => {
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(8766, '127.0.0.1', resolve); });
-    for (const suite of ['transactions', 'language-layout', 'sop', 'review-tools', 'academic-international', 'accessibility', 'portal-polish', 'admin-ui', 'student-ui']) await run(suite);
-    console.log('PASS Nine browser suites verified the minified production artifact.');
+    for (const suite of ['transactions', 'language-layout', 'sop', 'review-tools', 'academic-international', 'accessibility', 'portal-polish', 'admin-ui', 'student-ui', 'registration-ui']) await run(suite);
+    console.log('PASS Ten browser suites verified the minified production artifact.');
 })().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(() => server.close());

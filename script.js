@@ -420,6 +420,7 @@ function clearPrivateCache() {
     document.querySelectorAll('#registration-fields [aria-invalid="true"]').forEach(el => setFieldError(el.id, ''));
     document.querySelectorAll('#form-mhs input,#form-admin input').forEach(el => el.removeAttribute('aria-invalid'));
     syncRegistrationFields();
+    window.IPCOSRegistration?.reset();
     document.querySelectorAll('.overlay, .overlay-dialog').forEach(modal => { if (modal.id !== 'welcome-modal') closeModal(modal.id, true); });
     ['archive-list','archive-feedback','archive-count','table-admin-reg','table-master-mhs','table-admin-dosen','table-my-status','student-mobile-list','admin-mobile-list','task-home','notif-list-container','case-detail-content','submission-receipt-content','activity-timeline-container','chat-timeline-container'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     ['notif-dropdown','notif-badge','announcement-banner','alert-revision-student','alert-checklist-reminder'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -1102,12 +1103,20 @@ async function reviewRegistration(event) {
     event.preventDefault();
     if (isSubmittingRegistration || preflightBusy || document.getElementById('registration-fields').hidden) return;
     const epoch = sessionEpoch, type = document.getElementById('reg-jenis-utama').value;
+    const formGeneration=window.IPCOSRegistration?.revision();
+    const textSnapshot=registrationTextSpecs(type).map(([id])=>[id,document.getElementById(id).value]);
+    const fileSnapshot=registrationSpecs(type).map(([id])=>[id,document.getElementById(id).files[0]]);
     preflightBusy = true;
+    window.IPCOSRegistration?.refresh();
     document.getElementById('form-submit-status').ipcosNotice=null;
     document.getElementById('form-submit-status-steps')?.remove();
     document.getElementById('form-submit-status').textContent = uxText('Memeriksa format berkas...', 'Checking document formats...');
-    try { await inspectRegistrationDocuments(); } finally { if (epoch === sessionEpoch) preflightBusy = false; }
-    if (epoch !== sessionEpoch || type !== document.getElementById('reg-jenis-utama').value) return;
+    try { await inspectRegistrationDocuments(); } finally { if (epoch === sessionEpoch) {preflightBusy = false;window.IPCOSRegistration?.refresh();} }
+    if (epoch !== sessionEpoch || type !== document.getElementById('reg-jenis-utama').value || formGeneration!==window.IPCOSRegistration?.revision()) return;
+    if (textSnapshot.some(([id,value])=>document.getElementById(id).value!==value)||fileSnapshot.some(([id,file])=>document.getElementById(id).files[0]!==file)) {
+        document.getElementById('form-submit-status').textContent=uxText('Isian atau berkas berubah saat diperiksa. Periksa ringkasan kembali.','Details or files changed during checking. Review the summary again.');
+        return;
+    }
     if (!validateRegistration()) {
         document.getElementById('form-submit-status').textContent = uxText('Lengkapi isian yang ditandai sebelum melanjutkan.', 'Complete the marked fields to continue.');
         return;
@@ -1119,6 +1128,7 @@ async function reviewRegistration(event) {
     document.getElementById('btn-review-registration').hidden = true;
     document.getElementById('btn-submit-registration').hidden = false;
     document.getElementById('form-submit-status').textContent = '';
+    window.IPCOSRegistration?.refresh();
     document.getElementById('review-heading').focus();
 }
 function renderRegistrationReview() {
@@ -1133,7 +1143,7 @@ function renderRegistrationReview() {
             const f = document.getElementById(id).files[0];
             return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span><button type="button" class="btn-secondary" data-local-preview="${id}">${uxText('Periksa Isi Berkas','Preview File Contents')}</button></li>`;
         }).join('')}</ul>${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p>${uxText('Format dasar berkas sudah diperiksa. Isi, tanda tangan, dan kelayakan akademik tetap diverifikasi admin.', 'Basic file formats have been checked. Admin will verify the contents, signatures and academic eligibility.')}</p><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
-        <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration()">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
+        <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration();window.IPCOSRegistration?.navigate('data')">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
 }
 
 function editRegistration() {
@@ -1144,6 +1154,7 @@ function editRegistration() {
     document.getElementById('registration-review').hidden = true;
     document.getElementById('btn-review-registration').hidden = false;
     document.getElementById('btn-submit-registration').hidden = true;
+    window.IPCOSRegistration?.refresh();
 }
 function getCaseFiles(item) {
     const doc = new DOMParser().parseFromString(String(item.link || ''), 'text/html');
@@ -1444,8 +1455,9 @@ function toggleExamForm() {
     document.getElementById('req-pendadaran').style.display = 'none';
     document.getElementById('req-jurnal-only').style.display = 'none';
     document.getElementById('req-ganti-dosen').style.display = 'none';
+    document.getElementById('registration-supervisor-fields').style.display = 'none';
 
-    if (jenisUjian === "") { formContainer.style.display = 'none'; return; }
+    if (jenisUjian === "") { formContainer.style.display = 'none';window.IPCOSRegistration?.refresh(); return; }
     formContainer.style.display = 'block';
 
     // Logika Khusus untuk Pergantian Pembimbing (Sembunyikan Judul)
@@ -1453,6 +1465,7 @@ function toggleExamForm() {
         groupJudul.style.display = 'none';
         inputJudul.removeAttribute('required');
         document.getElementById('req-ganti-dosen').style.display = 'block';
+        document.getElementById('registration-supervisor-fields').style.display = 'block';
     } else {
         groupJudul.style.display = 'block';
         inputJudul.setAttribute('required', 'true');
@@ -1462,6 +1475,7 @@ function toggleExamForm() {
         else if (jenisUjian === "Pendadaran") document.getElementById('req-pendadaran').style.display = 'block';
         else if (jenisUjian === "Skripsi Jurnal") document.getElementById('req-jurnal-only').style.display = 'block';
     }
+    window.IPCOSRegistration?.refresh();
 }
 
 async function submissionSignature(jenis, detail, files) {
@@ -1497,6 +1511,7 @@ async function submitForm(e) {
     const submitButton = document.getElementById('btn-submit-registration');
     const submitStatus = document.getElementById('form-submit-status');
     isSubmittingRegistration = true;
+    window.IPCOSRegistration?.refresh();
     document.getElementById('btn-edit-registration').disabled = true;
     submitButton.disabled = true;
     submitButton.textContent = systemText('Sedang mengirim...');
@@ -1603,6 +1618,7 @@ async function submitForm(e) {
         submitButton.textContent = uxText('Konfirmasi & Kirim', 'Confirm & Send');
         const editButton = document.getElementById('btn-edit-registration');
         if (editButton) editButton.disabled = false;
+        window.IPCOSRegistration?.refresh();
         hideLoader();
         }
     }
@@ -2101,6 +2117,7 @@ function toggleLanguage() {
     window.IPCOSNext?.refresh();
             window.IPCOSReviewTools?.renderArchives();
     window.IPCOSPolish?.refresh();
+    window.IPCOSRegistration?.refresh();
 }
 
 function applyDynamicLanguage() {

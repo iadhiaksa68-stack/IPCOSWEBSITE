@@ -40,6 +40,7 @@
     <link rel="stylesheet" href="international-ui.css">
     <link rel="stylesheet" href="admin-ui.css">
     <link rel="stylesheet" href="student-ui.css">
+    <link rel="stylesheet" href="registration-ui.css">
 </head>
 
 <body class="transaction-view">
@@ -636,10 +637,15 @@
         <div id="pendaftaran" class="tab-content">
             <h1 class="lang" data-id="Pusat Pendaftaran" data-en="Submit a Request">Pusat Pendaftaran Ujian & Skripsi
             </h1>
-            <div class="card">
-                <details class="draft-help"><summary class="lang" data-id="Tentang Draf & Berkas" data-en="About Drafts & Files">Tentang Draf & Berkas</summary><p class="lang" data-id="Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim." data-en="Text drafts are kept for 14 days and can be continued on another device. Select files on the device you use; files are uploaded only when you submit the request.">Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim.</p></details>
-                <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p><div id="draft-controls"></div><div id="service-reminder" hidden></div>
-                <p class="form-helper lang" data-id="Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim." data-en="Fields marked * are required. Review the summary before submitting.">Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim.</p>
+            <p class="registration-intro lang" data-id="Pilih layanan, siapkan data dan berkas, lalu periksa sebelum mengirim." data-en="Choose a service, prepare your details and files, then review before submitting.">Pilih layanan, siapkan data dan berkas, lalu periksa sebelum mengirim.</p>
+            <nav id="registration-stepper" aria-label="Tahap pendaftaran"><ol>
+                <li><button type="button" data-registration-step="service"><span class="registration-step-number" aria-hidden="true">1</span><span class="lang" data-id="Layanan" data-en="Service">Layanan</span></button></li>
+                <li><button type="button" data-registration-step="data" disabled><span class="registration-step-number" aria-hidden="true">2</span><span class="lang" data-id="Data" data-en="Details">Data</span></button></li>
+                <li><button type="button" data-registration-step="files" disabled><span class="registration-step-number" aria-hidden="true">3</span><span class="lang" data-id="Berkas" data-en="Files">Berkas</span></button></li>
+                <li><button type="button" data-registration-step="review" disabled><span class="registration-step-number" aria-hidden="true">4</span><span class="lang" data-id="Periksa" data-en="Review">Periksa</span></button></li>
+            </ol></nav>
+            <div id="registration-shell" class="registration-layout"><div id="registration-main" class="card">
+                <section id="registration-service-step" class="registration-step-section" aria-labelledby="registration-service-title"><div class="registration-section-heading"><span aria-hidden="true">01</span><div><h2 id="registration-service-title" class="lang" data-id="Pilih layanan akademik" data-en="Choose an academic service">Pilih layanan akademik</h2><p class="lang" data-id="Persyaratan akan menyesuaikan layanan yang Anda pilih." data-en="Requirements follow the service you choose.">Persyaratan akan menyesuaikan layanan yang Anda pilih.</p></div></div>
                 <div class="form-group">
                     <label for="reg-jenis-utama">Pilih Jenis Pendaftaran *</label>
                     <select id="reg-jenis-utama" required onchange="toggleExamForm()"
@@ -653,18 +659,40 @@
                     </select>
                 </div>
 
-                <section id="service-availability" class="service-availability" aria-live="polite" hidden></section>
+                <section id="service-availability" class="service-availability" aria-live="polite" hidden></section></section>
+                <div class="registration-draft-row">                <details class="draft-help"><summary class="lang" data-id="Tentang Draf & Berkas" data-en="About Drafts & Files">Tentang Draf & Berkas</summary><p class="lang" data-id="Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim." data-en="Text drafts are kept for 14 days and can be continued on another device. Select files on the device you use; files are uploaded only when you submit the request.">Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim.</p></details>
+                <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p><div id="draft-controls"></div><div id="service-reminder" hidden></div>
+                <p class="form-helper lang" data-id="Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim." data-en="Fields marked * are required. Review the summary before submitting.">Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim.</p>
+</div>
             <form id="dynamic-exam-form" onsubmit="reviewRegistration(event)" novalidate
                     style="display: none; margin-top: 25px; border-top: 1px solid var(--item-border); padding-top: 25px;">
                     <p id="form-submit-status" class="form-submit-status" role="status" aria-live="polite"></p>
                     <div id="registration-fields">
-                    <section id="registration-readiness" class="registration-readiness" aria-labelledby="readiness-heading" hidden></section>
+                    <section id="registration-data-step" class="registration-step-section" aria-labelledby="registration-data-title"><div class="registration-section-heading"><span aria-hidden="true">02</span><div><h2 id="registration-data-title" class="lang" data-id="Lengkapi data pengajuan" data-en="Complete your request details">Lengkapi data pengajuan</h2><p class="lang" data-id="Gunakan data yang akan diperiksa admin. Kolom bertanda * wajib diisi." data-en="Enter the details admin will review. Fields marked * are required.">Gunakan data yang akan diperiksa admin. Kolom bertanda * wajib diisi.</p></div></div>
                     <div class="form-group" id="group-judul">
                         <label for="reg-judul">Judul Skripsi / Tugas Akhir *</label>
                         <input type="text" id="reg-judul" placeholder="Masukkan judul..." aria-describedby="reg-judul-hint" required>
                         <p id="reg-judul-hint" class="field-helper field-counter"></p>
                     </div>
 
+                    <div id="registration-supervisor-fields" style="display:none;">                        <div class="form-group">
+                            <label for="reg-dosen-lama">Dosen Pembimbing Sekarang *</label>
+                            <input type="text" id="reg-dosen-lama" placeholder="Masukkan nama dosen saat ini..." aria-describedby="reg-dosen-lama-hint">
+                            <p id="reg-dosen-lama-hint" class="field-helper field-counter"></p>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-dosen-baru">Usulan Dosen Pembimbing Baru *</label>
+                            <input type="text" id="reg-dosen-baru" placeholder="Masukkan nama usulan dosen baru..." aria-describedby="reg-dosen-baru-hint">
+                            <p id="reg-dosen-baru-hint" class="field-helper field-counter"></p>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-alasan-ganti">Alasan Pergantian *</label>
+                            <textarea id="reg-alasan-ganti" rows="3" placeholder="Jelaskan alasan pergantian dosen..." aria-describedby="reg-alasan-ganti-hint"></textarea>
+                            <p id="reg-alasan-ganti-hint" class="field-helper field-counter"></p>
+                        </div>
+                    </div>
+                    <div class="registration-section-next"><button type="button" class="btn-secondary" data-registration-files-next><span class="lang" data-id="Lanjut ke Berkas" data-en="Continue to Files">Lanjut ke Berkas</span><span aria-hidden="true"> →</span></button></div></section>
+                    <section id="registration-document-step" class="registration-step-section" aria-labelledby="registration-files-title"><div class="registration-section-heading"><span aria-hidden="true">03</span><div><h2 id="registration-files-title" class="lang" data-id="Siapkan berkas persyaratan" data-en="Prepare the required files">Siapkan berkas persyaratan</h2><p class="lang" data-id="Periksa format dan isi setiap berkas. Berkas diunggah saat Anda mengirim pengajuan." data-en="Check each file’s format and contents. Files are uploaded when you submit your request.">Periksa format dan isi setiap berkas. Berkas diunggah saat Anda mengirim pengajuan.</p></div></div>
                     <!-- Outline, Sempro, Pendadaran, Jurnal, Ganti Dosen blocks -->
                     <div id="req-outline-only" style="display:none;">
                         <div class="form-group">
@@ -712,21 +740,6 @@
                     </div>
                     <div id="req-ganti-dosen" style="display:none;">
                         <div class="form-group">
-                            <label for="reg-dosen-lama">Dosen Pembimbing Sekarang *</label>
-                            <input type="text" id="reg-dosen-lama" placeholder="Masukkan nama dosen saat ini..." aria-describedby="reg-dosen-lama-hint">
-                            <p id="reg-dosen-lama-hint" class="field-helper field-counter"></p>
-                        </div>
-                        <div class="form-group">
-                            <label for="reg-dosen-baru">Usulan Dosen Pembimbing Baru *</label>
-                            <input type="text" id="reg-dosen-baru" placeholder="Masukkan nama usulan dosen baru..." aria-describedby="reg-dosen-baru-hint">
-                            <p id="reg-dosen-baru-hint" class="field-helper field-counter"></p>
-                        </div>
-                        <div class="form-group">
-                            <label for="reg-alasan-ganti">Alasan Pergantian *</label>
-                            <textarea id="reg-alasan-ganti" rows="3" placeholder="Jelaskan alasan pergantian dosen..." aria-describedby="reg-alasan-ganti-hint"></textarea>
-                            <p id="reg-alasan-ganti-hint" class="field-helper field-counter"></p>
-                        </div>
-                        <div class="form-group">
                             <label for="file-surat-ganti" class="lang" data-id="Surat Permohonan Ganti Dosen *" data-en="Supervisor Change Request Letter *">Surat Permohonan Ganti Dosen *</label><p id="file-surat-ganti-format" class="upload-format lang" data-id="PDF · Maks. 10 MB" data-en="PDF · max. 10 MB">PDF · Maks. 10 MB</p>
                             <input type="file" id="file-surat-ganti" aria-describedby="file-surat-ganti-format" accept=".pdf"
                                 onchange="validateFile(this, 'name-gantidosen-badge')">
@@ -734,6 +747,7 @@
                         </div>
                     </div>
 
+                    </section>
                     </div>
                     <div id="registration-review" hidden aria-live="polite"></div>
                     <div id="registration-actions" class="context-actions">
@@ -742,7 +756,9 @@
                         style="background-color: var(--umy-maroon); margin-top:20px;">Konfirmasi & Kirim</button>
                     </div>
                 </form>
-            </div>
+            </div><aside id="registration-companion" aria-labelledby="registration-companion-title"><div class="registration-companion-intro"><span class="lang registration-eyebrow" data-id="SEBELUM MENGIRIM" data-en="BEFORE YOU SUBMIT">SEBELUM MENGIRIM</span><h2 id="registration-companion-title" class="lang" data-id="Persiapan pengajuan" data-en="Request preparation">Persiapan pengajuan</h2><p id="registration-selected-service"></p><p id="registration-companion-help"></p></div>
+                    <section id="registration-readiness" class="registration-readiness" aria-labelledby="readiness-heading" hidden></section>
+            </aside></div>
         </div>
 
         <div id="internationalization" class="tab-content"><h1 class="lang" data-id="Data Internasionalisasi" data-en="Internationalization Data">Data Internasionalisasi</h1><div id="internationalization-content"></div></div>
@@ -1021,6 +1037,7 @@
     <script src="review-tools.js" defer></script>
     <script src="admin-review-drafts.js" defer></script>
     <script src="academic-workflow.js" defer></script>
+    <script src="registration-ui.js" defer></script>
 </body>
 
 </html>

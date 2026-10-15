@@ -1,0 +1,92 @@
+/* Registration is a short guided form with one explicit final confirmation. */
+#pendaftaran>h1 { margin-bottom:8px; }
+.registration-intro { color:var(--text-muted); font-size:14px; line-height:1.75; max-width:70ch; margin:0 0 24px; }
+#registration-stepper { margin:0 0 24px; }
+#registration-stepper ol { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+#registration-stepper li { min-width:0; }
+#registration-stepper button { display:flex; align-items:center; gap:12px; width:100%; min-height:68px; padding:14px; margin:0; font-size:13px; line-height:1.5; font-weight:650; text-align:left; border:1px solid var(--item-border); background:var(--card-bg); color:var(--text-muted); border-radius:14px; transition:var(--trans-fast); }
+#registration-stepper button:disabled { cursor:default; opacity:.65; }
+#registration-stepper button[aria-current=step] { background:var(--sidebar-active-bg); color:var(--sidebar-active-text); border-color:var(--sidebar-active-text); opacity:1; }
+.registration-step-number { width:30px; height:30px; flex:0 0 30px; display:grid; place-items:center; border-radius:50%; background:var(--bg-color); border:1px solid var(--item-border); font-size:12px; line-height:1; color:var(--text-color); }
+#registration-stepper button[aria-current=step] .registration-step-number,#registration-stepper button.is-complete .registration-step-number { color:#fff; background:#9f2442; border-color:#9f2442; }
+.registration-layout { display:grid; grid-template-columns:minmax(0,1fr) 292px; gap:24px; align-items:start; }
+#registration-main { min-width:0; padding:28px; margin:0; border-radius:20px; }
+#registration-companion { min-width:0; position:sticky; top:24px; border:1px solid var(--item-border); border-radius:18px; padding:22px; background:var(--card-bg); }
+.registration-companion-intro h2 { font-size:17px; line-height:1.5; margin:10px 0 12px; }
+.registration-eyebrow { display:block; font-size:10px; letter-spacing:1.4px; line-height:1.6; font-weight:700; color:var(--text-muted); }
+#registration-selected-service { font-size:14px; line-height:1.65; font-weight:700; color:var(--heading-color); overflow-wrap:anywhere; margin:0 0 10px; }
+#registration-companion-help { color:var(--text-muted); font-size:12px; line-height:1.8; margin:0; }
+#registration-companion .registration-readiness { border:0; border-top:1px solid var(--item-border); border-radius:0; background:transparent; padding:18px 0 0; margin:18px 0 0; }
+#registration-companion .readiness-heading { flex-wrap:wrap; align-items:center; gap:10px; }
+#registration-companion #readiness-heading { font-size:14px; line-height:1.6; margin:0; }
+#registration-companion .requirement-list { margin:16px 0; }
+#registration-companion .requirement-list li { padding:12px 0; gap:8px; align-items:flex-start; }
+#registration-companion .requirement-list button { font-size:12px; min-width:0; min-height:44px; }
+#registration-companion .requirement-list button strong,#registration-companion .requirement-list button span { overflow-wrap:anywhere; }
+#registration-companion .readiness-status,#registration-companion .form-helper { font-size:12px; line-height:1.8; }
+.registration-section-heading { display:flex; align-items:flex-start; gap:14px; margin-bottom:22px; }
+.registration-section-heading>span { color:var(--sidebar-active-text); background:var(--sidebar-active-bg); min-width:36px; height:36px; display:grid; place-items:center; border-radius:10px; font-size:12px; line-height:1; font-weight:700; flex-shrink:0; }
+.registration-section-heading>div { min-width:0; }
+.registration-section-heading h2 { font-size:20px; line-height:1.5; margin:0 0 7px; letter-spacing:-.4px; }
+.registration-section-heading p { color:var(--text-muted); font-size:13px; line-height:1.75; margin:0; overflow-wrap:anywhere; }
+.registration-step-section { min-width:0; scroll-margin-top:24px; }
+#registration-main .form-group { margin-bottom:20px; }
+#registration-main label { font-size:13px; line-height:1.7; margin-bottom:8px; }
+#registration-main input,#registration-main select,#registration-main textarea { margin-bottom:0; min-width:0; }
+#registration-main input:not([type=checkbox]),#registration-main select { min-height:48px; }
+#registration-main .field-counter { font-size:11px; margin:6px 0 0; }
+#registration-main #reg-jenis-utama { border-width:1px!important; border-color:var(--item-border)!important; min-height:52px; }
+#registration-main #service-availability { padding:14px 16px; font-size:12px; line-height:1.8; margin:16px 0 0; border-radius:12px; }
+#registration-main #service-availability strong { overflow-wrap:anywhere; }
+#registration-main #service-availability p { margin:6px 0; }
+.registration-draft-row { border-top:1px solid var(--item-border); margin-top:22px; padding-top:14px; }
+.registration-draft-row .draft-help { margin:0; }
+.registration-draft-row .draft-help>summary { font-size:12px; }
+.registration-draft-row .draft-help p { font-size:12px; }
+.registration-draft-row .form-helper { display:none; }
+.registration-draft-row .form-draft-status { font-size:12px; margin:6px 0; }
+#registration-main #dynamic-exam-form { margin-top:24px!important; padding-top:24px!important; }
+.registration-section-next { display:flex; justify-content:flex-end; margin:18px 0 28px; }
+.registration-section-next button { display:flex; align-items:center; justify-content:center; gap:14px; width:auto; margin:0; min-height:44px; }
+#registration-document-step { border-top:1px solid var(--item-border); padding-top:28px; }
+#registration-document-step .form-group { padding:18px; margin:0 0 16px; border:1px solid var(--item-border); border-radius:14px; background:var(--bg-color); }
+#registration-main .upload-format { font-size:11px; line-height:1.7; margin:4px 0 12px; }
+#registration-main input[type=file] { padding:0 10px 0 0; background:var(--card-bg); font-size:12px; }
+#registration-main input[type=file]::file-selector-button { min-height:46px; padding:10px 14px; margin-right:12px; border:0; border-right:1px solid var(--item-border); background:var(--sidebar-active-bg); color:var(--sidebar-active-text); font:inherit; font-weight:650; cursor:pointer; }
+#registration-main .upload-guidance { margin:10px 0 0; gap:4px 16px; }
+#registration-main .upload-guidance button { min-height:44px; font-size:11px; }
+#registration-main #registration-actions { margin-top:24px; padding-top:16px; }
+#registration-main #registration-actions button { min-height:48px; border-radius:10px; font-size:13px; }
+#registration-review h3 { font-size:22px; line-height:1.5; margin:0 0 24px; }
+#registration-review .receipt-list { padding:18px; background:var(--bg-color); border:1px solid var(--item-border); border-radius:14px; }
+#registration-review .receipt-list dd { overflow-wrap:anywhere; }
+#registration-review .review-files { list-style:none; padding:0; margin:16px 0 24px; }
+#registration-review .review-files li { padding:16px; border:1px solid var(--item-border); background:var(--bg-color); border-radius:14px; margin-bottom:12px; min-width:0; }
+#registration-review .review-files li strong,#registration-review .review-files li span { overflow-wrap:anywhere; }
+#registration-review .review-files button { min-height:44px; margin-top:12px; }
+#registration-review>p { font-size:13px; line-height:1.8; color:var(--text-muted); }
+#registration-shell.registration-is-review #registration-service-step { display:none; }
+#registration-shell.registration-is-review .registration-draft-row .draft-help { display:none; }
+#registration-shell.registration-is-review #registration-readiness { display:none; }
+@media(max-width:1100px) {
+ .registration-layout { grid-template-columns:minmax(0,1fr); gap:20px; }
+ #registration-companion { position:static; }
+ #registration-companion .requirement-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 24px; }
+}
+@media(max-width:600px) {
+ .registration-intro { margin-bottom:18px; font-size:13px; }
+ #registration-stepper { margin-bottom:18px; }
+ #registration-stepper ol { gap:6px; }
+ #registration-stepper button { min-height:76px; padding:10px 4px; flex-direction:column; gap:7px; justify-content:center; text-align:center; border-radius:12px; font-size:11px; }
+ .registration-step-number { width:26px; height:26px; flex-basis:26px; font-size:11px; }
+ #registration-main { padding:20px 16px; border-radius:18px; }
+ #registration-companion { padding:20px 16px; }
+ .registration-section-heading { gap:10px; margin-bottom:18px; }
+ .registration-section-heading h2 { font-size:18px; }
+ .registration-section-heading p { font-size:12px; }
+ .registration-section-heading>span { min-width:30px; height:30px; font-size:11px; }
+ #registration-document-step .form-group { padding:14px 12px; }
+ .registration-section-next button { width:100%; }
+ #registration-companion .requirement-list { display:block; }
+ #registration-review h3 { font-size:20px; }
+}

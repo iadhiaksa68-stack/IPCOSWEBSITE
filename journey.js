@@ -52,6 +52,7 @@ function renderRegistrationReadiness() {
     const type = document.getElementById('reg-jenis-utama').value;
     const requirements = currentUser.role === 'mhs' ? registrationRequirements(type) : [];
     panel.hidden = !requirements.length;
+    window.IPCOSRegistration?.refresh();
     if (!requirements.length) { panel.textContent = ''; delete panel.dataset.signature; return; }
     const complete = requirements.filter(item => item.ready).length;
     const allReady = complete === requirements.length;
