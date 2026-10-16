@@ -44,6 +44,9 @@
     <link rel="stylesheet" href="student-requests.css">
     <link rel="stylesheet" href="journey-ui.css">
     <link rel="stylesheet" href="resources-ui.css">
+    <link rel="stylesheet" href="notifications-ui.css">
+    <link rel="stylesheet" href="supervisor-ui.css">
+    <link rel="stylesheet" href="master-ui.css">
 </head>
 
 <body class="transaction-view">
@@ -196,31 +199,22 @@
     </div>
 
     <!-- MODAL EDIT KUOTA DOSEN -->
-    <div id="modal-edit-dosen" class="overlay" style="display: none; z-index: 2500;" role="dialog" aria-modal="true" aria-labelledby="edit-dosen-title">
-        <div class="modal-card">
-            <h2 id="edit-dosen-title">Edit Kuota Dosen</h2>
-            <h4 id="edit-dosen-name-display" style="color: var(--umy-maroon); margin-top: 0; margin-bottom: 20px;">Nama Dosen</h4>
-            
-            <div style="display: flex; gap: 15px; text-align: left;">
-                <div style="flex: 1;">
-                    <label for="edit-dosen-terpakai" style="font-size: 13px; font-weight: bold;">Beban Terpakai</label>
-                    <input type="number" id="edit-dosen-terpakai" min="0">
-                </div>
-                <div style="flex: 1;">
-                    <label for="edit-dosen-maksimal" style="font-size: 13px; font-weight: bold;">Kuota Maksimal</label>
-                    <input type="number" id="edit-dosen-maksimal" min="1">
-                </div>
-            </div>
-            
-            <input type="hidden" id="hidden-dosen-nama">
-            <p style="font-size: 12px; color: var(--text-muted); text-align: left; margin-bottom: 20px;">*Ubah beban terpakai secara manual jika ada mahasiswa bimbingan yang baru saja Lulus / DO.</p>
-            
-            <div style="display: flex; gap: 12px;">
-                <button class="btn-secondary" onclick="closeModal('modal-edit-dosen')">Batal</button>
-                <button class="btn-primary" style="background: var(--umy-green);" onclick="saveDosenQuota()">Simpan Perubahan</button>
-            </div>
+<div id="modal-edit-dosen" class="overlay" style="display:none;z-index:2500" role="dialog" aria-modal="true" aria-labelledby="edit-dosen-title">
+    <form id="supervisor-edit-form" class="modal-card supervisor-edit-card" novalidate onsubmit="event.preventDefault();saveDosenQuota()">
+        <h2 id="edit-dosen-title">Ubah Kuota Dosen</h2>
+        <h3 id="edit-dosen-name-display" data-preserve-case></h3>
+        <input type="hidden" id="hidden-dosen-nama">
+        <p id="supervisor-quota-note">Beban terpakai mengikuti data bimbingan. Sesuaikan setelah memeriksa data mahasiswa.</p>
+        <div class="supervisor-edit-fields">
+            <div><label for="edit-dosen-terpakai">Beban Terpakai *</label><input id="edit-dosen-terpakai" type="number" min="0" step="1" required aria-describedby="supervisor-quota-note"></div>
+            <div><label for="edit-dosen-maksimal">Kuota Maksimal *</label><input id="edit-dosen-maksimal" type="number" min="1" step="1" required aria-describedby="supervisor-quota-note"></div>
         </div>
-    </div>
+        <p id="supervisor-edit-feedback" role="status" aria-live="polite" hidden></p>
+        <div class="supervisor-edit-actions"><button id="supervisor-edit-cancel" type="button" class="btn-secondary" onclick="closeModal('modal-edit-dosen')">Batal</button><button id="supervisor-edit-save" type="submit" class="btn-primary">Simpan Perubahan</button></div>
+        <details id="supervisor-delete"><summary>Hapus Dosen dari Daftar</summary><p>Dosen akan dihapus dari daftar kuota.</p><button id="supervisor-delete-button" type="button" class="btn-secondary supervisor-danger" onclick="deleteDosen(document.getElementById('hidden-dosen-nama').value)">Hapus dari Daftar</button></details>
+    </form>
+</div>
+
 
     <!-- Mhs Modals -->
     <div id="modal-reply" class="overlay" style="display: none; z-index: 2000;" role="dialog" aria-modal="true" aria-labelledby="reply-title">
@@ -377,7 +371,7 @@
                 data-en="Home">Beranda</li><li data-nav-target="admin-data" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-data" onclick="switchTab(event, 'admin-data')" data-nav-icon="admin-data"
                 data-id="Antrean Pengajuan" data-en="Request Queue">Antrean Pengajuan</li><li data-nav-target="pendaftaran" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'pendaftaran')" data-nav-icon="pendaftaran" data-id="Pusat Pendaftaran"
                 data-en="Submit a Request">Pusat Pendaftaran</li><li data-nav-target="student-status" tabindex="0" role="button" class="nav-item student-only lang" id="nav-student-status" onclick="switchTab(event, 'student-status')" data-nav-icon="student-status"
-                data-id="Status Pengajuanku" data-en="My Requests">Status Pengajuanku</li><li data-nav-target="academic-journey" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'academic-journey')" data-nav-icon="student-status" data-id="Perjalanan Akademik" data-en="Academic Journey">Perjalanan Akademik</li><li data-nav-target="internationalization" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-internationalization" hidden onclick="switchTab(event, 'internationalization')" data-nav-icon="kurikulum" data-id="Internasionalisasi" data-en="Internationalization">Internasionalisasi</li><li class="nav-group"><details data-nav-group="management"><summary><span class="lang" data-id="Kelola layanan" data-en="Manage services">Kelola layanan</span></summary><ul><li data-nav-target="admin-dosen" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-nav-icon="admin-dosen" data-id="Plotting Dosen" data-en="Supervisor Capacity">Plotting Kuota Dosen</li><li data-nav-target="admin-master" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
+                data-id="Status Pengajuanku" data-en="My Requests">Status Pengajuanku</li><li data-nav-target="academic-journey" tabindex="0" role="button" class="nav-item student-only lang" onclick="switchTab(event, 'academic-journey')" data-nav-icon="student-status" data-id="Perjalanan Akademik" data-en="Academic Journey">Perjalanan Akademik</li><li data-nav-target="notifications" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'notifications')" data-nav-icon="notifications" data-id="Notifikasi" data-en="Notifications">Notifikasi</li><li data-nav-target="internationalization" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-internationalization" hidden onclick="switchTab(event, 'internationalization')" data-nav-icon="kurikulum" data-id="Internasionalisasi" data-en="Internationalization">Internasionalisasi</li><li class="nav-group"><details data-nav-group="management"><summary><span class="lang" data-id="Kelola layanan" data-en="Manage services">Kelola layanan</span></summary><ul><li data-nav-target="admin-dosen" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-dosen" onclick="switchTab(event, 'admin-dosen')" data-nav-icon="admin-dosen" data-id="Plotting Dosen" data-en="Supervisor Capacity">Plotting Kuota Dosen</li><li data-nav-target="admin-master" tabindex="0" role="button" class="nav-item admin-only lang" id="nav-admin-master" onclick="switchTab(event, 'admin-master')" data-nav-icon="admin-master"
                 data-id="Master Data" data-en="Master Data">Master Data & Broadcast</li></ul></details></li><li class="nav-group"><details data-nav-group="sop"><summary><span class="lang" data-id="SOP & panduan" data-en="SOP & guides">SOP & panduan</span></summary><ul><li data-nav-target="sop-magang" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-magang')" data-nav-icon="skripsi" data-id="SOP Magang" data-en="Internship SOP">SOP Magang</li><li data-nav-target="sop-tugas-akhir" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'sop-tugas-akhir')" data-nav-icon="skripsi" data-id="SOP Tugas Akhir" data-en="Final Project SOP">SOP Tugas Akhir</li><li data-nav-target="remidial" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'remidial')" data-nav-icon="remidial" data-id="SOP Remidial" data-en="Remedial Procedure">SOP Remidial</li></ul></details></li><li class="nav-group"><details data-nav-group="academic"><summary><span class="lang" data-id="Referensi akademik" data-en="Academic resources">Referensi akademik</span></summary><ul><li data-nav-target="magang" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'magang')" data-nav-icon="magang" data-id="Kewajiban Magang"
                 data-en="Internship Requirements">Kewajiban Magang</li><li data-nav-target="skripsi" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'skripsi')" data-nav-icon="skripsi" data-id="Kewajiban Skripsi"
                 data-en="Thesis Requirements">Kewajiban Skripsi</li><li data-nav-target="kurikulum" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-nav-icon="kurikulum" data-id="Sebaran Mata Kuliah"
@@ -431,19 +425,13 @@
                     </button>
                     <div id="notif-dropdown"
                         style="display: none; position: absolute; top: 110%; right: 0; background: var(--card-bg); width: 320px; border: 1px solid var(--card-border); border-radius: 14px; box-shadow: var(--shadow-floating); z-index: 1500; overflow: hidden;">
-                        <div
-                            style="padding: 12px 15px; border-bottom: 1px solid var(--item-border); font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-                            <span class="lang" data-id="Pusat Notifikasi" data-en="Notification Center">Pusat
-                                Notifikasi</span>
-                            <button onclick="markAllNotificationsRead()"
-                                style="background:none; border:none; color:var(--umy-maroon); font-size:11px; cursor:pointer; font-weight:700;"
-                                class="lang" data-id="Tandai Dibaca" data-en="Mark Read">Tandai Dibaca</button>
-                        </div>
+                        <div class="notification-dropdown-heading" id="notification-preview-title">Notifikasi Terbaru</div>
                         <div id="notif-list-container" style="max-height: 300px; overflow-y: auto;">
                             <div style="padding: 15px; font-size: 13px; color: var(--text-muted); text-align: center;"
                                 class="lang" data-id="Belum ada notifikasi baru." data-en="No new notifications.">Belum
                                 ada notifikasi baru.</div>
                         </div>
+                        <button type="button" id="notification-view-all" onclick="IPCOSNotifications.visit()">Lihat Semua Notifikasi</button>
                     </div>
                 </div>
             </div>
@@ -851,39 +839,30 @@
         </div>
 
         <!-- TAB BARU: DATA DOSEN -->
-        <div id="admin-dosen" class="tab-content">
-            <h1>Manajemen Kuota Dosen Pembimbing</h1>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Atur batas maksimal mahasiswa bimbingan. Sistem akan otomatis menambah beban (terpakai) saat Anda menunjuk dosen di menu Data Pendaftar.</p>
-            
-            <div class="card">
-                <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end;">
-                    <div style="flex: 2; min-width: 200px;">
-                        <label style="font-size: 12px; font-weight: bold;">Nama Dosen Baru</label>
-                        <input type="text" id="add-dosen-nama" placeholder="Masukkan nama beserta gelar..." style="margin-bottom: 0;">
-                    </div>
-                    <div style="flex: 1; min-width: 100px;">
-                        <label style="font-size: 12px; font-weight: bold;">Kuota Maksimal</label>
-                        <input type="number" id="add-dosen-max" placeholder="Misal: 5" value="5" style="margin-bottom: 0;">
-                    </div>
-                    <button class="btn-primary" style="background: var(--umy-green); flex: 1; min-width: 120px;" onclick="addDosenQuota()">+ Tambah Dosen</button>
-                </div>
-                
-                <div class="responsive-table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nama Dosen Pembimbing</th>
-                                <th style="text-align: center;">Beban Saat Ini</th>
-                                <th style="text-align: center;">Kuota Maksimal</th>
-                                <th style="text-align: center;">Status Ketersediaan</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-admin-dosen"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+<div id="admin-dosen" class="tab-content">
+    <header class="supervisor-heading"><h1>Manajemen Kuota Dosen</h1><p>Atur kapasitas bimbingan dan periksa sisa kuota setiap dosen.</p></header>
+    <dl id="supervisor-summary" class="supervisor-summary">
+        <div><dt>Total Dosen</dt><dd data-supervisor-total>0</dd></div>
+        <div><dt>Masih Tersedia</dt><dd data-supervisor-available>0</dd></div>
+        <div><dt>Kuota Penuh</dt><dd data-supervisor-full>0</dd></div>
+        <div><dt>Perlu Dicek</dt><dd data-supervisor-review>0</dd></div>
+    </dl>
+    <section class="supervisor-toolbar">
+        <div><label for="supervisor-search">Cari Dosen</label><input id="supervisor-search" type="search" autocomplete="off"></div>
+        <div><label for="supervisor-availability">Ketersediaan</label><select id="supervisor-availability"><option value="all">Semua Dosen</option><option value="available">Masih Tersedia</option><option value="near">Hampir Penuh</option><option value="full">Penuh / Melebihi Kuota</option><option value="review">Data Perlu Dicek</option></select></div>
+        <button id="supervisor-reset" type="button" class="btn-secondary" hidden>Reset Filter</button>
+    </section>
+    <p id="supervisor-result-count" role="status" aria-live="polite" aria-atomic="true"></p>
+    <section id="supervisor-list-panel" class="card"><div class="responsive-table-wrapper"><table><caption class="sr-only">Kapasitas bimbingan dosen</caption><thead><tr><th scope="col">Dosen</th><th scope="col">Terpakai / Maksimal</th><th scope="col">Sisa Kuota</th><th scope="col">Ketersediaan</th><th scope="col">Tindakan</th></tr></thead><tbody id="table-admin-dosen"></tbody></table></div></section>
+    <div id="supervisor-mobile-list"></div>
+    <section id="supervisor-empty" class="card" hidden></section>
+    <section class="card supervisor-add-panel"><h2>Tambah Dosen</h2><form id="supervisor-add-form" novalidate onsubmit="event.preventDefault();addDosenQuota()">
+        <div><label for="add-dosen-nama">Nama Dosen *</label><input id="add-dosen-nama" required maxlength="250" autocomplete="off" data-preserve-case></div>
+        <div><label for="add-dosen-max">Kuota Maksimal *</label><input id="add-dosen-max" type="number" min="1" step="1" required value="5"></div>
+        <button id="supervisor-add-submit" type="submit" class="btn-primary">Tambah Dosen</button>
+    </form><p id="supervisor-add-feedback" role="status" aria-live="polite" hidden></p></section>
+</div>
+
 
         <div id="admin-master" class="tab-content">
             <h1>Master Data & Broadcast</h1>
@@ -1005,8 +984,15 @@
                 </div>
             </div>
         </div>
+        <div id="notifications" class="tab-content">
+            <header class="notification-heading"><div><h1 id="notifications-title" tabindex="-1">Pusat Notifikasi</h1><p id="notifications-intro">Temukan pembaruan pengajuan dan pengumuman, lalu lanjutkan tindakan yang diperlukan.</p><p id="notification-summary"></p></div><button type="button" class="btn-secondary" id="notification-mark-all" onclick="markAllNotificationsRead()">Tandai Semua Dibaca</button></header>
+            <div class="notification-toolbar"><div><label id="notification-search-label" for="notification-search">Cari Notifikasi</label><input type="search" id="notification-search" autocomplete="off" placeholder="Cari pengajuan atau isi pengumuman…"></div><div><label id="notification-filter-label" for="notification-filter">Tampilkan</label><select id="notification-filter"><option value="all">Semua</option><option value="unread">Belum Dibaca</option><option value="requests">Pengajuan</option><option value="announcements">Pengumuman</option></select></div><button type="button" class="btn-secondary" id="notification-reset" hidden>Reset Filter</button></div>
+            <p id="notification-result-count" role="status" aria-live="polite"></p><div id="notification-center-list"></div><section id="notification-empty" hidden><h2 id="notification-empty-title"></h2><p id="notification-empty-text"></p></section>
+        </div>
         <footer class="workspace-copyright">&copy; 2026 Developed by IPCOS Team</footer>
     </main>
+
+    <div id="modal-notification-announcement" class="overlay" style="display:none;z-index:2600" role="dialog" aria-modal="true" aria-labelledby="notification-reader-title"><article class="modal-card notification-reader"><header><h2 id="notification-reader-title">Pengumuman Akademik</h2><span id="notification-reader-date" class="notification-date"></span></header><p id="notification-reader-body"></p><footer><button type="button" id="notification-reader-close" class="btn-secondary" onclick="closeModal('modal-notification-announcement')">Tutup</button></footer></article></div>
 
     <!-- Confetti Canvas untuk Status Selesai 100% -->
     <canvas id="confetti-canvas"
@@ -1031,6 +1017,9 @@
     <script src="registration-ui.js" defer></script>
     <script src="student-requests.js" defer></script>
     <script src="resources-ui.js" defer></script>
+    <script src="notifications-ui.js" defer></script>
+    <script src="supervisor-ui.js" defer></script>
+    <script src="master-ui.js" defer></script>
 </body>
 
 </html>

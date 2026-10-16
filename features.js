@@ -1,6 +1,8 @@
 // Small-service transaction tools, with authorization enforced again by the API.
 let serviceSettings = [];
 let serviceSettingsEditing = false;
+let savingServiceSettings = false;
+let backupStatusBusy = false;
 let latestBackup = null;
 const SERVICE_TYPES = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'];
 function serviceSetting(type) {
@@ -74,20 +76,25 @@ function revisionFileLabels(files,item) {
 function renderServiceSettings() {
     const container=document.getElementById('service-settings');
     if (!container || currentUser.role!=='admin' || serviceSettingsEditing) return;
-    container.innerHTML=SERVICE_TYPES.map((type,index)=>{ const s=serviceSetting(type); return `<fieldset class="service-setting"><legend>${escapeHtml(systemText(type))}</legend><label class="service-enabled"><input type="checkbox" id="service-enabled-${index}" ${s.enabled?'checked':''}> ${systemText('Aktif')}</label><div class="service-setting-fields"><label>${systemText('Dibuka (WIB)')}<input type="date" id="service-open-${index}" value="${escapeHtml(s.open)}"></label><label>${systemText('Ditutup (WIB)')}<input type="date" id="service-close-${index}" value="${escapeHtml(s.close)}"></label><label>${systemText('Target admin (hari)')}<input type="number" min="1" max="365" id="service-admin-${index}" value="${Number(s.adminDays)}"></label><label>${systemText('Target revisi (hari)')}<input type="number" min="1" max="365" id="service-student-${index}" value="${Number(s.studentDays)}"></label></div></fieldset>`; }).join('');
+    const signature=JSON.stringify([currentLang,serviceSettings]);if(container.dataset.settingsSignature===signature&&container.children.length)return;
+    container.dataset.settingsSignature=signature;
+    container.innerHTML=SERVICE_TYPES.map((type,index)=>{ const s=serviceSetting(type); return `<fieldset class="service-setting"><legend>${escapeHtml(systemText(type))}</legend><label class="service-enabled"><input type="checkbox" id="service-enabled-${index}" ${s.enabled?'checked':''}> ${systemText('Aktif')}</label><div class="service-setting-fields"><label>${systemText('Dibuka (WIB)')}<input type="date" id="service-open-${index}" value="${escapeHtml(s.open)}"></label><label>${systemText('Ditutup (WIB)')}<input type="date" id="service-close-${index}" value="${escapeHtml(s.close)}"></label><label>${systemText('Target admin (hari)')}<input type="number" min="1" max="365" step="1" id="service-admin-${index}" value="${Number(s.adminDays)}"></label><label>${systemText('Target revisi (hari)')}<input type="number" min="1" max="365" step="1" id="service-student-${index}" value="${Number(s.studentDays)}"></label></div></fieldset>`; }).join('');
     bindLanguageBlock(container);
     container.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{serviceSettingsEditing=true;}));
 }
 async function saveServiceSettings(event) {
     event.preventDefault();
-    if (currentUser.role!=='admin') return;
-    const services=SERVICE_TYPES.map((type,index)=>({type,enabled:document.getElementById('service-enabled-'+index).checked,open:document.getElementById('service-open-'+index).value,close:document.getElementById('service-close-'+index).value,adminDays:Number(document.getElementById('service-admin-'+index).value),studentDays:Number(document.getElementById('service-student-'+index).value)}));
+    if (currentUser.role!=='admin'||!getSessionToken()||savingServiceSettings) return;
+    if(isOffline){showToast(uxText('Tidak dapat menyimpan pengaturan saat offline.','Cannot save settings while offline.'),'error');return;}
+    const read=()=>SERVICE_TYPES.map((type,index)=>({type,enabled:document.getElementById('service-enabled-'+index).checked,open:document.getElementById('service-open-'+index).value,close:document.getElementById('service-close-'+index).value,adminDays:Number(document.getElementById('service-admin-'+index).value),studentDays:Number(document.getElementById('service-student-'+index).value)}));
+    const services=read();
     if (services.some(s=>s.open && s.close && s.open>s.close)) { showToast('Tanggal tutup harus sesudah atau sama dengan tanggal buka.','error'); return; }
+    if(services.some(s=>![s.adminDays,s.studentDays].every(value=>Number.isInteger(value)&&value>=1&&value<=365))){showToast(uxText('Target layanan harus bilangan bulat antara 1 dan 365 hari.','Service targets must be whole numbers from 1 to 365 days.'),'error');return;}
     const button=document.getElementById('save-service-settings'); button.disabled=true;
-    const epoch=sessionEpoch;
-    try { const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'save_services',services}),headers:{'Content-Type':'text/plain;charset=utf-8'}}); const result=await readApiResult(response); if (epoch!==sessionEpoch) return; if(result.status!=='success') throw new Error(result.message); serviceSettings=result.services; serviceSettingsEditing=false; renderServiceSettings(); filterAdminData(); showToast('Periode dan target layanan tersimpan.','success'); }
+    savingServiceSettings=true;const epoch=sessionEpoch;
+    try { const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'save_services',services}),headers:{'Content-Type':'text/plain;charset=utf-8'}}); const result=await readApiResult(response); if (epoch!==sessionEpoch) return; if(result.status!=='success') throw new Error(result.message); if(Array.isArray(result.services))serviceSettings=result.services;const unchanged=JSON.stringify(read())===JSON.stringify(services);serviceSettingsEditing=!unchanged;renderServiceSettings();filterAdminData();showToast(unchanged?uxText('Periode dan target layanan tersimpan.','Service dates and targets saved.'):uxText('Pengaturan terkirim. Perubahan isian berikutnya belum disimpan.','Settings saved. Your newer edits have not been saved yet.'),'success'); }
     catch(error) { if(epoch===sessionEpoch) showToast(error.message || 'Pengaturan belum tersimpan.','error'); }
-    finally { if(epoch===sessionEpoch && button.isConnected) button.disabled=false; }
+    finally { if(epoch===sessionEpoch){savingServiceSettings=false;if(button.isConnected)button.disabled=false;} }
 }
 function renderBackupStatus(backup) {
     const el=document.getElementById('backup-status'); if(!el || currentUser.role!=='admin') return;
@@ -100,10 +107,13 @@ function renderBackupStatus(backup) {
     else link.removeAttribute('href');
 }
 async function refreshBackupStatus() {
-    if(currentUser.role!=='admin') return;
+    if(currentUser.role!=='admin'||!getSessionToken()||backupStatusBusy) return;
+    backupStatusBusy=true;
     const epoch=sessionEpoch;
+    const button=document.querySelector('[onclick="refreshBackupStatus()"]');if(button)button.disabled=true;
     try { const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'backup_status'}),headers:{'Content-Type':'text/plain;charset=utf-8'}}); const result=await readApiResult(response); if(epoch!==sessionEpoch) return; if(result.status!=='success') throw new Error(result.message); renderBackupStatus(result.backup); }
     catch(error) { if(epoch===sessionEpoch) showToast(error.message || 'Status cadangan belum tersedia.','error'); }
+    finally{if(epoch===sessionEpoch){backupStatusBusy=false;if(button)button.disabled=false;}}
 }
 async function downloadReceipt(id,button) {
     if (!['admin','mhs'].includes(currentUser.role)) return;

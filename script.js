@@ -390,6 +390,10 @@ function clearPrivateCache() {
     window.IPCOSStudentRequests?.reset();
     window.IPCOSAcademic?.reset();
     window.IPCOSResources?.reset();
+    window.IPCOSNotifications?.reset();
+    window.IPCOSSupervisors?.reset();
+    window.IPCOSMaster?.reset();
+    masterMutationBusy = false; supervisorMutationBusy = false;
     window.IPCOSPolish?.reset();
     activeReceipt = null; latestBackup = null;
     languageBlocks.clear();
@@ -401,7 +405,9 @@ function clearPrivateCache() {
     ratioChartInstance?.destroy(); typeChartInstance?.destroy();
     ratioChartInstance = null; typeChartInstance = null;
     const chartStatus = document.getElementById('chart-load-status'); if (chartStatus) { chartStatus.hidden = true; chartStatus.textContent = ''; }
-    serviceSettings = []; serviceSettingsEditing = false;
+    serviceSettings = []; serviceSettingsEditing = false; savingServiceSettings = false; backupStatusBusy = false;
+    document.getElementById('save-service-settings').disabled=false;
+    const backupRefresh=document.querySelector('[onclick="refreshBackupStatus()"]');if(backupRefresh)backupRefresh.disabled=false;
     const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = '';
     const backupFolder = document.getElementById('backup-folder'); if (backupFolder) { backupFolder.hidden = true; backupFolder.removeAttribute('href'); }
     const serviceFields = document.getElementById('service-settings'); if (serviceFields) serviceFields.innerHTML = '';
@@ -456,7 +462,7 @@ function syncDatabase() {
 
     if (currentUser.role === 'admin') {
         renderTableSkeleton('table-admin-reg', 5, 6);
-        renderTableSkeleton('table-master-mhs', 5, 4);
+        if(window.IPCOSMaster)window.IPCOSMaster.render();else renderTableSkeleton('table-master-mhs', 5, 4);
     } else if (currentUser.role === 'mhs') {
         if(window.IPCOSStudentRequests)window.IPCOSStudentRequests.render();
         else renderTableSkeleton('table-my-status', 3, 4);
@@ -741,6 +747,7 @@ function logoutUser() {
 // ==========================================
 function renderNotifications() {
     renderTaskHome();
+    if (window.IPCOSNotifications) { window.IPCOSNotifications.render(); return; }
     const listContainer = document.getElementById('notif-list-container');
     const badgeEl = document.getElementById('notif-badge');
     if (!listContainer) return;
@@ -815,9 +822,10 @@ function getReadNotificationIds() {
     catch (_) { return []; }
 }
 function saveReadNotificationIds(ids) {
-    try { localStorage.setItem(notificationReadKey(), JSON.stringify([...new Set(ids)].slice(-100))); } catch (_) {}
+    try { localStorage.setItem(notificationReadKey(), JSON.stringify([...new Set(ids)].filter(id=>typeof id==='string'))); } catch (_) {}
 }
 function openNotification(key, caseId, tabName) {
+    if (typeof window !== 'undefined' && window.IPCOSNotifications) return window.IPCOSNotifications.open(key);
     if (!switchTab(null, tabName)) return;
     saveReadNotificationIds([...getReadNotificationIds(), key]);
     renderNotifications();
@@ -831,11 +839,13 @@ function toggleNotifDropdown(e) {
     const dropdown = document.getElementById('notif-dropdown');
     if (dropdown) {
         const isHidden = dropdown.style.display === 'none' || !dropdown.style.display;
+        if (isHidden) window.IPCOSNotifications?.render();
         dropdown.style.display = isHidden ? 'block' : 'none';
     }
 }
 
 function markAllNotificationsRead() {
+    if (!getSessionToken() || !['mhs','admin'].includes(currentUser.role)) return;
     saveReadNotificationIds([...getReadNotificationIds(), ...currentNotificationIds]);
     renderNotifications();
     showToast(currentLang === 'id' ? 'Semua notifikasi ditandai dibaca' : 'All notifications marked as read', 'success');
@@ -2171,9 +2181,9 @@ function openCaseDetail(id, languageRefresh = false) {
     const item = records.find(record => String(record.id) === String(id));
     if (!item || !['admin','mhs'].includes(currentUser.role) || (currentUser.role === 'mhs' && !isStudentOwner(item))) {
         showToast('Pengajuan belum tersedia. Coba segarkan data.', 'error');
-        return;
+        return false;
     }
-    if (!languageRefresh && (String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return;
+    if (!languageRefresh && (String(id) !== selectedCaseId || caseEditorDirty()) && !confirmLeaveCase()) return false;
     if(!languageRefresh && currentUser.role==='mhs' && document.getElementById('student-status').classList.contains('active'))window.IPCOSStudentRequests?.reveal(id);
     const active=document.activeElement;
     const restoreFocus=languageRefresh && document.getElementById('modal-case-detail').contains(active) ? {node:active,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection,scroll:document.getElementById('case-detail-content').scrollTop} : null;
@@ -2260,6 +2270,7 @@ function openCaseDetail(id, languageRefresh = false) {
         document.getElementById('case-detail-content').scrollTop=restoreFocus.scroll;
     }
     savedPaneScroll.forEach(({name,top}) => {const pane = content.querySelector('.' + name);if (pane) pane.scrollTop = top;});
+    return true;
 }
 
 function caseMobileCard(item, isAdmin) {
@@ -2654,6 +2665,7 @@ async function submitStudentReply() {
 }
 
 function closeModal(modalId, force = false) {
+    if (modalId === 'modal-edit-dosen' && !force && supervisorMutationBusy) return;
     if(modalId==='modal-edit-content'&&!force){if(contentSaving)return;if(contentEditorDirty()&&!confirm(uxText('Tutup tanpa menyimpan perubahan?','Close without saving changes?')))return;}
     if (modalId === 'modal-sop-editor' && !force) { window.IPCOSSop?.cancel(); return; }
     if (!force && modalId === 'modal-case-detail' && !confirmLeaveCase()) return;
@@ -2691,6 +2703,7 @@ function toggleDarkMode() {
 function toggleSidebar() { document.getElementById('main-sidebar').classList.toggle('active'); window.IPCOSExperience?.drawerChanged(); }
 
 function canAccessTab(tabId) {
+    if (tabId === 'notifications') return !!getSessionToken() && ['mhs','admin'].includes(currentUser.role);
     if (['sop-magang','sop-tugas-akhir'].includes(tabId)) return ['mhs','admin'].includes(currentUser.role);
     if (tabId === 'academic-journey') return ['mhs','admin'].includes(currentUser.role);
     if (tabId === 'internationalization') return currentUser.role === 'admin';
@@ -2705,6 +2718,7 @@ function switchTab(event, tabId) {
     if (tabId === 'academic-journey') renderAcademicJourney();
     if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return false;
     if (tabId === 'dashboard') renderTaskHome();
+    if (tabId === 'notifications') window.IPCOSNotifications?.render();
     window.IPCOSExperience?.beforeTab(tabId);
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -2943,6 +2957,7 @@ async function postAnnouncement(customMsg = null, customType = null) {
 // 16. CRUD MASTER MAHASISWA & BROADCAST
 // ==========================================
 function renderMasterMahasiswa(students) {
+    if (window.IPCOSMaster) { window.IPCOSMaster.render(students); return; }
     const tbody = document.getElementById('table-master-mhs');
     if (!tbody) return; tbody.innerHTML = '';
     students.slice().reverse().forEach(s => {
@@ -2953,19 +2968,41 @@ function renderMasterMahasiswa(students) {
     window.IPCOSAcademic?.render();
 }
 
+let masterMutationBusy = false;
+function masterFeedback(kind,id,en,type='error') { window.IPCOSMaster?.feedback(type,id,en); showToast(uxText(id,en),type); }
 async function addStudent() {
-    if (isOffline) { showToast("Tidak dapat menambah mahasiswa saat offline.", "error"); return; }
-    const nim = document.getElementById('add-nim').value.trim(); const nama = document.getElementById('add-nama').value.trim();
-    if (!nim || !nama) { showToast("NIM dan Nama wajib diisi!", "error"); return; }
-    showLoader();
-    try { await apiPostSuccess(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'add', nim: nim, nama: nama }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Mahasiswa berhasil ditambahkan!", "success"); document.getElementById('add-nim').value = ''; document.getElementById('add-nama').value = ''; syncDatabase(); } catch (e) { showToast("Gagal menambah data", "error"); } finally { hideLoader(); }
+    if (currentUser.role !== 'admin' || !getSessionToken() || masterMutationBusy) return;
+    if (isOffline) { masterFeedback('add','Tidak dapat menambah mahasiswa saat offline.','Cannot add a student while offline.'); return; }
+    const captured=window.IPCOSMaster?window.IPCOSMaster.studentInput():{nim:document.getElementById('add-nim').value.trim(),nama:document.getElementById('add-nama').value.trim()};
+    if (!captured) return;
+    const {nim,nama}=captured;
+    if (!nim || !nama) { masterFeedback('add','NIM dan nama wajib diisi.','Student ID and name are required.'); return; }
+    masterMutationBusy=true;window.IPCOSMaster?.busy(true);showLoader();
+    const epoch=sessionEpoch,token=getSessionToken(),current=()=>epoch===sessionEpoch&&token===getSessionToken()&&currentUser.role==='admin';
+    try {
+        await apiPostSuccess(GAS_URL,{method:'POST',body:JSON.stringify({action:'manage_student',method:'add',nim,nama}),headers:{'Content-Type':'text/plain;charset=utf-8'}});
+        if(!current())return;
+        if(window.IPCOSMaster)window.IPCOSMaster.studentAdded(captured);
+        else if(document.getElementById('add-nim').value.trim()===nim&&document.getElementById('add-nama').value.trim()===nama){document.getElementById('add-nim').value='';document.getElementById('add-nama').value='';}
+        masterFeedback('add','Mahasiswa berhasil ditambahkan.','Student added successfully.','success');
+        await syncDatabase();
+    }catch(error){if(current()&&!error.staleSession)masterFeedback('add','Mahasiswa belum ditambahkan. Isian Anda tetap tersedia.','Student could not be added. Your inputs have been retained.');}
+    finally{if(current()){masterMutationBusy=false;window.IPCOSMaster?.busy(false);hideLoader();}}
 }
 
 async function deleteStudent(nim) {
-    if (isOffline) { showToast("Tidak dapat menghapus saat offline.", "error"); return; }
-    if (!confirm(`${uxText('Hapus akses mahasiswa untuk NIM:', 'Remove student access for ID:')} ${nim}?`)) return;
-    showLoader();
-    try { await apiPostSuccess(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'manage_student', method: 'delete', nim: nim }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); showToast("Akses Mahasiswa berhasil dihapus!", "success"); syncDatabase(); } catch (e) { showToast("Gagal menghapus data", "error"); } finally { hideLoader(); }
+    if (currentUser.role !== 'admin' || !getSessionToken() || masterMutationBusy) return;
+    if (isOffline) { masterFeedback('delete','Tidak dapat menghapus akses saat offline.','Cannot remove access while offline.'); return; }
+    const target=String(nim ?? '').trim();
+    if(!target||readStoredJSON(sessionStorage,'ipcos_students',[]).filter(s=>String(s.NIM??s.nim??'').trim()===target).length!==1)return;
+    if (!confirm(`${uxText('Hapus akses mahasiswa untuk NIM:', 'Remove student access for ID:')} ${target}?`)) return;
+    masterMutationBusy=true;window.IPCOSMaster?.busy(true);showLoader();
+    const epoch=sessionEpoch,token=getSessionToken(),current=()=>epoch===sessionEpoch&&token===getSessionToken()&&currentUser.role==='admin';
+    try {
+        await apiPostSuccess(GAS_URL,{method:'POST',body:JSON.stringify({action:'manage_student',method:'delete',nim:target}),headers:{'Content-Type':'text/plain;charset=utf-8'}});
+        if(!current())return;masterFeedback('delete','Akses mahasiswa berhasil dihapus.','Student access removed.','success');await syncDatabase();
+    }catch(error){if(current()&&!error.staleSession)masterFeedback('delete','Akses belum dihapus. Coba kembali.','Access could not be removed. Please try again.');}
+    finally{if(current()){masterMutationBusy=false;window.IPCOSMaster?.busy(false);hideLoader();}}
 }
 
 function toggleCheckFromRow(event, id) {
@@ -3011,6 +3048,7 @@ function closeAnnouncementModal() {
 // FITUR BARU: MANAJEMEN PLOTTING DOSEN
 // ==========================================
 function renderDosenTable() {
+    if (window.IPCOSSupervisors) { window.IPCOSSupervisors.render(); return; }
     const tbody = document.getElementById('table-admin-dosen');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -3052,88 +3090,74 @@ function populateDospemDropdown() {
     const select = document.getElementById('input-dospem-select');
     if (!select) return;
 
-    const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
-    let html = '<option value="">-- Pilih Dosen Pembimbing --</option>';
-
-    dosens.sort((a, b) => a.Nama.localeCompare(b.Nama));
+    const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []), selected=select.value;
+    let html = `<option value="">${uxText('Pilih Dosen Pembimbing','Select a Supervisor')}</option>`;
+    const counts=new Map();dosens.forEach(d=>{const name=String(d.Nama || '').trim();counts.set(name,(counts.get(name)||0)+1);});
+    dosens.sort((a, b) => String(a.Nama || '').localeCompare(String(b.Nama || '')));
 
     dosens.forEach(d => {
-        const sisa = parseInt(d.Maksimal) - parseInt(d.Terpakai);
-        const disabled = sisa <= 0 ? 'disabled' : '';
-        const warn = sisa <= 0 ? '(PENUH)' : `(Sisa Kuota: ${sisa})`;
+        const used=Number(d.Terpakai),max=Number(d.Maksimal),name=String(d.Nama || '').trim();
+        const valid=name&&counts.get(name)===1&&String(d.Terpakai ?? '').trim()!==''&&String(d.Maksimal ?? '').trim()!==''&&Number.isSafeInteger(used)&&Number.isSafeInteger(max)&&used>=0&&max>0;
+        const sisa = max-used;
+        const disabled = !valid || sisa <= 0 ? 'disabled' : '';
+        const warn = !valid?uxText('(Data perlu dicek)','(Data needs review)'):sisa <= 0 ? uxText('(Penuh)','(Full)') : `(${uxText('Sisa kuota','Places left')}: ${sisa})`;
         html += `<option value="${escapeHtml(d.Nama)}" ${disabled}>${escapeHtml(d.Nama)} ${warn}</option>`;
     });
 
     select.innerHTML = html;
+    if([...select.options].some(option=>option.value===selected&&!option.disabled))select.value=selected;
 }
 
 function openEditDosen(nama, terpakai, maksimal) {
+    if(currentUser.role!=='admin'||!getSessionToken()||supervisorMutationBusy)return;
+    window.IPCOSSupervisors?.opened(nama);
     document.getElementById('hidden-dosen-nama').value = nama;
     document.getElementById('edit-dosen-name-display').innerText = nama;
     document.getElementById('edit-dosen-terpakai').value = terpakai;
     document.getElementById('edit-dosen-maksimal').value = maksimal;
 
     const modal = document.getElementById('modal-edit-dosen');
-    modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
+    clearTimeout(modalCloseTimers.get(modal.id));modalCloseTimers.delete(modal.id);
+    modal.style.display = 'flex';const epoch=sessionEpoch;setTimeout(() => { if(epoch===sessionEpoch&&modal.style.display==='flex')modal.style.opacity = '1'; }, 10);
 }
 
 function validQuota(used, max) { return String(used).trim() !== '' && String(max).trim() !== '' && Number.isInteger(Number(used)) && Number.isInteger(Number(max)) && Number(used) >= 0 && Number(max) > 0 && Number(used) <= Number(max); }
 
+let supervisorMutationBusy = false;
+function supervisorFeedback(kind,id,en,type='error'){window.IPCOSSupervisors?.feedback(kind,{id,en},type);showToast(uxText(id,en),type);}
+async function supervisorMutation(kind,payload,success){
+    if(currentUser.role!=='admin'||!getSessionToken()||supervisorMutationBusy)return;
+    supervisorMutationBusy=true;window.IPCOSSupervisors?.setBusy(kind,true);showLoader();
+    const epoch=sessionEpoch,token=getSessionToken(),current=()=>epoch===sessionEpoch&&token===getSessionToken()&&currentUser.role==='admin';
+    try{
+        await apiPostSuccess(GAS_URL,{method:'POST',body:JSON.stringify({action:'manage_dosen',...payload}),headers:{'Content-Type':'text/plain;charset=utf-8'}});
+        if(!current())return;success();await syncDatabase();
+    }catch(error){if(current()&&!error.staleSession)supervisorFeedback(kind,'Perubahan belum tersimpan. Isian Anda tetap tersedia.','Changes could not be saved. Your inputs have been retained.');}
+    finally{if(current()){supervisorMutationBusy=false;window.IPCOSSupervisors?.setBusy(kind,false);hideLoader();}}
+}
 async function saveDosenQuota() {
-    if (isOffline) { showToast("Sedang offline.", "error"); return; }
-
-    const nama = document.getElementById('hidden-dosen-nama').value;
-    const terpakai = document.getElementById('edit-dosen-terpakai').value;
-    const maksimal = document.getElementById('edit-dosen-maksimal').value;
-    if (!validQuota(terpakai, maksimal)) { showToast('Kuota harus bilangan bulat positif, dan beban terpakai tidak boleh negatif atau melebihi kuota.', 'error'); return; }
-
-    showLoader();
-    try {
-        await apiPostSuccess(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'manage_dosen', method: 'update', nama: nama, terpakai: terpakai, maksimal: maksimal }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        showToast("Kuota dosen diperbarui!", "success");
-        closeModal('modal-edit-dosen');
-        syncDatabase();
-    } catch (e) { showToast("Gagal menyimpan.", "error"); } finally { hideLoader(); }
+    if(currentUser.role!=='admin'||!getSessionToken()||supervisorMutationBusy)return;
+    if(isOffline){supervisorFeedback('edit','Tidak dapat menyimpan saat offline.','Cannot save while offline.');return;}
+    if(window.IPCOSSupervisors&&!window.IPCOSSupervisors.validateEdit())return;
+    const nama=document.getElementById('hidden-dosen-nama').value,terpakai=document.getElementById('edit-dosen-terpakai').value,maksimal=document.getElementById('edit-dosen-maksimal').value;
+    if(!nama||!validQuota(terpakai,maksimal)){supervisorFeedback('edit','Kuota harus bilangan bulat positif dan tidak kurang dari beban terpakai.','The quota must be a positive integer and cannot be below the current load.');return;}
+    return supervisorMutation('edit',{method:'update',nama,terpakai,maksimal},()=>{supervisorFeedback('edit','Kuota dosen diperbarui.','Supervisor quota updated.','success');closeModal('modal-edit-dosen',true);});
 }
-
 async function addDosenQuota() {
-    if (isOffline) { showToast("Sedang offline.", "error"); return; }
-
-    const nama = document.getElementById('add-dosen-nama').value.trim();
-    const max = document.getElementById('add-dosen-max').value;
-
-    if (!nama) { showToast("Nama tidak boleh kosong!", "error"); return; }
-    if (!validQuota(0, max)) { showToast('Kuota maksimal harus bilangan bulat positif.', 'error'); return; }
-
-    showLoader();
-    try {
-        await apiPostSuccess(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'manage_dosen', method: 'add', nama: nama, maksimal: max }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        showToast("Dosen ditambahkan!", "success");
-        document.getElementById('add-dosen-nama').value = '';
-        syncDatabase();
-    } catch (e) { showToast("Gagal.", "error"); } finally { hideLoader(); }
+    if(currentUser.role!=='admin'||!getSessionToken()||supervisorMutationBusy)return;
+    if(isOffline){supervisorFeedback('add','Tidak dapat menambah dosen saat offline.','Cannot add a supervisor while offline.');return;}
+    if(window.IPCOSSupervisors&&!window.IPCOSSupervisors.validateAdd())return;
+    const nama=document.getElementById('add-dosen-nama').value.trim(),maksimal=document.getElementById('add-dosen-max').value;
+    if(!nama||!validQuota(0,maksimal)){supervisorFeedback('add','Isi nama dan kuota maksimal berupa bilangan bulat positif.','Enter a name and a positive integer for the maximum quota.');return;}
+    return supervisorMutation('add',{method:'add',nama,maksimal},()=>{if(document.getElementById('add-dosen-nama').value.trim()===nama&&document.getElementById('add-dosen-max').value===maksimal)document.getElementById('add-dosen-nama').value='';supervisorFeedback('add','Dosen berhasil ditambahkan.','Supervisor added successfully.','success');});
 }
-
 async function deleteDosen(nama) {
-    if (!confirm(`Hapus dosen ${nama}?`)) return;
-    showLoader();
-    try {
-        await apiPostSuccess(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'manage_dosen', method: 'delete', nama: nama }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        showToast("Dosen dihapus!", "success");
-        syncDatabase();
-    } catch (e) { showToast("Gagal.", "error"); } finally { hideLoader(); }
+    if(currentUser.role!=='admin'||!getSessionToken()||supervisorMutationBusy)return;
+    if(isOffline){supervisorFeedback('delete','Tidak dapat menghapus saat offline.','Cannot remove a supervisor while offline.');return;}
+    const target=String(nama || '').trim(),matches=readStoredJSON(sessionStorage,'ipcos_dosens',[]).filter(d=>String(d.Nama || '').trim()===target);
+    if(!target||matches.length!==1)return;
+    if(!confirm(`${uxText('Hapus dari daftar kuota:', 'Remove from the quota list:')} ${target}?`))return;
+    return supervisorMutation('delete',{method:'delete',nama:String(matches[0].Nama)},()=>{supervisorFeedback('delete','Dosen dihapus dari daftar kuota.','Supervisor removed from the quota list.','success');closeModal('modal-edit-dosen',true);});
 }
 // Menutup sidebar di mobile saat user klik di luar area sidebar
 document.addEventListener('click', function(event) {
