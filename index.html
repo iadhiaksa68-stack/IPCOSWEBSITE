@@ -47,6 +47,9 @@
     <link rel="stylesheet" href="notifications-ui.css">
     <link rel="stylesheet" href="supervisor-ui.css">
     <link rel="stylesheet" href="master-ui.css">
+    <link rel="stylesheet" href="calendar-ui.css">
+    <link rel="stylesheet" href="references-ui.css">
+    <link rel="stylesheet" href="global-search.css">
 </head>
 
 <body class="transaction-view">
@@ -71,8 +74,8 @@
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
                     <input type="search" id="global-search-input"
-                        aria-label="Cari menu, formulir, atau panduan" aria-controls="global-search-results"
-                        placeholder="Cari menu, form, atau panduan (Ketik di sini)..."
+                        aria-label="Cari menu, pengajuan, atau panduan" aria-controls="global-search-results"
+                        placeholder="Cari menu, pengajuan, atau panduan…"
                         style="border: none; box-shadow: none; margin-bottom: 0; font-size: 15px; background: transparent; width: 100%; margin-left: 8px; outline: none;"
                         autocomplete="off">
                 </div>
@@ -932,24 +935,11 @@
 
         <!-- 2. Kalender Akademik dengan Reminder -->
         <div id="kalender" class="tab-content">
-            <h1>Kalender Yudisium & Wisuda</h1>
-            <div class="card bento-card-dark"
-                style="width: 100%; padding: 24px 20px; margin-bottom: 24px; text-align: center;">
-                <div style="font-size: 12px; font-weight: 700; color: var(--umy-gold); text-transform: uppercase;">
-                    Countdown Batas Yudisium Terdekat</div>
-                <div id="countdown-period-label" class="countdown-period-label" style="font-size: 14px; font-weight: 600; color: #ffffff; opacity: 0.9; margin-top: 5px;">Periode
-                    II - Batas: 19 Oktober 2026</div>
-                <div class="countdown-timer-display bento-timer-text"
-                    style="font-size: 28px; font-weight: 800; margin-top: 8px;">Memuat...</div>
-                <button class="btn-primary"
-                    style="background: var(--umy-green); width: fit-content; margin: 15px auto 0; font-size: 13px;"
-                    data-next-yudisium-reminder onclick="downloadNearestYudisiumReminder()">🔔 Pasang Reminder di HP</button>
-            </div>
-            <button class="btn-primary admin-only" onclick="openContentEditor('kalender')"
-                style="margin-bottom: 20px; width: auto;">Edit Kalender TA</button>
-            <div class="student-only" style="width: 100%; flex-direction: column;">
-                <div id="kalender-content-container" class="calendar-grid"></div>
-            </div>
+            <header class="agenda-heading"><div><h1 id="calendar-title">Kalender &amp; Agenda Akademik</h1><p id="calendar-intro"></p></div><button type="button" id="calendar-edit" class="btn-secondary admin-only" onclick="openContentEditor('kalender')">Edit Kalender</button></header>
+            <section class="agenda-highlight" aria-labelledby="calendar-nearest-title"><div class="agenda-highlight-heading"><h2 id="calendar-nearest-title">Tenggat Terdekat</h2><p id="calendar-nearest-help"></p></div><div id="calendar-nearest"></div></section>
+            <div class="agenda-toolbar"><div><label id="calendar-search-label" for="calendar-search">Cari Jadwal</label><input id="calendar-search" type="search" autocomplete="off"></div><div><label id="calendar-period-label" for="calendar-period">Periode</label><select id="calendar-period" data-preserve-case><option value="all">Semua Periode</option></select></div><button id="calendar-reset" type="button" class="btn-secondary" hidden>Reset Filter</button></div>
+            <div class="agenda-alarm"><div><label id="calendar-alarm-label" for="calendar-alarm-days">Pengingat Kalender</label><select id="calendar-alarm-days"><option value="0">Simpan tanpa pengingat</option><option value="1" selected>1 hari sebelumnya</option><option value="3">3 hari sebelumnya</option><option value="7">7 hari sebelumnya</option></select></div><p id="calendar-alarm-help"></p></div>
+            <p id="calendar-result-count" role="status" aria-live="polite"></p><div id="kalender-content-container" class="calendar-grid"><div id="calendar-current-list"></div><details id="calendar-past" hidden><summary id="calendar-past-title"></summary><div id="calendar-past-list"></div></details></div><section id="calendar-empty" class="agenda-empty" hidden></section>
         </div>
 
         <!-- 8. Template Download & FAQ -->
@@ -1020,6 +1010,9 @@
     <script src="notifications-ui.js" defer></script>
     <script src="supervisor-ui.js" defer></script>
     <script src="master-ui.js" defer></script>
+    <script src="calendar-ui.js" defer></script>
+    <script src="references-ui.js" defer></script>
+    <script src="global-search.js" defer></script>
 </body>
 
 </html>

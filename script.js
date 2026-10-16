@@ -193,6 +193,7 @@ document.addEventListener('keydown', function (event) {
 });
 
 function openGlobalSearch() {
+    if (typeof window !== 'undefined' && window.IPCOSSearch) return window.IPCOSSearch.open();
     if (!getSessionToken() || !['mhs','admin'].includes(currentUser.role)) return;
     const modal = document.getElementById('modal-global-search');
     clearTimeout(modalCloseTimers.get(modal.id));
@@ -212,6 +213,7 @@ document.getElementById('global-search-input')?.addEventListener('input', functi
 });
 
 function renderSearchResults(query) {
+    if (typeof window !== 'undefined' && window.IPCOSSearch) return window.IPCOSSearch.render(query);
     const container = document.getElementById('global-search-results');
     if (!container) return;
 
@@ -393,6 +395,9 @@ function clearPrivateCache() {
     window.IPCOSNotifications?.reset();
     window.IPCOSSupervisors?.reset();
     window.IPCOSMaster?.reset();
+    window.IPCOSCalendar?.reset();
+    window.IPCOSReferences?.reset();
+    window.IPCOSSearch?.reset();
     masterMutationBusy = false; supervisorMutationBusy = false;
     window.IPCOSPolish?.reset();
     activeReceipt = null; latestBackup = null;
@@ -747,6 +752,7 @@ function logoutUser() {
 // ==========================================
 function renderNotifications() {
     renderTaskHome();
+    window.IPCOSSearch?.refresh();
     if (window.IPCOSNotifications) { window.IPCOSNotifications.render(); return; }
     const listContainer = document.getElementById('notif-list-container');
     const badgeEl = document.getElementById('notif-badge');
@@ -1668,12 +1674,21 @@ function goToSubmittedCase() {
 // 7. GENERATOR GOOGLE CALENDAR (.ics)
 // ==========================================
 function academicCalendarDate(value) {
-    const text = String(value).trim();
-    const months = {jan:0,feb:1,mar:2,apr:3,mei:4,may:4,jun:5,jul:6,agu:7,ags:7,aug:7,sep:8,okt:9,oct:9,nov:10,des:11,dec:11};
-    const localized = text.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
-    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
+    const text = String(value ?? '').trim();
+    const months = {jan:0,januari:0,january:0,feb:1,februari:1,february:1,mar:2,maret:2,march:2,apr:3,april:3,mei:4,may:4,jun:5,juni:5,june:5,jul:6,juli:6,july:6,agu:7,ags:7,agt:7,agustus:7,aug:7,august:7,sep:8,sept:8,september:8,okt:9,oktober:9,oct:9,october:9,nov:10,november:10,des:11,desember:11,dec:11,december:11};
+    const localized = text.match(/^(\d{1,2})\s+([A-Za-z]+)\.?\s+(\d{4})$/);
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const timestamp=text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})$/i);
     let year,month,day;
-    if (localized) { day=Number(localized[1]);month=months[localized[2].slice(0,3).toLowerCase()];year=Number(localized[3]); }
+    if(timestamp){
+        const [y,m,d,h,min,sec]=timestamp.slice(1,7).map(Number),offset=timestamp[7];
+        const civil=new Date(Date.UTC(y,m-1,d));
+        if(civil.getUTCFullYear()!==y||civil.getUTCMonth()!==m-1||civil.getUTCDate()!==d||h>23||min>59||(timestamp[6]&&sec>59)||(/^[-+]/.test(offset)&&(Number(offset.slice(1,3))>23||Number(offset.slice(4))>59)))return null;
+        const instant=new Date(text);if(!Number.isFinite(instant.getTime()))return null;
+        const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(instant);
+        const part=type=>Number(parts.find(item=>item.type===type)?.value);year=part('year');month=part('month')-1;day=part('day');
+    }
+    else if (localized) { day=Number(localized[1]);month=months[localized[2].toLowerCase()];year=Number(localized[3]); }
     else if (iso) { year=Number(iso[1]);month=Number(iso[2])-1;day=Number(iso[3]); }
     else return null;
     if (month === undefined || year < 1900 || year > 2200) return null;
@@ -1684,20 +1699,26 @@ function downloadICS(title, dateStr, options = {}) {
     const date = academicCalendarDate(dateStr);
     if (!date) { showToast(uxText('Format tanggal tidak valid untuk diekspor', 'Invalid date format for export'), 'error'); return; }
     const compact = date => date.toISOString().slice(0,10).replaceAll('-','');
+    const instant = date => date.toISOString().replace(/-|:|\.\d+/g,'').slice(0,15)+'Z';
     const nextDay = new Date(date.getTime()+86400000);
+    const alarmDays=Number(options.alarmDays ?? 1);
+    if(!Number.isInteger(alarmDays)||alarmDays<0||alarmDays>365){showToast(uxText('Pilihan pengingat tidak valid.','Invalid reminder choice.'),'error');return;}
+    const alarmTime=date.getTime()+2*3600000-alarmDays*86400000;
+    const alarmAvailable=options.service?alarmDays>0:alarmDays>0&&alarmTime>Date.now();
     const escapeCalendar = value => String(value).replaceAll('\\','\\\\').replace(/\r?\n/g,'\\n').replaceAll(';','\\;').replaceAll(',','\\,');
+    let identifier=2166136261;for(const char of String(options.uid || JSON.stringify([!!options.service,title,compact(date)]))){identifier^=char.charCodeAt(0);identifier=Math.imul(identifier,16777619);}
     const event = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//IPCOS UMY//Academic Calendar//EN','BEGIN:VEVENT',
-        'UID:'+Date.now()+'@ipcos.umy.ac.id',
-        'DTSTAMP:'+new Date().toISOString().replace(/-|:|\.\d+/g,'').slice(0,15)+'Z',
+        'UID:'+(identifier>>>0).toString(16)+'-'+compact(date)+'@ipcos.umy.ac.id',
+        'DTSTAMP:'+instant(new Date()),
         ...(options.service ? ['DTSTART:'+compact(date)+'T165900Z','DTEND:'+compact(date)+'T170000Z'] : ['DTSTART;VALUE=DATE:'+compact(date),'DTEND;VALUE=DATE:'+compact(nextDay)]),
         'SUMMARY:'+escapeCalendar(options.service ? uxText('Batas Pengajuan - ', 'Submission deadline - ')+systemText(title) : uxText('Batas Pendaftaran Yudisium - ', 'Graduation clearance deadline - ')+contentText(title)),
-        'DESCRIPTION:'+escapeCalendar(options.service ? uxText('Batas pengajuan layanan IPCOS UMY adalah pukul 23:59 WIB (UTC+7). Jadwal mengikuti pengaturan saat pengingat dibuat.','IPCOS UMY submission deadline is 23:59 WIB (UTC+7). The reminder follows the schedule at creation time.') : uxText('Pengingat batas pendaftaran Yudisium IPCOS UMY. Pastikan seluruh berkas dikumpulkan sesuai ketentuan program studi.', 'IPCOS UMY graduation clearance reminder. Submit the required documents according to study program rules.')),
-        ...(options.service ? ['BEGIN:VALARM','ACTION:DISPLAY','TRIGGER:-P'+options.alarmDays+'D','DESCRIPTION:'+escapeCalendar(uxText('Batas Pengajuan IPCOS · 23:59 WIB (UTC+7)','IPCOS Submission Deadline · 23:59 WIB (UTC+7)')),'END:VALARM'] : []),
+        'DESCRIPTION:'+escapeCalendar(options.service ? uxText('Batas pengajuan layanan IPCOS UMY adalah pukul 23:59 WIB (UTC+7). Jadwal mengikuti pengaturan saat pengingat dibuat.','IPCOS UMY submission deadline is 23:59 WIB (UTC+7). The reminder follows the schedule at creation time.') : uxText('Batas pendaftaran Yudisium IPCOS UMY. Impor berkas ini ke aplikasi kalender Anda. Pengingat yang tersedia dijadwalkan pukul 09.00 WIB (UTC+7) sebelum batas tanggal. Jadwal mengikuti informasi portal saat berkas dibuat.', 'IPCOS UMY graduation clearance deadline. Import this file into your calendar app. Available reminders are scheduled at 09:00 WIB (UTC+7) before the deadline date. The schedule reflects portal information at export time.')),
+        ...(alarmAvailable ? ['BEGIN:VALARM','ACTION:DISPLAY',options.service?'TRIGGER:-P'+alarmDays+'D':'TRIGGER;VALUE=DATE-TIME:'+instant(new Date(alarmTime)),'DESCRIPTION:'+escapeCalendar(options.service?uxText('Batas Pengajuan IPCOS · 23:59 WIB (UTC+7)','IPCOS Submission Deadline · 23:59 WIB (UTC+7)'):uxText('Pengingat Batas Yudisium IPCOS','IPCOS Graduation Clearance Reminder')),'END:VALARM'] : []),
         'END:VEVENT','END:VCALENDAR',''].map(line=>{let folded='',count=0;for(const char of line){const size=new TextEncoder().encode(char).length;if(count+size>73){folded+='\r\n ';count=1;}folded+=char;count+=size;}return folded;}).join('\r\n');
     const url = URL.createObjectURL(new Blob([event],{type:'text/calendar;charset=utf-8'}));
     const link = document.createElement('a');link.href=url;link.download='IPCOS-calendar-'+compact(date)+'.ics';
     document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
-    showToast(uxText('Berkas Kalender berhasil diunduh!', 'Calendar file downloaded!'),'success');
+    showToast(!options.service&&alarmDays>0&&!alarmAvailable?uxText('Kalender diunduh. Waktu pengingat yang dipilih sudah lewat.','Calendar downloaded. The selected reminder time has already passed.'):uxText('Berkas Kalender berhasil diunduh! Impor ke aplikasi kalender Anda.', 'Calendar file downloaded! Import it into your calendar app.'),'success');
 }
 
 // ==========================================
@@ -1760,7 +1781,7 @@ function getChecklistData(type) {
 }
 
 function renderDynamicContent() {
-    const types = ['magang', 'skripsi', 'kurikulum', 'remidial', 'kalender'];
+    const types = ['magang', 'skripsi'];
 
     types.forEach(type => {
         const containerId = (type === 'magang' || type === 'skripsi') ? `${type}-checklist-container` : `${type}-content-container`;
@@ -1841,6 +1862,9 @@ function renderDynamicContent() {
     });
 
     window.IPCOSResources?.render();
+    window.IPCOSCalendar?.render();
+    window.IPCOSReferences?.render();
+    window.IPCOSSearch?.refresh();
 
     if (currentUser && currentUser.role === 'mhs') {
         loadProgressData();
@@ -2471,6 +2495,7 @@ function nearestYudisiumDeadline(now = Date.now()) {
     return upcoming.sort((a,b) => a.deadline-b.deadline)[0] || null;
 }
 function renderYudisiumCountdown() {
+    if(typeof window !== 'undefined')window.IPCOSCalendar?.tick();
     const now = Date.now(), next = nearestYudisiumDeadline(now);
     const distance = next ? next.deadline - now : 0;
     const days = Math.floor(distance / 86400000);

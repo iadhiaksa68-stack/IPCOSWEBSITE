@@ -134,10 +134,18 @@
         replacePanel('template_berkas-content-container',templateHtml);replacePanel('faq-content-container',faqHtml);
     }
     function clearFilters(){query='';category='all';el('resource-search').value='';render();el('resource-search').focus({preventScroll:true});}
+    function entries(){return prepareOwner()?['template_berkas','faq'].flatMap(type=>content(type).entries.map(entry=>({...entry,type}))):[];}
+    function reveal(type,key){
+        if(!prepareOwner()||!['template_berkas','faq'].includes(type)||!content(type).entries.some(entry=>entry.key===key))return null;
+        query='';category='all';el('resource-search').value='';if(type==='faq')faqOpen.set(key,true);render();
+        if(type==='faq'){const details=document.getElementById(`resource-${key}`);if(details)details.open=true;faqOpen.set(key,true);return document.getElementById(`resource-${key}-summary`);}
+        const row=[...el('template_berkas-content-container').querySelectorAll('[data-resource-template]')].find(node=>node.dataset.resourceTemplate===key);
+        return row?.querySelector('a[data-resource-open]')||row?.querySelector('h3')||null;
+    }
     document.addEventListener('input',event=>{if(event.target.id==='resource-search'&&authenticated()){query=event.target.value;render();}});
     document.addEventListener('change',event=>{if(event.target.id==='resource-category'&&authenticated()){category=event.target.value;render();}if(event.target.id==='reg-jenis-utama'&&requestContext&&event.target.value!==requestContext.service)clearContext();});
     document.addEventListener('click',event=>{if(event.target.closest('#resource-reset')&&authenticated())clearFilters();});
     document.addEventListener('toggle',event=>{if(event.target.matches?.('#faq-content-container [data-resource-faq]'))faqOpen.set(event.target.dataset.resourceFaq,event.target.open);},true);
-    window.IPCOSResources=Object.freeze({render,reset,context,clearContext});
+    window.IPCOSResources=Object.freeze({render,reset,context,clearContext,entries,reveal});
     render();
 })();

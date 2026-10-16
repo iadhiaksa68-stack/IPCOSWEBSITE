@@ -402,5 +402,7 @@
         else if (button.dataset.sopAction === 'download') download(type,button.dataset.fileId,button);
     });
     window.addEventListener('beforeunload',event=> { if (editor && (editor.dirty || editor.busy || editor.filesBusy)) { event.preventDefault(); event.returnValue = ''; } });
-    window.IPCOSSop = {open,edit,save,cancel,reset,receive,languageChanged,beforeNavigate:tab => !editor || tab === pageId(editor.draft.type) || cancel()};
+    const snapshot=()=>getSessionToken()&&['mhs','admin'].includes(currentUser.role)?[...documents.values()].map(doc=>({type:doc.type,title:doc.title,titleEn:doc.titleEn,intro:doc.intro,introEn:doc.introEn,sections:doc.sections.map(section=>({id:section.id,title:section.title,titleEn:section.titleEn,body:section.body,bodyEn:section.bodyEn,links:(section.links||[]).map(link=>({label:link.label,labelEn:link.labelEn})),files:(section.files||[]).map(file=>({fileName:file.fileName}))}))})):[];
+    function reveal(type,id){if(!getSessionToken()||!types.includes(type)||!documents.has(type))return null;render(type);return id?document.getElementById(`sop-${type}-${id}`)?.querySelector('h2')||null:document.querySelector(`#${type}-view h1`);}
+    window.IPCOSSop = {open,edit,save,cancel,reset,receive,languageChanged,snapshot,reveal,beforeNavigate:tab => !editor || tab === pageId(editor.draft.type) || cancel()};
 })();

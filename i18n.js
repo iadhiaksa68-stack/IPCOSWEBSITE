@@ -31,6 +31,8 @@ const interfaceEnglish = {
     'Ringkasan & layanan akademik':'Academic overview & services',
     'Detail Pengajuan':'Request details', 'Tutup':'Close', 'Batal':'Cancel',
     'Cari menu, formulir, atau panduan':'Search menus, forms, or guides',
+    'Cari menu, pengajuan, atau panduan':'Search pages, requests, or guides',
+    'Cari menu, pengajuan, atau panduan…':'Search pages, requests, or guides…',
     'Tutup pencarian':'Close search', 'Pratinjau dokumen':'Document preview',
     'Hubungi Mincos lewat WhatsApp':'Contact Mincos on WhatsApp',
     'Pengajuan berhasil dikirim':'Request submitted successfully',

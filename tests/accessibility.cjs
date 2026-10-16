@@ -42,7 +42,7 @@ async function boundary(page,selector) {
     await searchTrigger.click(); await page.waitForSelector('#modal-global-search',{state:'visible'});
     await focused(page,'#global-search-input');
     assert.equal(await page.locator('#modal-global-search').getAttribute('role'),'dialog');
-    assert.equal(await page.locator('#global-search-input').getAttribute('aria-label'),'Cari menu, formulir, atau panduan');
+    assert.equal(await page.locator('#global-search-input').getAttribute('aria-label'),'Cari menu, pengajuan, atau panduan');
     await page.fill('#global-search-input','sop');
     assert(await page.locator('#global-search-results button.search-result').count() > 0);
     await boundary(page,'#modal-global-search');
@@ -55,12 +55,13 @@ async function boundary(page,selector) {
     await page.evaluate(() => {switchTab(null,'admin-dosen');document.getElementById('add-dosen-nama').focus();openEditDosen('Dosen Uji',0,5);});
     await page.waitForSelector('#modal-edit-dosen',{state:'visible'}); await page.fill('#edit-dosen-terpakai','2');
     assert.equal(await page.locator('label[for="edit-dosen-terpakai"]').count(),1); await boundary(page,'#modal-edit-dosen');
-    await page.keyboard.press('Control+k'); await page.waitForSelector('#modal-global-search',{state:'visible'});
-    await boundary(page,'#modal-global-search'); await page.keyboard.press('Escape'); await page.waitForSelector('#modal-global-search',{state:'hidden'});
+    await page.keyboard.press('Control+k');
+    assert(await page.locator('#modal-global-search').isHidden(),'Search asks users to close the active editor before navigating');
+    assert((await page.locator('body').textContent()).includes('Tutup dialog ini sebelum mencari halaman lain.'));
     assert(await page.locator('#modal-edit-dosen').isVisible()); assert.equal(await page.inputValue('#edit-dosen-terpakai'),'2');
     assert(await page.locator('#modal-edit-dosen').evaluate(node => node.contains(document.activeElement)));
     await page.keyboard.press('Escape'); await page.waitForSelector('#modal-edit-dosen',{state:'hidden'}); await focused(page,'#add-dosen-nama');
-    console.log('PASS Nested modal Escape closes only the top layer and preserves quota drafts and original focus');
+    console.log('PASS Search shortcuts retain the active quota editor and draft; Escape restores the original focus');
 
     await page.evaluate(() => {openEditDosen('Dosen Uji',0,5);document.querySelector('#modal-edit-dosen .modal-card').classList.add('document-expanded');document.getElementById('modal-doc-preview').showModal();});
     await page.waitForSelector('#modal-doc-preview',{state:'visible'}); await boundary(page,'#modal-doc-preview');
@@ -82,7 +83,7 @@ async function boundary(page,selector) {
     console.log('PASS Closing a review after queue DOM replacement restores the request button or the current queue search when the request leaves the filter');
 
     await page.evaluate(() => toggleLanguage()); await searchTrigger.click();
-    assert.equal(await page.locator('#global-search-input').getAttribute('aria-label'),'Search menus, forms, or guides');
+    assert.equal(await page.locator('#global-search-input').getAttribute('aria-label'),'Search pages, requests, or guides');
     assert.equal(await page.locator('.modal-icon-close').first().getAttribute('aria-label'),'Close search');
     await page.keyboard.press('Escape'); await page.waitForSelector('#modal-global-search',{state:'hidden'});
     await page.locator('.notification-toggle').click(); assert.equal(await page.locator('.notification-toggle').getAttribute('aria-expanded'),'true');

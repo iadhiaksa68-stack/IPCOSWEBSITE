@@ -66,6 +66,25 @@
         ["sop_magang", "sop_tugas_akhir"].includes(item.Tipe),
       );
     },
+    snapshot() {
+      if (!getSessionToken() || !['mhs','admin'].includes(currentUser.role)) return [];
+      const docs=new Map(),strings=(value,keys)=>value&&keys.every(key=>typeof value[key]==='string');
+      for(const item of sopContents){
+        try{
+          const doc=JSON.parse(item.DataJSON),ids=new Set();
+          if(!doc||doc.schema!==1||doc.type!==item.Tipe||!Number.isInteger(doc.revision)||doc.revision<0||!strings(doc,['title','titleEn','intro','introEn'])||!Array.isArray(doc.sections)||doc.sections.length>20)continue;
+          let invalidSection=false;
+          for(const section of doc.sections){
+            if(!strings(section,['id','title','titleEn','body','bodyEn'])||!/^[-A-Za-z0-9_]{1,120}$/.test(section.id)||ids.has(section.id)||!Array.isArray(section.links)||!Array.isArray(section.files)){invalidSection=true;break;}
+            ids.add(section.id);
+          }
+          if(invalidSection)continue;
+          const value={type:doc.type,title:doc.title,titleEn:doc.titleEn,intro:doc.intro,introEn:doc.introEn,sections:doc.sections.map(section=>({id:section.id,title:section.title,titleEn:section.titleEn,body:section.body,bodyEn:section.bodyEn,links:section.links.filter(link=>strings(link,['label','labelEn'])).map(link=>({label:link.label,labelEn:link.labelEn})),files:section.files.filter(file=>typeof file?.fileName==='string').map(file=>({fileName:file.fileName}))}))};
+          if(!docs.has(doc.type)||docs.get(doc.type).revision<doc.revision)docs.set(doc.type,{revision:doc.revision,value});
+        }catch(_){/* Malformed unpublished/legacy structures are not search results. */}
+      }
+      return [...docs.values()].map(entry=>entry.value);
+    },
     reset() {
       generation++;
       sopContents = [];

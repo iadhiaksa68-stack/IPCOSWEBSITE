@@ -106,3 +106,23 @@ test('A failed module attempt cannot display an error in a replacement session',
     assert.equal(f.scripts[0].removed,true);
     assert.equal(f.timers.size,0);
 });
+
+test('Published SOP search snapshot exposes only safe text without loading an editor and resets with the session', () => {
+    const f=fixture(), placeholder=f.ctx.window.IPCOSSop;
+    const doc={schema:1,type:'sop_magang',revision:1,title:'Published SOP',titleEn:'Published SOP',intro:'Introduction',introEn:'Introduction',sections:[{id:'requirements',title:'Requirements',titleEn:'Requirements',body:'Authored body',bodyEn:'Authored body',links:[{label:'Guide',labelEn:'Guide',url:'https://example.test/private-url'}],files:[{fileName:'guide.pdf',fileId:'private-file-id',mimeType:'application/pdf'}]}]};
+    const rows=[{Tipe:doc.type,DataJSON:JSON.stringify(doc)},{Tipe:'sop_tugas_akhir',DataJSON:'not valid JSON'}];
+    placeholder.receive(rows);
+    const snapshot=JSON.parse(JSON.stringify(placeholder.snapshot()));
+    assert.equal(snapshot.length,1);
+    assert.equal(snapshot[0].sections[0].body,'Authored body');
+    assert.deepEqual(snapshot[0].sections[0].links,[{label:'Guide',labelEn:'Guide'}]);
+    assert.deepEqual(snapshot[0].sections[0].files,[{fileName:'guide.pdf'}]);
+    assert.equal(f.scripts.length,0,'Searching published text does not download the editor');
+    snapshot[0].sections[0].title='Changed outside';
+    assert.equal(placeholder.snapshot()[0].sections[0].title,'Requirements','The published buffer cannot be mutated by consumers');
+    f.ctx.token='';assert.equal(placeholder.snapshot().length,0);
+    f.ctx.token='new-session';placeholder.reset();assert.equal(placeholder.snapshot().length,0);
+    const duplicate=structuredClone(doc);duplicate.sections.push(structuredClone(duplicate.sections[0]));
+    placeholder.receive([{Tipe:duplicate.type,DataJSON:JSON.stringify(duplicate)}]);
+    assert.equal(placeholder.snapshot().length,0,'Invalid section identities are not offered as navigation targets');
+});
