@@ -1,6 +1,52 @@
 const {chromium}=require('./browser.cjs'),assert=require('node:assert/strict');
 const {pdf,zip}=require('./fixtures.cjs');
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const origin=process.env.IPCOS_TEST_BASE_URL||'http://127.0.0.1:8766';
+async function verifyCloudAcknowledgements(){
+    const source=fs.readFileSync(path.join(__dirname,'../journey.js'),'utf8');
+    function fixture(){
+        const local=new Map(),session=new Map(),timers=new Map(),calls=[],nodes=new Map([['academic-journey-content',{textContent:''}]]);let nextTimer=0,renders=0,reads=0,resets=0;
+        const storage=map=>({getItem:key=>map.get(key)||null,setItem:(key,value)=>map.set(key,value),removeItem:key=>map.delete(key)});
+        const context=vm.createContext({currentUser:{role:'mhs',nim:'A'},sessionEpoch:1,isOffline:false,GAS_URL:'fixture',
+            localStorage:storage(local),sessionStorage:storage(session),document:{getElementById:id=>nodes.get(id)||null},
+            window:{IPCOSPreparation:{reset:()=>resets++}},uxText:value=>value,
+            readStoredJSON:(store,key,fallback)=>{try{return JSON.parse(store.getItem(key))||fallback;}catch(_){return fallback;}},
+            getChecklistData:type=>[{items:(type==='magang'?['m1','m2']:['s1']).map(id=>({id}))}],
+            setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer;},clearTimeout:id=>timers.delete(id),
+            renderAcademicJourney:()=>renders++,renderAcademicStages:()=>renders++,loadProgressData:()=>renders++,updateProgress:()=>{},
+            syncDatabase:async()=>{reads++;},apiPostSuccess:async(url,options)=>{const data=JSON.parse(options.body);calls.push(data);return context.response(data);}});
+        vm.runInContext(source.slice(source.indexOf('let journeyCloud ='),source.indexOf('function journeyRecords('))+';globalThis.probe={state:()=>journeyCloud,preparation:journeyPreparationState,apply:applyJourneySnapshot,change:recordPreparationChange,save:saveJourneyProgress,reset:resetAcademicJourney,text:journeySyncText};',context);
+        context.response=()=>{throw Error('An acknowledgement fixture was not provided');};
+        return{context,api:context.probe,local,session,timers,calls,nodes,renderCount:()=>renders,readCount:()=>reads,resetCount:()=>resets};
+    }
+    const saved=(checks={},revision=1,exists=true)=>({exists,checks,revision,updatedAt:'2026-10-17T01:00:00Z'});
+    const initial=fixture();initial.local.set('progress_A',JSON.stringify({m1:true}));initial.api.apply({journeySupported:true,journeyUnavailable:true});
+    assert.equal(initial.api.state().supported,true);assert.equal(initial.api.state().available,false);assert.equal(initial.api.state().unavailable,true);assert.equal(initial.api.state().error,true);assert.match(initial.api.text(),/cloud belum dapat dimuat/);
+    const blocked={id:'m1',checked:true};initial.api.change(blocked);assert.equal(blocked.checked,false);assert.equal(Object.keys(initial.api.state().pending).length,0);assert(initial.local.has('progress_A'));
+    await initial.api.save();assert.equal(initial.readCount(),1);assert.equal(initial.calls.length,0,'Retry an unavailable snapshot reads before attempting to write');
+    initial.api.apply({journeySupported:true,journey:saved({m2:true})});assert.equal(initial.api.state().available,true);assert.equal(initial.api.state().unavailable,false);assert.equal(initial.api.state().error,false);assert.equal(initial.api.state().checks.m2,true);assert.equal(Object.keys(initial.api.state().pending).length,0,'A recovered existing cloud record wins over stale device preparation');
+    initial.api.apply({journeySupported:true,journey:saved({m2:'true'},2)});assert.equal(initial.api.state().unavailable,true);assert.equal(initial.api.state().checks.m2,true,'An invalid read retains the last confirmed state without enabling edits');
+    assert(initial.renderCount()>=4,'Every unavailable/recovery transition refreshes visible preparation state');
+    console.log('PASS Unavailable or malformed cloud reads stay distinct from device storage, block fallback edits and recover through a read retry');
+
+    const migration=fixture(),futureActionId='prep-magang-preparation-magang-id-m1-sop';migration.nodes.set('m1',{tagName:'INPUT',type:'checkbox',matches:()=>true});migration.nodes.set('prep-magang-search',{tagName:'INPUT',type:'search',matches:()=>false});migration.local.set('progress_A',JSON.stringify({m1:true,duplicate:true,invalid:true,'prep-magang-search':true,[futureActionId]:true}));migration.api.apply({journeySupported:true,journey:saved({},0,false),contents:[{Tipe:'magang',DataJSON:JSON.stringify([{items:[{id:futureActionId},{id:'m1'},{id:'duplicate'},{id:'inva!lid'},{id:'prep-magang-search'}]}])},{Tipe:'skripsi',DataJSON:JSON.stringify([{items:[{id:'duplicate'}]}])}]});
+    assert.deepEqual(JSON.parse(JSON.stringify(Object.keys(migration.api.state().pending))),['m1'],'Migration only writes canonical IDs that are unique across both preparation lists');
+    console.log('PASS Legacy migration excludes duplicate, invalid and reserved DOM IDs while keeping actual canonical checkbox IDs');
+
+    const localFailure=fixture();localFailure.local.set('progress_A',JSON.stringify({m2:true}));localFailure.api.state().localChecks={m1:true};localFailure.api.state().localError=true;assert.equal(localFailure.api.preparation().m1,true);assert.equal(localFailure.api.preparation().m2,undefined);assert.match(localFailure.api.text(),/belum tersimpan di perangkat/);let localRetries=0;localFailure.context.updateProgress=()=>{localRetries++;localFailure.api.state().localError=false;};await localFailure.api.save();assert.equal(localRetries,1);assert.equal(localFailure.calls.length,0,'A device-storage retry does not create a cloud mutation');localFailure.api.reset();assert.equal(localFailure.api.state().localChecks,undefined);assert.equal(localFailure.api.state().localError,undefined);
+    console.log('PASS Failed device storage retains in-tab choices, reports the unsaved state and retries local persistence without a backend write');
+
+    const malformed=[{exists:true,revision:5},{...saved({},5)},{...saved({m1:true},5)},{...saved({m1:false},4)},{...saved({m1:false},5,false)},{...saved({m1:false,other:'yes'},5)}];
+    for(const acknowledgement of malformed){const test=fixture();test.api.apply({journeySupported:true,journey:saved({m1:true},4)});test.api.change({id:'m1',checked:false});test.local.set('progress_A','keep until confirmed');test.context.response=()=>({journey:acknowledgement});await test.api.save();assert.equal(test.api.state().pending.m1.value,false);assert.equal(test.api.state().checks.m1,true);assert.equal(test.api.state().error,true);assert.equal(test.api.state().saving,false);assert.equal(test.api.state().unavailable,false);assert(test.local.has('progress_A'));assert.equal(test.timers.size,0,'An already queued autosave cannot silently retry an invalid acknowledgement');}
+    console.log('PASS Missing, mismatched and stale acknowledgements retain an unchecked false change, confirmed state and explicit retry without clearing device recovery');
+
+    const concurrent=fixture();concurrent.api.apply({journeySupported:true,journey:saved({m1:true},1)});concurrent.api.change({id:'m1',checked:false});let release;concurrent.context.response=()=>new Promise(resolve=>release=resolve);const firstSave=concurrent.api.save();assert.equal(concurrent.api.state().saving,true);concurrent.api.change({id:'m1',checked:true});release({journey:saved({m1:false},2)});await firstSave;assert.equal(concurrent.api.state().checks.m1,false);assert.equal(concurrent.api.state().pending.m1.value,true,'An older valid acknowledgement cannot clear the newer checkbox generation');concurrent.context.response=()=>({journey:saved({m1:true},3)});await concurrent.api.save();assert.equal(Object.keys(concurrent.api.state().pending).length,0);assert.equal(concurrent.api.state().checks.m1,true);assert.equal(concurrent.api.state().error,false);
+    concurrent.api.change({id:'m2',checked:true});concurrent.context.isOffline=true;const savesBefore=concurrent.calls.length;await concurrent.api.save();assert.equal(concurrent.calls.length,savesBefore);assert.equal(concurrent.api.state().pending.m2.value,true);assert.equal(concurrent.api.state().error,true);
+    concurrent.context.isOffline=false;concurrent.context.response=()=>new Promise(resolve=>release=resolve);const lateSave=concurrent.api.save();concurrent.api.reset();concurrent.context.sessionEpoch++;release({journey:saved({m1:true,m2:true},4)});await lateSave;assert.equal(concurrent.api.state().supported,false);assert.equal(Object.keys(concurrent.api.state().pending).length,0);assert.equal(Object.keys(concurrent.api.state().checks).length,0);assert.equal(concurrent.resetCount(),1);assert.equal(concurrent.session.has('ipcos_progress_pending'),false);
+    console.log('PASS Checkbox generations, offline retry and logout preserve latest intent while a late acknowledgement cannot restore old account state');
+}
 (async()=>{
+    await verifyCloudAcknowledgements();
     const browser=await chromium.launch(),cloud=new Map(),calls=[],errors=[];
     let failSave=false,holdSave=false,saveRelease,holdRead=false,readRelease;
     const records=[
@@ -33,11 +79,11 @@ const {pdf,zip}=require('./fixtures.cjs');
                 else throw Error('Unexpected mutation '+data.action);
                 return route.fulfill({contentType:'application/json',body:JSON.stringify(result)});
             }
-            if(url.startsWith('http://127.0.0.1:8766')) return route.continue();
+            if(url.startsWith(origin)) return route.continue();
             return route.abort();
         });
         const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
-        await page.goto('http://127.0.0.1:8766');
+        await page.goto(origin);
         if(nim==='admin'){await page.click('#tab-admin');await page.fill('#input-admin-user','test');await page.fill('#input-admin-pass','test');await page.locator('#input-admin-pass').press('Enter');}
         else{await page.fill('#input-nim',nim);await page.locator('#input-nim').press('Enter');}
         await page.waitForSelector('#welcome-modal',{state:'hidden'});await page.waitForFunction(()=>syncPhase==='success');return page;

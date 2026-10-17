@@ -398,6 +398,7 @@ function clearPrivateCache() {
     window.IPCOSCalendar?.reset();
     window.IPCOSReferences?.reset();
     window.IPCOSSearch?.reset();
+    window.IPCOSPreparation?.reset();
     masterMutationBusy = false; supervisorMutationBusy = false;
     window.IPCOSPolish?.reset();
     activeReceipt = null; latestBackup = null;
@@ -1781,7 +1782,7 @@ function getChecklistData(type) {
 }
 
 function renderDynamicContent() {
-    const types = ['magang', 'skripsi'];
+    const types = typeof window !== 'undefined' && window.IPCOSPreparation ? [] : ['magang', 'skripsi'];
 
     types.forEach(type => {
         const containerId = (type === 'magang' || type === 'skripsi') ? `${type}-checklist-container` : `${type}-content-container`;
@@ -1861,6 +1862,7 @@ function renderDynamicContent() {
         container.innerHTML = html;
     });
 
+    window.IPCOSPreparation?.render();
     window.IPCOSResources?.render();
     window.IPCOSCalendar?.render();
     window.IPCOSReferences?.render();
@@ -1904,14 +1906,50 @@ function openContentEditor(type) {
 function refreshContentEditorLanguage(){
     if(document.getElementById('modal-edit-content').style.display!=='flex'||contentSaving)return;
     const container=document.getElementById('editor-ui-container'),active=document.activeElement;
-    const key=container.contains(active)?active.getAttribute('oninput'):null;
+    const key=container.contains(active)?active.getAttribute('oninput')||active.getAttribute('onchange'):null;
     const selection=key?{start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
     const expanded=[...container.querySelectorAll('details')].map(el=>el.open),scroll=container.closest('.content-editor-body').scrollTop;
     renderEditorUI();container.querySelectorAll('details').forEach((el,i)=>el.open=!!expanded[i]);
     document.getElementById('editor-modal-title').textContent=systemText(document.getElementById('editor-modal-title').dataset.sourceTitle||'Edit Konten');
-    const replacement=key?[...container.querySelectorAll('input,textarea')].find(el=>el.getAttribute('oninput')===key):null;
-    if(replacement){replacement.focus({preventScroll:true});if(selection.start!==null)replacement.setSelectionRange(selection.start,selection.end,selection.direction);}
+    const replacement=key?[...container.querySelectorAll('input,textarea,select')].find(el=>(el.getAttribute('oninput')||el.getAttribute('onchange'))===key):null;
+    if(replacement){replacement.focus({preventScroll:true});if(selection.start!==null&&selection.start!==undefined&&typeof replacement.setSelectionRange==='function')replacement.setSelectionRange(selection.start,selection.end,selection.direction);}
     container.closest('.content-editor-body').scrollTop=scroll;
+}
+
+function preparationEditorLinks(group, groupIndex, itemIndex = -1) {
+    if (!['magang','skripsi'].includes(editorCurrentType)) return '';
+    const scope = itemIndex < 0 ? 'group' : 'item', source = itemIndex < 0 ? group : group.items[itemIndex];
+    const t = (id,en) => uxText(id,en);
+    const label = itemIndex < 0 ? t('Hubungan fase dengan panduan & layanan','Phase guide and service links') : t('Panduan & tindakan untuk poin ini','Guides and actions for this item');
+    const select = (field,title,options) => {
+        const value = Object.prototype.hasOwnProperty.call(source,field) ? String(source[field]) : '__auto';
+        if (!options.some(option => option[0] === value)) options.push([value,t('Nilai tersimpan belum tersedia: ','Saved value unavailable: ')+value]);
+        const id = 'prep-editor-'+scope+'-'+groupIndex+'-'+itemIndex+'-'+field;
+        return '<label for="'+id+'">'+title+'</label><select id="'+id+'" data-editor-preparation-scope="'+scope+'" data-editor-preparation-g="'+groupIndex+'" data-editor-preparation-i="'+itemIndex+'" data-editor-preparation-field="'+field+'" onchange="editPreparationMeta(\''+scope+'\','+groupIndex+','+itemIndex+',\''+field+'\',this.value)">'+options.map(([key,text])=>'<option value="'+escapeHtml(key)+'"'+(key===value?' selected':'')+'>'+escapeHtml(text)+'</option>').join('')+'</select>';
+    };
+    const services = [['__auto',itemIndex < 0 ? t('Gunakan hubungan bawaan (jika tersedia)','Use the default link (if available)') : t('Ikuti layanan fase','Use the phase service')],['',t('Tanpa layanan pengajuan','No request service')],...SERVICE_TYPES.map(service=>[service,systemText(service)])];
+    const sopType = editorCurrentType === 'magang' ? 'sop_magang' : 'sop_tugas_akhir';
+    const sections = window.IPCOSSop?.snapshot?.().find(doc=>doc.type===sopType)?.sections || [];
+    const sopOptions = [['__auto',itemIndex < 0 ? t('Halaman utama SOP','SOP overview') : t('Ikuti bagian SOP fase','Use the phase SOP section')],['',t('Halaman utama SOP','SOP overview')],...sections.filter(section=>section&&typeof section.id==='string').map(section=>[section.id,currentLang==='en'&&section.titleEn?section.titleEn:section.title])];
+    let html = '<details class="editor-translations preparation-editor-links"><summary>'+label+'</summary><div class="details-content">';
+    html += select('service',t('Layanan pengajuan terkait','Related request service'),services);
+    html += select('sopSectionId',t('Bagian SOP terkait','Related SOP section'),sopOptions);
+    if (itemIndex >= 0) {
+        const groups = getChecklistData('template_berkas'), items = (Array.isArray(groups)?groups:[]).flatMap(group=>Array.isArray(group?.items)?group.items:[]).filter(item=>item&&typeof item==='object');
+        const counts = new Map();items.forEach(item=>{const id=String(item.id??'').trim();counts.set(id,(counts.get(id)||0)+1);});
+        const templates = items.filter(item=>String(item.id??'').trim()&&counts.get(String(item.id).trim())===1).map(item=>[String(item.id).trim(),contentText(item.text,item.textEn)]);
+        html += select('templateId',t('Template berkas terkait','Related document template'),[['__auto',t('Tidak ditautkan','No linked template')],...templates]);
+    }
+    return html+'<p class="form-helper">'+t('Hubungan ini membantu mahasiswa membuka panduan atau layanan yang tepat. Pilihan ini tidak mengubah status akademik.','These links help students open the right guide or service. They do not change academic status.')+'</p></div></details>';
+}
+function editPreparationMeta(scope,groupIndex,itemIndex,field,value) {
+    if (currentUser.role!=='admin' || contentSaving || !['magang','skripsi'].includes(editorCurrentType) || !Number.isInteger(groupIndex) || !editorTempData[groupIndex]) return;
+    const fields=scope==='group'?['service','sopSectionId']:scope==='item'?['service','sopSectionId','templateId']:[];
+    const target=scope==='group'?editorTempData[groupIndex]:Number.isInteger(itemIndex)?editorTempData[groupIndex].items?.[itemIndex]:null;
+    if (!target || !fields.includes(field)) return;
+    if (value==='__auto') delete target[field];
+    else if(field==='service' && value!=='' && !SERVICE_TYPES.includes(value)) return;
+    else target[field]=String(value);
 }
 
 function renderEditorUI() {
@@ -1925,7 +1963,7 @@ function renderEditorUI() {
                 <button class="action-btn btn-rev" onclick="removeContentGroup(${gIdx})">${uxText('Hapus Kategori','Delete category')}</button>
             </div>
             <label class="editor-translation-label">${uxText('Judul kategori dalam English (opsional)', 'Category title in English (optional)')}<input type="text" value="${escapeHtml(group.titleEn || '')}" oninput="editorTempData[${gIdx}].titleEn = this.value"></label>
-            <div style="margin-left: 10px; border-left: 2px solid var(--item-border); padding-left: 10px;">`;
+            ${preparationEditorLinks(group,gIdx)}<div style="margin-left: 10px; border-left: 2px solid var(--item-border); padding-left: 10px;">`;
 
         group.items.forEach((item, iIdx) => {
             html += `<div style="display:flex; gap:8px; margin-bottom: 10px; align-items:center;">
@@ -1934,7 +1972,7 @@ function renderEditorUI() {
                     <input type="text" value="${escapeHtml(item.sub)}" placeholder="${uxText('Deskripsi/Detail','Description / Details')}" oninput="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
                 </div>
                 <button class="action-btn btn-rev" onclick="removeContentItem(${gIdx}, ${iIdx})" style="height: 40px; padding: 0 12px;">X</button>
-            </div><details class="editor-translations"><summary>${uxText('English untuk mahasiswa internasional (opsional)', 'English for international students (optional)')}</summary><div class="details-content"><label>${uxText('Teks English','English text')}<input type="text" value="${escapeHtml(item.textEn || '')}" oninput="editorTempData[${gIdx}].items[${iIdx}].textEn = this.value"></label>${editorCurrentType !== 'template_berkas' ? `<label>${uxText('Detail English','English details')}<textarea rows="2" oninput="editorTempData[${gIdx}].items[${iIdx}].subEn = this.value">${escapeHtml(item.subEn || '')}</textarea></label>` : ''}</div></details>`;
+            </div><details class="editor-translations"><summary>${uxText('English untuk mahasiswa internasional (opsional)', 'English for international students (optional)')}</summary><div class="details-content"><label>${uxText('Teks English','English text')}<input type="text" value="${escapeHtml(item.textEn || '')}" oninput="editorTempData[${gIdx}].items[${iIdx}].textEn = this.value"></label>${editorCurrentType !== 'template_berkas' ? `<label>${uxText('Detail English','English details')}<textarea rows="2" oninput="editorTempData[${gIdx}].items[${iIdx}].subEn = this.value">${escapeHtml(item.subEn || '')}</textarea></label>` : ''}</div></details>${preparationEditorLinks(group,gIdx,iIdx)}`;
         });
 
         html += `<button class="action-btn btn-acc" onclick="addContentItem(${gIdx})" style="width:auto; margin-top:5px;">${uxText('+ Tambah Item','+ Add item')}</button>
@@ -1963,7 +2001,7 @@ async function saveContentChanges() {
     }
 
     const jsonString = JSON.stringify(editorTempData);
-    contentSaving=true;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea').forEach(el=>el.disabled=true);
+    contentSaving=true;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea,#modal-edit-content select').forEach(el=>el.disabled=true);
 
     showLoader(currentLang === 'id' ? 'Menyimpan & Mensinkronisasi...' : 'Saving & Syncing...');
 
@@ -1985,7 +2023,7 @@ async function saveContentChanges() {
     } catch (e) {
         if(epoch===sessionEpoch)showToast(uxText("Terjadi kesalahan jaringan saat menyimpan.","A network error occurred while saving."), "error");
     } finally {
-        if(epoch===sessionEpoch){contentSaving=false;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea').forEach(el=>el.disabled=false);hideLoader();}
+        if(epoch===sessionEpoch){contentSaving=false;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea,#modal-edit-content select').forEach(el=>el.disabled=false);hideLoader();}
     }
 }
 
@@ -2060,7 +2098,11 @@ function updateProgress() {
         const state = {};
         chkMagang.forEach(el => state[el.id] = el.checked);
         chkSkripsi.forEach(el => state[el.id] = el.checked);
-        if (!journeyCloud.supported) localStorage.setItem(`progress_${currentUser.nim}`, JSON.stringify(state));
+        if (!journeyCloud.supported) {
+            journeyCloud.localChecks = state;
+            try { localStorage.setItem(`progress_${currentUser.nim}`, JSON.stringify(state)); journeyCloud.localError = false; }
+            catch (_) { journeyCloud.localError = true; }
+        }
         updateChecklistReminder(chkMagang.length - checkedMagang.length, chkSkripsi.length - checkedSkripsi.length);
     }
     renderAcademicStages();

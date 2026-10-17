@@ -7,6 +7,7 @@ function stageServiceGuide(type, items) {
 }
 
 function renderAcademicStages() {
+    if (typeof window !== 'undefined' && window.IPCOSPreparation) { window.IPCOSPreparation.render(); return; }
     document.querySelectorAll('.academic-stage').forEach(stage => {
         const checks = [...stage.querySelectorAll('input[type="checkbox"]')];
         const completed = checks.filter(input => input.checked).length;
@@ -98,48 +99,66 @@ document.addEventListener('click', event => {
     if (event.target.closest('#registration-fields') || event.target.id === 'reg-jenis-utama') renderRegistrationReadiness();
 }));
 
-let journeyCloud = {supported:false,checks:{},revision:0,pending:{},saving:false,error:false,updatedAt:''};
+let journeyCloud = {supported:false,available:false,unavailable:false,checks:{},revision:0,pending:{},saving:false,error:false,updatedAt:''};
 let journeySaveTimer, journeyGeneration = 0, journeyOwner = '', adminJourneyProgress = null, adminJourneyRequest = 0;
 let journeyViewOwner = '', journeyViewHtml = '';
 function resetAcademicJourney() {
     clearTimeout(journeySaveTimer);
-    journeyCloud = {supported:false,checks:{},revision:0,pending:{},saving:false,error:false,updatedAt:''};
+    journeyCloud = {supported:false,available:false,unavailable:false,checks:{},revision:0,pending:{},saving:false,error:false,updatedAt:''};
     journeyOwner = ''; adminJourneyProgress = null; adminJourneyRequest++;
     journeyViewOwner = ''; journeyViewHtml = '';
     sessionStorage.removeItem('ipcos_progress_pending');
     document.getElementById('academic-journey-content').textContent = '';
+    if (typeof window !== 'undefined') window.IPCOSPreparation?.reset();
 }
 function journeyPreparationState() {
-    if (!journeyCloud.supported) return readStoredJSON(localStorage,`progress_${currentUser.nim}`,{});
+    if (!journeyCloud.supported) return journeyCloud.localChecks !== undefined ? journeyCloud.localChecks : readStoredJSON(localStorage,`progress_${currentUser.nim}`,{});
     return Object.assign({},journeyCloud.checks,Object.fromEntries(Object.entries(journeyCloud.pending).map(([id,item])=>[id,item.value])));
 }
 function persistJourneyPending() {
     sessionStorage.setItem('ipcos_progress_pending',JSON.stringify({owner:currentUser.nim,pending:journeyCloud.pending}));
 }
+function validJourneyProgress(saved) {
+    return !!saved && typeof saved.exists === 'boolean' && Number.isInteger(saved.revision) && saved.revision >= 0
+        && !!saved.checks && typeof saved.checks === 'object' && !Array.isArray(saved.checks)
+        && Object.values(saved.checks).every(value=>typeof value === 'boolean');
+}
+function journeyAllowedPreparationIds(data) {
+    const counts = new Map();
+    for (const type of ['magang','skripsi']) {
+        const content = (data.contents || []).find(item=>item.Tipe===type);
+        let groups; try { groups = content ? JSON.parse(content.DataJSON) : getChecklistData(type); } catch (_) { groups = []; }
+        if (!Array.isArray(groups)) continue;
+        for (const group of groups) for (const item of Array.isArray(group?.items) ? group.items : []) {
+            const id = String(item?.id ?? '');
+            const existing = typeof document !== 'undefined' ? document.getElementById?.(id) : null;
+            const canonicalCheckbox = existing?.tagName === 'INPUT' && existing.type === 'checkbox' && typeof existing.matches === 'function' && existing.matches('.chk-magang, .chk-skripsi');
+            if (/^[A-Za-z0-9_-]{1,64}$/.test(id) && !/^prep-(?:magang|skripsi)-/.test(id) && (!existing || canonicalCheckbox)) counts.set(id,(counts.get(id)||0)+1);
+        }
+    }
+    return new Set([...counts].filter(([,count])=>count===1).map(([id])=>id));
+}
 function applyJourneySnapshot(data) {
     if (data.journeySupported !== true) return;
-    if (data.journeyUnavailable) { journeyCloud.error = true; return; }
-    const first = !journeyCloud.supported;
+    const first = !journeyCloud.available;
     journeyCloud.supported = true;
-    if (currentUser.role !== 'mhs') return;
+    if (currentUser.role !== 'mhs') { renderAcademicStages(); return; }
     const saved = data.journey;
-    if (!saved || !saved.checks || !Number.isInteger(saved.revision)) return;
+    if (data.journeyUnavailable || !validJourneyProgress(saved)) {
+        journeyCloud.unavailable = true; journeyCloud.error = true; renderAcademicJourney(); return;
+    }
+    journeyCloud.available = true; journeyCloud.unavailable = false; journeyCloud.error = false;
     if (saved.revision >= journeyCloud.revision) {
         journeyCloud.checks = saved.checks; journeyCloud.revision = saved.revision; journeyCloud.updatedAt = saved.updatedAt || '';
     }
     if (first) {
         journeyCloud.error = false;
-        const pending = readStoredJSON(sessionStorage,'ipcos_progress_pending',{});
-        if (pending.owner === currentUser.nim) {
-            for (const [id,item] of Object.entries(pending.pending || {})) if (typeof item?.value === 'boolean') journeyCloud.pending[id] = {value:item.value,generation:++journeyGeneration};
+        const allowed = journeyAllowedPreparationIds(data), pending = readStoredJSON(sessionStorage,'ipcos_progress_pending',{});
+        if (String(pending.owner ?? '').trim() === String(currentUser.nim).trim()) {
+            for (const [id,item] of Object.entries(pending.pending || {})) if (allowed.has(id) && typeof item?.value === 'boolean') journeyCloud.pending[id] = {value:item.value,generation:++journeyGeneration};
         }
         if (!saved.exists) {
             const legacy = readStoredJSON(localStorage,`progress_${currentUser.nim}`,{});
-            const allowed = new Set(['magang','skripsi'].flatMap(type=>{
-                const content = (data.contents || []).find(item=>item.Tipe===type);
-                let groups; try { groups = content ? JSON.parse(content.DataJSON) : getChecklistData(type); } catch (_) { groups = []; }
-                return groups.flatMap(group=>(group.items || []).map(item=>String(item.id).replace(/[^a-zA-Z0-9_-]/g,'')));
-            }));
             for (const [id,value] of Object.entries(legacy)) if (allowed.has(id) && value === true && !journeyCloud.pending[id]) journeyCloud.pending[id] = {value:true,generation:++journeyGeneration};
         }
         // Saved cloud data takes precedence over stale data from another device.
@@ -152,6 +171,9 @@ function applyJourneySnapshot(data) {
 }
 function recordPreparationChange(input) {
     if (currentUser.role !== 'mhs') { input.checked = false; return; }
+    if (journeyCloud.supported && (!journeyCloud.available || journeyCloud.unavailable)) {
+        input.checked = journeyPreparationState()[input.id] === true; renderAcademicJourney(); return;
+    }
     if (journeyCloud.supported) {
         journeyCloud.pending[input.id] = {value:input.checked,generation:++journeyGeneration};
         journeyCloud.error = false; persistJourneyPending();
@@ -160,14 +182,22 @@ function recordPreparationChange(input) {
     updateProgress();
 }
 async function saveJourneyProgress() {
-    if (currentUser.role !== 'mhs' || !journeyCloud.supported || journeyCloud.saving || !Object.keys(journeyCloud.pending).length) return;
+    if (currentUser.role !== 'mhs' || journeyCloud.saving) return;
+    if (!journeyCloud.supported) { if (journeyCloud.localError) updateProgress(); return; }
+    clearTimeout(journeySaveTimer);
+    if (!journeyCloud.available || journeyCloud.unavailable) {
+        if (isOffline) { journeyCloud.error = true; renderAcademicJourney(); return; }
+        await syncDatabase(); return;
+    }
+    if (!Object.keys(journeyCloud.pending).length) return;
     if (isOffline) { journeyCloud.error = true; renderAcademicJourney(); return; }
-    const epoch = sessionEpoch, sent = {...journeyCloud.pending};
+    const epoch = sessionEpoch, revision = journeyCloud.revision, sent = {...journeyCloud.pending};
     journeyCloud.saving = true; journeyCloud.error = false; renderAcademicJourney();
     try {
         const result = await apiPostSuccess(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'save_progress',changes:Object.fromEntries(Object.entries(sent).map(([id,item])=>[id,item.value]))})});
         if (epoch !== sessionEpoch) return;
-        if (!result.journey || !Number.isInteger(result.journey.revision)) throw new Error('Progres belum terkonfirmasi.');
+        if (!validJourneyProgress(result.journey) || !result.journey.exists || result.journey.revision <= revision
+            || Object.entries(sent).some(([id,item])=>!Object.prototype.hasOwnProperty.call(result.journey.checks,id) || result.journey.checks[id] !== item.value)) throw new Error('Progres belum terkonfirmasi.');
         if (result.journey.revision >= journeyCloud.revision) { journeyCloud.checks = result.journey.checks; journeyCloud.revision = result.journey.revision; journeyCloud.updatedAt = result.journey.updatedAt; }
         for (const [id,item] of Object.entries(sent)) if (journeyCloud.pending[id]?.generation === item.generation) delete journeyCloud.pending[id];
         persistJourneyPending(); localStorage.removeItem(`progress_${currentUser.nim}`);
@@ -176,12 +206,14 @@ async function saveJourneyProgress() {
     finally {
         if (epoch === sessionEpoch) {
             journeyCloud.saving = false; renderAcademicJourney();
-            if (!journeyCloud.error && Object.keys(journeyCloud.pending).length) journeySaveTimer = setTimeout(saveJourneyProgress,100);
+            if (!journeyCloud.error && Object.keys(journeyCloud.pending).length) { clearTimeout(journeySaveTimer); journeySaveTimer = setTimeout(saveJourneyProgress,100); }
         }
     }
 }
 function journeySyncText() {
+    if (!journeyCloud.supported && journeyCloud.localError) return uxText('Perubahan persiapan belum tersimpan di perangkat. Pilihan masih tersedia selama tab ini dibuka. Coba simpan lagi.', 'Preparation changes are not saved on this device. Your choices remain available while this tab is open. Retry saving.');
     if (!journeyCloud.supported) return uxText('Persiapan masih tersimpan di perangkat ini.', 'Preparation is still saved on this device.');
+    if (!journeyCloud.available || journeyCloud.unavailable) return uxText('Catatan persiapan cloud belum dapat dimuat. Periksa koneksi lalu coba muat lagi.', 'Cloud preparation could not be loaded. Check your connection and retry loading.');
     if (journeyCloud.error) return uxText('Perubahan persiapan belum tersimpan di cloud. Periksa koneksi lalu coba lagi.', 'Preparation changes are not saved in the cloud. Check your connection and retry.');
     if (journeyCloud.saving || Object.keys(journeyCloud.pending).length) return uxText('Menyimpan persiapan ke cloud...', 'Saving preparation to the cloud...');
     return uxText('Persiapan tersimpan di cloud dan tersedia saat berganti perangkat.', 'Preparation is saved in the cloud and available on other devices.');
@@ -255,6 +287,7 @@ function updateJourneyView(container,html,owner) {
         if(target?.getClientRects().length&&!target.closest('[inert]'))target.focus({preventScroll:true});}
 }
 function renderAcademicJourney() {
+    renderAcademicStages();
     const container = document.getElementById('academic-journey-content');
     if (!container || !['admin','mhs'].includes(currentUser.role) || !getSessionToken()) { if (container) container.textContent = '';journeyViewOwner='';journeyViewHtml=''; return; }
     const admin = currentUser.role === 'admin', nim = String(admin ? journeyOwner : currentUser.nim).trim();
@@ -290,6 +323,7 @@ async function openAcademicJourney(nim) {
     try {
         const result = await apiPostSuccess(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'get_journey',nim:journeyOwner})});
         if (epoch !== sessionEpoch || version !== adminJourneyRequest || journeyOwner !== owner || currentUser.role!=='admin') return;
+        if (!validJourneyProgress(result.journey)) throw new Error('Catatan persiapan belum terkonfirmasi.');
         adminJourneyProgress = result.journey; renderAcademicJourney();
     } catch (error) { if (epoch === sessionEpoch && version === adminJourneyRequest && !error.staleSession) showToast(uxText('Catatan persiapan belum dapat dimuat. Riwayat pengajuan tetap tersedia.', 'Preparation could not be loaded. Request history is still available.'),'error'); }
 }
@@ -299,7 +333,10 @@ document.addEventListener('click',event=>{
     if (event.target.closest('[data-retry-progress]')) saveJourneyProgress();
     if(!getSessionToken())return;
     const preparation=event.target.closest('[data-journey-preparation-target]');
-    if(preparation&&['magang','skripsi'].includes(preparation.dataset.journeyPreparationTarget))switchTab(null,preparation.dataset.journeyPreparationTarget);
+    if(preparation&&['magang','skripsi'].includes(preparation.dataset.journeyPreparationTarget)) {
+        if (window.IPCOSPreparation) window.IPCOSPreparation.open(preparation.dataset.journeyPreparationTarget,{fromJourney:true});
+        else switchTab(null,preparation.dataset.journeyPreparationTarget);
+    }
     if(currentUser.role==='mhs'&&event.target.closest('[data-journey-status]'))switchTab(null,'student-status');
     if(currentUser.role==='admin'&&event.target.closest('[data-journey-back-queue]'))switchTab(null,'admin-data');
 });

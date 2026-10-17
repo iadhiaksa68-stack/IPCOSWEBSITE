@@ -234,7 +234,7 @@
     window.addEventListener('online',()=>{if(draft.error){draft.error=false;flushDraft();}});
     window.addEventListener('beforeunload',event=>{if(owner()&&draft.intent&&Object.values(draft.intent).some(value=>value)&&(draft.saving||draft.generation>draft.confirmed)){event.preventDefault();event.returnValue='';}});
     let labelQueued=false;new MutationObserver(()=>{if(labelQueued)return;labelQueued=true;queueMicrotask(()=>{labelQueued=false;labels();});}).observe(document.body,{childList:true,subtree:true});
-    window.IPCOSNext={refresh,reset,startDraft,changed,flushDraft,revisionFields,wantsFields,correctionPayload,fieldHistory,report,health};
+    window.IPCOSNext={clearGuide,refresh,reset,startDraft,changed,flushDraft,revisionFields,wantsFields,correctionPayload,fieldHistory,report,health};
     window.addEventListener('load',()=>{interfaceReady=true;refresh();});
     refresh();
 })();

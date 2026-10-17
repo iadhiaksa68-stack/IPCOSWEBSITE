@@ -53,7 +53,7 @@
         });
         for(const type of ['template_berkas','faq','kurikulum','remidial','kalender','magang','skripsi']){
             const tab=['template_berkas','faq'].includes(type)?'templates-faq':type;if(!allowed(tab))continue;
-            const source=['template_berkas','faq'].includes(type)?window.IPCOSResources:['kurikulum','remidial'].includes(type)?window.IPCOSReferences:type==='kalender'?window.IPCOSCalendar:null;
+            const source=['template_berkas','faq'].includes(type)?window.IPCOSResources:['kurikulum','remidial'].includes(type)?window.IPCOSReferences:type==='kalender'?window.IPCOSCalendar:['magang','skripsi'].includes(type)?window.IPCOSPreparation:null;
             if(source?.entries){
                 const items=source.entries();
                 if(Array.isArray(items))items.filter(entry=>type==='kalender'||entry.type===type).forEach(entry=>{
@@ -130,6 +130,7 @@
         if(['templates','faq'].includes(entry.kind))return window.IPCOSResources?.reveal?.(entry.identity.type,entry.identity.key);
         if(entry.kind==='calendar')return window.IPCOSCalendar?.reveal?.(entry.identity.key);
         if(entry.kind==='references'){
+            if(['magang','skripsi'].includes(entry.identity.type)&&window.IPCOSPreparation?.reveal)return window.IPCOSPreparation.reveal(entry.identity.type,entry.identity.key||entry.identity.id);
             if(['kurikulum','remidial'].includes(entry.identity.type))return window.IPCOSReferences?.reveal?.(entry.identity.type,entry.identity.key);
             const node=el(entry.identity.id);if(node?.closest('#'+entry.tab)){let details=node.closest('details');while(details){details.open=true;details=details.parentElement.closest('details');}return node;}
         }
