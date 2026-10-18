@@ -40,6 +40,7 @@ function sanitizeRichHtml(value) {
 // ==========================================
 function showToast(message, type = 'success') {
     const overlay=[...document.querySelectorAll('.overlay,.overlay-dialog')].reverse().find(el=>el.id!=='welcome-modal'&&getComputedStyle(el).display!=='none');
+    if(overlay?.id==='modal-edit-content'&&window.IPCOSContentStudio)return;
     if(overlay?.id==='modal-case-detail'&&window.IPCOSExperience?.feedback(message,type,overlay))return;
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
@@ -259,6 +260,8 @@ let readVersion = 0;
 let loginAttempt = 0;
 let loginBusy = false;
 const apiRequestContexts = new WeakMap();
+const contentResponseVersions = new WeakMap();
+let contentPublicationVersion = 0;
 const modalCloseTimers = new Map();
 let isDbLoaded = false;
 
@@ -302,6 +305,7 @@ async function apiPostSuccess(url, options) {
 }
 async function apiRead() {
     const version = ++readVersion;
+    const publicationVersion = contentPublicationVersion;
     const epoch = sessionEpoch;
     setSyncPhase('syncing');
     try {
@@ -310,6 +314,7 @@ async function apiRead() {
     }));
     if (version !== readVersion) throw staleRequestError();
     if (data.status === 'error') throw new Error(data.message || 'Akses data ditolak.');
+    contentResponseVersions.set(data,publicationVersion);
     return data;
     } catch (error) { if (epoch === sessionEpoch && version === readVersion && getSessionToken() && !error.staleSession) setSyncPhase('error'); throw error; }
 }
@@ -445,6 +450,8 @@ function clearPrivateCache() {
     document.getElementById('admin-search-input').value = ''; document.getElementById('admin-status-filter').value = 'ACTION_REQUIRED';
     ['archive-from','archive-to','archive-search','archive-reason','archive-service','input-nim','input-admin-user','input-admin-pass','input-broadcast-dashboard','input-broadcast','add-nim','add-nama','add-dosen-nama','input-rev-note','input-reply-note','input-reply-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     editorTempData = [];
+    contentCacheFallback.clear();
+    window.IPCOSContentStudio?.reset();
     window.IPCOSReview?.reset();
     window.IPCOSExperience?.reset();
 }
@@ -559,7 +566,8 @@ function applyDatabaseSnapshot(data) {
                 window.IPCOSSop?.receive(data.contents);
                 data.contents.forEach(item => {
                     if (['sop_magang','sop_tugas_akhir'].includes(item.Tipe)) return;
-                    localStorage.setItem(`ipcos_content_${item.Tipe}`, item.DataJSON);
+                    if(contentResponseVersions.has(data)&&contentResponseVersions.get(data)!==contentPublicationVersion)return;
+                    cachePublishedContent(item.Tipe, item.DataJSON);
                 });
                 renderDynamicContent();
             }
@@ -1766,10 +1774,16 @@ const defaultFaq = [
     { title: "Tugas Akhir", titleEn: "Final Project", items: [{ id: "f2", text: "Kapan batas waktu revisi proposal?", sub: "Batas revisi ujian proposal adalah 1 (satu) bulan setelah ujian dilaksanakan." }] }
 ];
 
+const contentCacheFallback = new Map();
+function cachePublishedContent(type, json) {
+    try { localStorage.setItem(`ipcos_content_${type}`,json); contentCacheFallback.delete(type); return true; }
+    catch (_) { contentCacheFallback.set(type,json); return false; }
+}
 function getChecklistData(type) {
-    const localData = localStorage.getItem(`ipcos_content_${type}`);
+    let localData = contentCacheFallback.get(type);
+    if (!localData) { try { localData = localStorage.getItem(`ipcos_content_${type}`); } catch (_) {} }
     if (localData) {
-        try { const groups = JSON.parse(localData); if (!Array.isArray(groups) || groups.some(group => !group || !Array.isArray(group.items))) throw new Error('Invalid content'); return groups; } catch (_) { localStorage.removeItem(`ipcos_content_${type}`); }
+        try { const groups = JSON.parse(localData); if (!Array.isArray(groups) || groups.some(group => !group || !Array.isArray(group.items))) throw new Error('Invalid content'); return groups; } catch (_) { contentCacheFallback.delete(type); try { localStorage.removeItem(`ipcos_content_${type}`); } catch (_) {} }
     }
     if (type === 'magang') return defaultMagang;
     if (type === 'skripsi') return defaultSkripsi;
@@ -1878,13 +1892,15 @@ function renderDynamicContent() {
 let editorTempData = [];
 let editorCurrentType = 'magang', contentSaving = false, contentEditorOriginal = '';
 function contentEditorDirty(){return document.getElementById('modal-edit-content').style.display === 'flex' && JSON.stringify(editorTempData)!==contentEditorOriginal;}
-window.addEventListener('ipcos:logout',()=>{editorTempData=[];contentSaving=false;contentEditorOriginal='';document.getElementById('editor-ui-container').replaceChildren();closeModal('modal-edit-content',true);});
+window.addEventListener('ipcos:logout',()=>{editorTempData=[];contentSaving=false;contentEditorOriginal='';window.IPCOSContentStudio?.reset();document.getElementById('editor-ui-container').replaceChildren();closeModal('modal-edit-content',true);});
 
-function openContentEditor(type) {
+function openContentEditor(type, replaceDraft = false) {
     if(currentUser.role!=='admin'||contentSaving||!['magang','skripsi','kurikulum','remidial','kalender','template_berkas','faq'].includes(type))return;
+    if(!replaceDraft&&contentEditorDirty()&&!confirm(uxText('Ganti konten dan tinggalkan perubahan yang belum disimpan?','Switch content and discard unsaved changes?')))return;
     editorCurrentType = type;
     editorTempData = JSON.parse(JSON.stringify(getChecklistData(type)));
     contentEditorOriginal=JSON.stringify(editorTempData);
+    window.IPCOSContentStudio?.begin();
 
     const titles = {
         'magang': 'Edit Konten Magang',
@@ -1900,11 +1916,13 @@ function openContentEditor(type) {
     renderEditorUI();
 
     const modal = document.getElementById('modal-edit-content');
+    clearTimeout(modalCloseTimers.get('modal-edit-content'));modalCloseTimers.delete('modal-edit-content');
     modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
 }
 
 function refreshContentEditorLanguage(){
     if(document.getElementById('modal-edit-content').style.display!=='flex'||contentSaving)return;
+    if(window.IPCOSContentStudio){window.IPCOSContentStudio.render();return;}
     const container=document.getElementById('editor-ui-container'),active=document.activeElement;
     const key=container.contains(active)?active.getAttribute('oninput')||active.getAttribute('onchange'):null;
     const selection=key?{start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
@@ -1953,6 +1971,7 @@ function editPreparationMeta(scope,groupIndex,itemIndex,field,value) {
 }
 
 function renderEditorUI() {
+    if(window.IPCOSContentStudio){window.IPCOSContentStudio.render();return;}
     const container = document.getElementById('editor-ui-container');
     let html = '';
 
@@ -1985,25 +2004,31 @@ function renderEditorUI() {
     bindLanguageBlock(container);
 }
 
-function addContentGroup() { editorTempData.push({ title: "Kategori Baru", items: [] }); renderEditorUI(); }
-function removeContentGroup(gIdx) { if (confirm(uxText('Hapus kategori ini beserta item di dalamnya?', 'Delete this category and all its items?'))) { editorTempData.splice(gIdx, 1); renderEditorUI(); } }
-function addContentItem(gIdx) { editorTempData[gIdx].items.push({ id: Date.now().toString(36), text: "", sub: "" }); renderEditorUI(); }
-function removeContentItem(gIdx, iIdx) { editorTempData[gIdx].items.splice(iIdx, 1); renderEditorUI(); }
+function canEditContent(){return currentUser.role==='admin'&&!!getSessionToken()&&!contentSaving&&document.getElementById('modal-edit-content').style.display==='flex';}
+function addContentGroup() { if(!canEditContent())return;editorTempData.push({ title: uxText('Kategori Baru','New Category'), items: [] }); renderEditorUI();window.IPCOSContentStudio?.addedGroup();document.getElementById('studio-'+(editorTempData.length-1)+'--1-title')?.focus(); }
+function removeContentGroup(gIdx) { if(!canEditContent()||!Number.isInteger(gIdx)||!editorTempData[gIdx])return;if (confirm(uxText('Hapus kategori ini beserta item di dalamnya?', 'Delete this category and all its items?'))) { editorTempData.splice(gIdx, 1); renderEditorUI(); } }
+function addContentItem(gIdx) { if(!canEditContent()||!Number.isInteger(gIdx)||!editorTempData[gIdx])return;const ids=new Set(editorTempData.flatMap(group=>group.items.map(item=>String(item.id))));let id=Date.now().toString(36);while(ids.has(id))id+='x';editorTempData[gIdx].items.push({ id, text: "", sub: "" }); renderEditorUI();document.getElementById('studio-'+gIdx+'-'+(editorTempData[gIdx].items.length-1)+'-text')?.focus(); }
+function removeContentItem(gIdx, iIdx) { if(!canEditContent()||!Number.isInteger(gIdx)||!Number.isInteger(iIdx)||!editorTempData[gIdx]?.items[iIdx])return;if(!confirm(uxText('Hapus item ini dari draf konten?','Delete this item from the content draft?')))return;editorTempData[gIdx].items.splice(iIdx, 1); renderEditorUI(); }
 
 async function saveContentChanges() {
-    if(currentUser.role!=='admin'||contentSaving)return;
+    if(!canEditContent())return;
     const epoch=sessionEpoch,type=editorCurrentType;
+    const studio=window.IPCOSContentStudio;
+    if(studio&&!studio.validate())return;
+    if(JSON.stringify(getChecklistData(type))!==contentEditorOriginal){studio?.feedback('Konten terbit berubah sejak studio dibuka. Draf Anda tetap tersedia. Muat konten terbaru sebelum menerbitkan.','Published content has changed since the studio opened. Your draft is retained. Load the latest content before publishing.','conflict');return;}
     if (document.activeElement && document.activeElement.tagName === 'INPUT') { document.activeElement.blur(); }
 
     if (isOffline) {
+        studio?.feedback('Anda sedang offline. Draf tetap tersedia; coba simpan setelah tersambung.','You are offline. Your draft is retained; try saving after reconnecting.');
         showToast(currentLang === 'id' ? "Anda sedang offline. Tidak dapat menyimpan." : "You are offline. Cannot save changes.", "error");
         return;
     }
 
     const jsonString = JSON.stringify(editorTempData);
     contentSaving=true;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea,#modal-edit-content select').forEach(el=>el.disabled=true);
+    studio?.update();
 
-    showLoader(currentLang === 'id' ? 'Menyimpan & Mensinkronisasi...' : 'Saving & Syncing...');
+    if(!studio)showLoader(currentLang === 'id' ? 'Menyimpan & Mensinkronisasi...' : 'Saving & Syncing...');
 
     try {
         const payload = { action: 'update_content', type, content: jsonString };
@@ -2012,18 +2037,20 @@ async function saveContentChanges() {
 
         if(epoch!==sessionEpoch)return;
         if (result.status === "success") {
-            localStorage.setItem(`ipcos_content_${type}`, jsonString);
+            contentPublicationVersion++;
+            const cached=cachePublishedContent(type,jsonString);
             contentEditorOriginal=jsonString;
             closeModal('modal-edit-content',true);
-            showToast("Konten berhasil diperbarui untuk semua pengguna!", "success");
+            showToast(cached?uxText('Konten berhasil diterbitkan untuk mahasiswa.','The content has been published for students.'):uxText('Konten sudah diterbitkan. Penyimpanan perangkat tidak tersedia; tampilan sesi ini sudah diperbarui.','Content published. Device storage is unavailable; this session’s view has been updated.'), "success");
             renderDynamicContent();
         } else {
+            studio?.feedback('Konten belum diterbitkan. Draf tetap tersedia; coba simpan kembali.','Content was not published. Your draft is retained; try saving again.');
             showToast("Gagal tersimpan di database: " + result.message, "error");
         }
     } catch (e) {
-        if(epoch===sessionEpoch)showToast(uxText("Terjadi kesalahan jaringan saat menyimpan.","A network error occurred while saving."), "error");
+        if(epoch===sessionEpoch){studio?.feedback('Konfirmasi penyimpanan belum diterima. Draf tetap tersedia; periksa koneksi dan coba kembali.','Save confirmation has not been received. Your draft is retained; check the connection and try again.');showToast(uxText("Terjadi kesalahan jaringan saat menyimpan.","A network error occurred while saving."), "error");}
     } finally {
-        if(epoch===sessionEpoch){contentSaving=false;document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea,#modal-edit-content select').forEach(el=>el.disabled=false);hideLoader();}
+        if(epoch===sessionEpoch){contentSaving=false;studio?.render();document.querySelectorAll('#modal-edit-content button,#modal-edit-content input,#modal-edit-content textarea,#modal-edit-content select').forEach(el=>{if(!el.matches('[data-studio-move],#studio-category-picker'))el.disabled=false;});if(!studio)hideLoader();}
     }
 }
 

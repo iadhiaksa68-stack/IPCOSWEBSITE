@@ -51,6 +51,7 @@
     <link rel="stylesheet" href="references-ui.css">
     <link rel="stylesheet" href="global-search.css">
     <link rel="stylesheet" href="preparation-ui.css">
+    <link rel="stylesheet" href="content-studio.css">
 </head>
 
 <body class="transaction-view">
@@ -261,9 +262,9 @@
     <!-- Content Editor -->
     <div id="modal-edit-content" class="overlay" style="display: none; z-index: 2500;">
         <section class="modal-card content-editor" role="dialog" aria-modal="true" aria-labelledby="editor-modal-title">
-            <header class="intl-editor-header"><div><span class="eyebrow">IPCOS · <span class="lang" data-id="KELOLA LAYANAN" data-en="MANAGE SERVICES">KELOLA LAYANAN</span></span><h2 id="editor-modal-title">Edit Konten</h2></div><button type="button" class="intl-close" aria-label="Tutup editor" onclick="closeModal('modal-edit-content')">×</button></header>
-            <div class="content-editor-body"><p class="lang" data-id="Susun panduan, detail layanan, dan terjemahan untuk mahasiswa." data-en="Organize guidance, service details, and translations for students.">Susun panduan, detail layanan, dan terjemahan untuk mahasiswa.</p><div id="editor-ui-container"></div></div>
-            <footer class="intl-editor-footer"><div class="button-row"><button type="button" class="btn-secondary lang" onclick="closeModal('modal-edit-content')" data-id="Batal" data-en="Cancel">Batal</button><button type="button" class="btn-primary lang" onclick="saveContentChanges()" data-id="Simpan Perubahan" data-en="Save Changes">Simpan Perubahan</button></div></footer>
+            <header class="intl-editor-header"><div class="studio-header-copy"><span class="eyebrow">IPCOS · <span class="lang" data-id="KELOLA LAYANAN" data-en="MANAGE SERVICES">KELOLA LAYANAN</span></span><h2 id="editor-modal-title">Studio Konten</h2><div class="studio-header-meta"><span id="studio-content-title"></span><span id="studio-overview"></span></div></div><button type="button" id="studio-close" class="intl-close" aria-label="Tutup studio konten" onclick="closeModal('modal-edit-content')">×</button></header>
+            <div class="content-editor-body"><div class="studio-toolbar"><p id="studio-intro"></p><button type="button" id="studio-add-category" class="btn-secondary" onclick="addContentGroup()">+ Tambah Kategori</button></div><div class="studio-mobile-picker"><label id="studio-picker-label" for="studio-category-picker">Kategori yang Diedit</label><select id="studio-category-picker"></select></div><div class="studio-mobile-views" role="group" aria-label="Editor / Preview"><button type="button" id="studio-view-edit" data-studio-view="edit" aria-pressed="true">Editor</button><button type="button" id="studio-view-preview" data-studio-view="preview" aria-pressed="false">Pratinjau</button></div><div class="studio-layout"><nav class="studio-categories" aria-labelledby="studio-categories-title"><h3 id="studio-categories-title">Kategori</h3><div id="studio-category-list"></div></nav><div id="studio-editor-scroll" class="studio-editor-scroll"><div id="editor-ui-container"></div></div><aside class="studio-preview" aria-labelledby="studio-preview-title"><div class="studio-preview-heading"><h3 id="studio-preview-title">Pratinjau Mahasiswa</h3><span id="studio-preview-badge">DRAF</span></div><p id="studio-preview-note"></p><div class="studio-preview-language"><label id="studio-preview-language-label" for="studio-preview-language">Bahasa Pratinjau</label><select id="studio-preview-language"><option value="id">Indonesia</option><option value="en">English</option></select></div><div id="studio-preview-content"></div></aside></div></div>
+            <footer class="intl-editor-footer"><div class="studio-footer-status"><p id="studio-save-status" role="status" aria-live="polite"></p><p id="studio-feedback" role="status" aria-live="polite" hidden></p><button type="button" id="studio-reload" hidden>Muat Konten Terbaru</button></div><div class="button-row"><button type="button" class="btn-secondary lang" onclick="closeModal('modal-edit-content')" data-id="Batal" data-en="Cancel">Batal</button><button type="button" class="btn-primary lang" onclick="saveContentChanges()" data-id="Simpan Perubahan" data-en="Save changes">Simpan Perubahan</button></div></footer>
         </section>
     </div>
 
@@ -1015,6 +1016,7 @@
     <script src="references-ui.js" defer></script>
     <script src="global-search.js" defer></script>
     <script src="preparation-ui.js" defer></script>
+    <script src="content-studio.js" defer></script>
 </body>
 
 </html>
