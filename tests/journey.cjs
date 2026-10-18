@@ -1,6 +1,7 @@
 const { chromium } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const origin = process.env.IPCOS_TEST_BASE_URL || 'http://127.0.0.1:8766';
 const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nTEST ONLY\n%%EOF')};
 (async () => {
     const browser = await chromium.launch();
@@ -18,7 +19,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
             else throw new Error('Unexpected mutation in journey test: '+data.action);
             return route.fulfill({contentType:'application/json',body:JSON.stringify(result)});
         }
-        if (url.startsWith('http://127.0.0.1:8766')) return route.continue();
+        if (url.startsWith(origin)) return route.continue();
         return route.abort();
     });
     const page = await context.newPage();
@@ -28,7 +29,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
         await page.fill('#input-nim',nim); await page.locator('#input-nim').press('Enter');
         await page.waitForSelector('#welcome-modal',{state:'hidden'}); await page.waitForFunction(()=>syncPhase==='success');
     }
-    await page.goto('http://127.0.0.1:8766'); await login('A');
+    await page.goto(origin); await login('A');
     await page.evaluate(()=>switchTab(null,'magang'));
     assert.equal(await page.locator('#magang .academic-stage').count(),3);
     assert.equal(await page.locator('#magang [data-start-service]').count(),0,'No invented internship upload service');
@@ -89,7 +90,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     records = [{id:'ongoing',nim:'A',nama:'Mahasiswa Uji',jenis:'Outline',status:'Revision',date:new Date().toISOString(),detail:'Judul uji',link:'',note:'[]'}];
     await page.evaluate(()=>syncDatabase());
     permit=true;await page.evaluate(()=>switchTab(null,'skripsi'));
-    assert.equal(await page.locator('[data-start-service="Outline"]').textContent(),'Lanjutkan pengajuan');
+    assert.equal(await page.locator('[data-start-service="Outline"]').textContent(),'Lanjutkan Pengajuan');
     await page.click('[data-start-service="Outline"]'); await page.waitForSelector('#modal-case-detail',{state:'visible'});
     assert((await page.locator('#case-detail-content').textContent()).includes('Judul uji'));
     await page.click('.case-close'); await page.waitForSelector('#modal-case-detail',{state:'hidden'});

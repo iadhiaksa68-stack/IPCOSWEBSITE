@@ -28,8 +28,8 @@ async function mock(context) {
             const data = route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return;calls.push(data);let result,held;
             if(data.action==='admin_login') result={status:'success',token:'admin'};
             else if(data.action==='student_login') result={status:'success',token:'student',nama:'Mahasiswa Internasional Pengujian Dengan Nama Panjang'};
-            else if(data.action==='get_data') {if(nextRead){nextRead=false;result={status:'error',message:'Gangguan pembacaan uji'};}else result={status:'success',registrations:clone(data.token==='admin'?records:records.filter(item=>item.nim==='A')),students:[],dosens:[{Nama:'Dosen Uji',Terpakai:0,Maksimal:5}],contents:[],announcements:[],services:[],journeySupported:true,journey:{checks:{},revision:1,updatedAt:'2026-10-08T01:00:00Z'}};}
-            else if(data.action==='get_journey') result={status:'success',journey:{checks:{},revision:1,updatedAt:'2026-10-08T01:00:00Z'}};
+            else if(data.action==='get_data') {if(nextRead){nextRead=false;result={status:'error',message:'Gangguan pembacaan uji'};}else result={status:'success',registrations:clone(data.token==='admin'?records:records.filter(item=>item.nim==='A')),students:[],dosens:[{Nama:'Dosen Uji',Terpakai:0,Maksimal:5}],contents:[],announcements:[],services:[],journeySupported:true,journey:{exists:true,checks:{},revision:1,updatedAt:'2026-10-08T01:00:00Z'}};}
+            else if(data.action==='get_journey') result={status:'success',journey:{exists:true,checks:{},revision:1,updatedAt:'2026-10-08T01:00:00Z'}};
             else if(data.action==='get_sop') {assert(sopTypes.includes(data.type));result={status:'success',document:clone(sopDocs.get(data.type))};}
             else if(data.action==='get_sop_file') result={status:'success',fileName:'guide.pdf',mimeType:'application/pdf',base64:pdf('guide').toString('base64')};
             else if(data.action==='save_sop') {
