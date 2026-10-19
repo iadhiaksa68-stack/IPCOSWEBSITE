@@ -127,18 +127,18 @@
     function dialog() {
         let el=document.getElementById('local-document-preview');if(el)return el;
         el=document.createElement('dialog');el.id='local-document-preview';el.className='overlay-dialog';el.setAttribute('aria-labelledby','local-preview-title');
-        el.innerHTML='<div class="modal-card"><div class="local-preview-heading"><h2 id="local-preview-title"></h2><button type="button" class="btn-secondary" data-close-local-preview></button></div><div class="local-preview-content"><p class="field-helper"></p></div></div>';
+        el.innerHTML='<div class="modal-card"><div class="local-preview-heading"><h2 id="local-preview-title" data-preserve-case></h2><button type="button" class="btn-secondary" data-close-local-preview></button></div><div class="local-preview-content"><p class="field-helper"></p></div></div>';
         document.body.append(el);el.querySelector('button').addEventListener('click',clearLocal);el.addEventListener('cancel',event=>{event.preventDefault();clearLocal();});el.addEventListener('close',()=>{if(!el.open)clearLocal();});return el;
     }
-    async function previewLocal(inputId) {
-        const input=document.getElementById(inputId),file=input?.files?.[0];if(!file || currentUser.role!=='mhs')return;
+    async function previewLocal(inputId,index=0) {
+        const input=document.getElementById(inputId),file=input?.files?.[index];if(!file || currentUser.role!=='mhs')return;
         const epoch=sessionEpoch; const bytes=new Uint8Array(await file.slice(0,16).arrayBuffer());
-        if(epoch!==sessionEpoch || input.files[0]!==file)return;
+        if(epoch!==sessionEpoch || input.files[index]!==file)return;
         clearLocal();const el=dialog(),mime=trustedMime(bytes,file.type,file.name);
         const url=URL.createObjectURL(new Blob([file],{type:mime}));localUrls.add(url);
         el.querySelector('h2').textContent=file.name;el.querySelector('button').textContent=t('Tutup','Close');
         render(el.querySelector('.local-preview-content'),url,mime,file.name);el.showModal();
     }
-    document.addEventListener('click',event=>{const button=event.target.closest('[data-local-preview]');if(button)previewLocal(button.dataset.localPreview).catch(error=>showToast(error.message,'error'));});
+    document.addEventListener('click',event=>{const button=event.target.closest('[data-local-preview]');if(button)previewLocal(button.dataset.localPreview,Number(button.dataset.localPreviewIndex||0)).catch(error=>showToast(error.message,'error'));});
     window.IPCOSDocuments={render,reset,trustedMime,clearLocal,languageChanged:()=>{jobs.forEach(job=>job.translate?.());document.querySelectorAll('[data-document-id]').forEach(node=>{node.textContent=t(node.dataset.documentId,node.dataset.documentEn);if(node.dataset.documentAria)node.setAttribute('aria-label',node.textContent);});}};
 })();

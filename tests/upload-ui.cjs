@@ -1,0 +1,71 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {chromium,reportFailure}=require('./browser.cjs');
+const {previewPdf,zip}=require('./fixtures.cjs');
+const origin=process.env.IPCOS_TEST_BASE_URL||'http://127.0.0.1:8766';
+const calls=[],errors=[],checks=[];
+const pass=text=>{checks.push(text);console.log('PASS '+text);};
+const pdf=name=>({name,mimeType:'application/pdf',buffer:previewPdf(name)});
+const record={id:'upload-revision',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal',status:'Revision',date:new Date().toISOString(),detail:'Judul uji',link:'',note:'[]'};
+(async()=>{
+ const browser=await chromium.launch(),context=await browser.newContext({reducedMotion:'reduce',viewport:{width:1365,height:900}});
+ await context.route('**/*',async route=>{
+  const url=route.request().url();
+  if(url.includes('script.google.com/macros/')){
+   const data=route.request().postDataJSON();calls.push(data);
+   if(await require('./next-mock.cjs')(route,data))return;
+   let result;
+   if(data.action==='student_login')result={status:'success',token:'upload-student',nama:'Mahasiswa Pengujian'};
+   else if(data.action==='get_data')result={status:'success',registrations:[record],students:[],dosens:[],contents:[],announcements:[],services:['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'].map(type=>({type,enabled:true,open:'',close:''}))};
+   else if(data.action==='logout')result={status:'success'};
+   else throw Error('Unexpected upload test API '+data.action);
+   return route.fulfill({contentType:'application/json',body:JSON.stringify(result)});
+  }
+  if(url.startsWith(origin))return route.continue();
+  if(url.includes('chart.js'))return route.fulfill({contentType:'text/javascript',body:'window.Chart=class{static defaults={font:{}};destroy(){}};'});
+  return route.abort();
+ });
+ const page=await context.newPage();page.on('pageerror',error=>{errors.push(error.message);console.error('Browser error:',error.message);});page.on('dialog',dialog=>dialog.accept());
+ await page.goto(origin);await page.fill('#input-nim','A');await page.locator('#input-nim').press('Enter');await page.waitForSelector('#welcome-modal',{state:'hidden'});await page.waitForFunction(()=>syncPhase==='success');
+ await page.evaluate(()=>switchTab(null,'pendaftaran'));await page.selectOption('#reg-jenis-utama','Outline');await page.fill('#reg-judul','Judul penelitian untuk pengujian unggah');
+ const filename='Proposal eCommerce O’Connor '+ 'panjang-'.repeat(25)+'.pdf';
+ await page.setInputFiles('#file-proposal',pdf(filename));await page.waitForSelector('#file-proposal-selection [data-state=ready]');
+ assert.equal(await page.locator('#file-proposal-selection .upload-file-name').textContent(),filename);
+ assert.match(await page.locator('#file-proposal-selection').textContent(),/belum dikirim/);
+ await page.locator('#file-proposal-selection [data-upload-action=preview]').click();
+ await page.waitForFunction(()=>document.querySelector('#local-document-preview canvas')?.dataset.rendered==='true');
+ assert.equal(await page.locator('#local-preview-title').textContent(),filename);
+ await page.locator('[data-close-local-preview]').click();
+ assert.equal(await page.evaluate(()=>document.querySelector('#file-proposal').files.length),1);
+ pass('Selected PDF opens locally before review without losing its original name or selection');
+ for(const width of [320,390,768,1365])for(const lang of ['id','en'])for(const dark of [false,true]){
+  await page.setViewportSize({width,height:900});
+  await page.evaluate(({lang,dark})=>{if(currentLang!==lang)toggleLanguage();if(document.body.classList.contains('dark-mode')!==dark)toggleDarkMode();},{lang,dark});
+  assert.equal(await page.locator('#file-proposal-selection .upload-file-info').evaluate(node=>getComputedStyle(node).display),'flex','Upload card styles must load');
+  const state=await page.locator('#file-proposal-selection').evaluate(root=>({overflow:document.documentElement.scrollWidth>innerWidth+2,clipped:[...root.querySelectorAll('strong,span,p,button')].filter(n=>n.clientWidth&&n.scrollWidth>n.clientWidth+3).map(n=>n.textContent),buttons:[...root.querySelectorAll('button')].map(n=>n.getBoundingClientRect().height)}));
+  assert.equal(state.overflow,false,JSON.stringify({width,lang,dark}));assert.deepEqual(state.clipped,[]);assert(state.buttons.every(height=>height>=44));
+  assert.equal(await page.locator('#file-proposal-selection .upload-file-name').textContent(),filename);
+ }
+ fs.mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/upload-ui-data-uji.png'});
+ pass('Long filenames and file actions fit 16 width/language/theme combinations with usable touch targets');
+ await page.evaluate(()=>{if(currentLang!=='id')toggleLanguage();});
+ await page.setInputFiles('#file-proposal',{name:'rusak.pdf',mimeType:'application/pdf',buffer:Buffer.from('not a PDF')});
+ await page.waitForSelector('#file-proposal-selection [data-state=error]');assert.equal(await page.locator('#file-proposal-selection [data-upload-action=preview]').count(),0);
+ assert.match(await page.locator('#file-proposal-selection').textContent(),/tidak sesuai/);
+ await page.locator('#file-proposal-selection [data-upload-action=remove]').click();assert.equal(await page.evaluate(()=>document.getElementById('file-proposal').files.length),0);
+ assert.match(await page.locator('#file-proposal-selection').textContent(),/Belum ada/);
+ const docx={name:'draf.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:zip(['[Content_Types].xml','word/document.xml'])};
+ await page.setInputFiles('#file-proposal',docx);await page.waitForSelector('#file-proposal-selection [data-state=ready]');await page.locator('#file-proposal-selection [data-upload-action=preview]').click();await page.waitForSelector('#local-document-preview[open]');assert.match(await page.locator('#local-document-preview').textContent(),/Word|arsip/);await page.locator('[data-close-local-preview]').click();
+ pass('Corrupt PDFs show actionable inline errors; removal clears the selection; Word files offer an honest download fallback');
+ await page.evaluate(()=>{isSubmittingRegistration=true;window.IPCOSRegistration.refresh();});
+ assert(await page.locator('#file-proposal').isDisabled());assert(await page.locator('#file-proposal-selection [data-upload-action=remove]').isDisabled());
+ await page.evaluate(()=>{isSubmittingRegistration=false;window.IPCOSRegistration.refresh();});assert(!await page.locator('#file-proposal').isDisabled());
+ await page.evaluate(()=>openCaseDetail('upload-revision'));await page.evaluate(()=>caseDetailAction('reply'));await page.waitForSelector('#case-reply-files');
+ await page.setInputFiles('#case-reply-files',[pdf('pertama.pdf'),pdf('kedua.pdf')]);await page.waitForFunction(()=>document.querySelectorAll('#case-reply-files-selection [data-state=ready]').length===2);
+ await page.locator('#case-reply-files-selection [data-upload-action=preview]').nth(1).click();await page.waitForFunction(()=>document.querySelector('#local-document-preview canvas')?.dataset.rendered==='true');assert.equal(await page.locator('#local-preview-title').textContent(),'kedua.pdf');await page.locator('[data-close-local-preview]').click();
+ await page.locator('#case-reply-files-selection [data-upload-action=remove]').first().click();assert.deepEqual(await page.evaluate(()=>[...document.getElementById('case-reply-files').files].map(file=>file.name)),['kedua.pdf']);
+ await page.setInputFiles('#case-reply-files',Array.from({length:6},(_,i)=>pdf('berkas-'+i+'.pdf')));await page.waitForSelector('#case-reply-files-selection .upload-total.field-error');
+ assert.equal(calls.filter(call=>['create','update','get_document'].includes(call.action)).length,0,'Local previews and inspection must not upload or request private documents');
+ assert.deepEqual(errors,[]);pass('Busy controls lock selection; correction previews use the selected index; individual removal preserves other files and total limits remain visible');
+ fs.writeFileSync('test-results/upload-ui-results.json',JSON.stringify({checks,errors,layoutModes:16,syntheticAPI:true},null,2));await browser.close();
+})().catch(reportFailure);

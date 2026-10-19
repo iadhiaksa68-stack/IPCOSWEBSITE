@@ -81,6 +81,7 @@ test('dropped files follow picker change handlers and respect single-file inputs
   }
   const context = vm.createContext({
     document: {getElementById: () => input}, DataTransfer,
+    currentUser:{role:'mhs'},getSessionToken:()=> 'test-session',isSubmittingRegistration:false,isPreparingCorrection:false,preflightBusy:false,
     Event: class {constructor(type, options) {this.type = type; Object.assign(this, options);}},
   });
   vm.runInContext(section('function handleDropZone(', 'function formatFileSize('), context);
@@ -90,6 +91,11 @@ test('dropped files follow picker change handlers and respect single-file inputs
   assert.equal(events.length, 1);
   assert.equal(events[0].type, 'change');
   assert.equal(events[0].bubbles, true);
+  for(const flag of ['isSubmittingRegistration','isPreparingCorrection','preflightBusy']){
+    context[flag]=true;
+    context.handleDropZone({preventDefault() {},dataTransfer:{files:[second]}},{classList:{remove(){}}},'file','label');
+    assert.equal(input.files[0],first,'Busy drops must preserve the submitted selection');context[flag]=false;
+  }
 });
 
 test('global search trims surrounding spaces and renders keyboard-operable results', () => {

@@ -923,6 +923,7 @@ function handleDropZone(e, el, inputId, labelId) {
     e.preventDefault();
     el.classList.remove('dragover');
     const fileInput = document.getElementById(inputId);
+    if (!fileInput || currentUser.role!=='mhs' || !getSessionToken() || isSubmittingRegistration || isPreparingCorrection || preflightBusy || fileInput.disabled) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         const transfer = new DataTransfer();
         const files = [...e.dataTransfer.files];
@@ -1440,6 +1441,7 @@ async function submitCaseAction() {
     feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
     setSubmissionStage('case-action-feedback','preparing');
     isPreparingCorrection = true;
+    window.IPCOSUploads?.refresh();
     window.IPCOSReview?.actionsChanged();
     const requestEpoch = sessionEpoch;
     try {
@@ -1447,7 +1449,7 @@ async function submitCaseAction() {
             const inspections = await Promise.all(files.map(inspectDocument));
             if (requestEpoch !== sessionEpoch) return;
             const problem = inspections.find(result=>result.error);
-            if (problem) { fail(systemText(problem.error)); return; }
+            if (problem) { setSubmissionStage('case-action-feedback','error'); fail(systemText(problem.error)); return; }
         }
         const labels = correctionLabels;
         const payloadFiles = await Promise.all(files.map(async (file,index) => ({label:labels[index],fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
@@ -1463,7 +1465,7 @@ async function submitCaseAction() {
         else if (!success && document.getElementById('case-action-feedback')) setProcessNotice('case-action-feedback','case-uncertain');
     } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); setProcessNotice('case-action-feedback','case-error',error.message); }
     finally {
-        if (requestEpoch === sessionEpoch) isPreparingCorrection = false;
+        if (requestEpoch === sessionEpoch) { isPreparingCorrection = false; window.IPCOSUploads?.refresh(); }
         if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = uxText('Coba Simpan Lagi', 'Try Saving Again'); }
         if (requestEpoch === sessionEpoch) window.IPCOSReview?.actionsChanged();
     }
@@ -1555,7 +1557,7 @@ async function submitForm(e) {
     let finalDetail = `<b>Judul:</b> ${escapeHtml(document.getElementById('reg-judul').value.trim())}`;
 
     try {
-        showLoader(currentLang === 'id' ? 'Mengompresi & Memproses Berkas...' : 'Compressing & Processing Files...');
+        showLoader(currentLang === 'id' ? 'Menyiapkan Berkas...' : 'Preparing Files...');
 
         if (jenisUjian === "Outline") {
             const fTranskrip = document.getElementById('file-transkrip').files[0];

@@ -6,6 +6,7 @@
     let activeStep='service',previousType='',generation=0;
     function setText(node,value){if(node&&node.textContent!==value)node.textContent=value;}
     function refresh(){
+        window.IPCOSUploads?.refresh();
         const select=el('reg-jenis-utama'),nav=el('registration-stepper');if(!select||!nav)return;
         const type=select.value,selected=SERVICE_TYPES.includes(type),review=!el('registration-review').hidden;
         if(previousType!==type)generation++;
