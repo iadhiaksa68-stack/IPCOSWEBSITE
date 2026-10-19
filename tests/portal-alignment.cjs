@@ -51,7 +51,7 @@ async function layout(page,label,width){
 (async()=>{
  const browser=await chromium.launch();fs.mkdirSync('test-results',{recursive:true});let layouts=0;
  for(const role of ['mhs','admin']){
-  const page=await login(browser,role),tabs=['dashboard',...(role==='admin'?['admin-data','admin-dosen','admin-master','internationalization']:['student-status','pendaftaran','academic-journey']),'magang','skripsi','kurikulum','sop-magang','sop-tugas-akhir','remidial','kalender','templates-faq','feedback','notifications'];
+  const page=await login(browser,role),tabs=['dashboard',...(role==='admin'?['admin-data','admin-dosen','admin-master','internationalization']:['student-status','student-files','pendaftaran','academic-journey']),'magang','skripsi','kurikulum','sop-magang','sop-tugas-akhir','remidial','kalender','templates-faq','feedback','notifications'];
   for(const width of [320,390,768,1365])for(const lang of ['id','en'])for(const dark of [false,true]){
    await page.setViewportSize({width,height:900});await page.evaluate(({lang,dark})=>{if(currentLang!==lang)toggleLanguage();document.body.classList.toggle('dark-mode',dark);},{lang,dark});
    await page.waitForFunction(dark=>getComputedStyle(document.body).backgroundColor===(dark?'rgb(17, 20, 27)':'rgb(246, 247, 249)'),dark);

@@ -11,11 +11,12 @@
     let activeModal = null, lastFocused = document.activeElement;
     const modalReturnFocus = new WeakMap(), modalBackground = new Map();
     function captureModalOrigin(node) {
-        return {node,epoch:sessionEpoch,caseId:node?.closest?.('[data-case-id]')?.dataset.caseId,tabId:node?.closest?.('.tab-content')?.id};
+        return {node,epoch:sessionEpoch,caseId:node?.closest?.('[data-case-id]')?.dataset.caseId,tabId:node?.closest?.('.tab-content')?.id,fileKey:node?.closest?.('[data-files-key]')?.dataset.filesKey,fileAction:node?.dataset.filesAction};
     }
     function restoreModalOrigin(origin,next) {
         if (!origin || origin.epoch!==sessionEpoch) return false;
         let target=origin.node;
+        if (!canFocus(target) && origin.fileKey && !next && origin.tabId==='student-files') return window.IPCOSFileCenter?.restoreFocus(origin.fileKey,origin.fileAction)===true;
         if (!canFocus(target) && origin.caseId && !next) {
             const tab=document.getElementById(origin.tabId);
             if (!tab?.classList.contains('active')) return false;

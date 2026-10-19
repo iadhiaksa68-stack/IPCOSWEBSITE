@@ -1,6 +1,7 @@
 /* Local previews only. Private Drive files still pass through the authenticated API. */
 (() => {
     const t = (id,en) => uxText(id,en);
+    function message(node,id,en) { node.dataset.documentId=id;node.dataset.documentEn=en;node.textContent=t(id,en); }
     const localUrls = new Set();
     const jobs=new Map();let pdfLibrary;
     function reset(panel) {
@@ -34,7 +35,7 @@
         const searchStatus=document.createElement('p');searchStatus.className='field-helper pdf-search-status';searchStatus.setAttribute('role','status');searchStatus.hidden=true;
         search.append(query,find,nextMatch);const tools=document.createElement('details');tools.className='pdf-tools';const toolsTitle=document.createElement('summary');toolsTitle.textContent=t('Alat PDF','PDF Tools');const extra=document.createElement('div');extra.className='pdf-extra-tools';extra.append(minus,plus,rotate,jump,search);tools.append(toolsTitle,extra);toolbar.append(previous,position,next,expand,tools);
         panel.insertBefore(toolbar,helper);panel.insertBefore(viewer,helper);panel.insertBefore(accessible,helper);panel.insertBefore(searchStatus,helper);
-        helper.textContent=t('Memuat pembaca PDF lokal…','Loading the local PDF reader…');
+        message(helper,'Memuat pembaca PDF lokal…','Loading the local PDF reader…');
         let hits=[],hitIndex=-1;
         const buttons=()=>{previous.disabled=job.drawing||!job.pdf||job.page<=1;next.disabled=job.drawing||!job.pdf||job.page>=job.pdf.numPages;minus.disabled=job.drawing||!job.pdf||job.zoom<=.75;plus.disabled=job.drawing||!job.pdf||job.zoom>=2;rotate.disabled=go.disabled=pageInput.disabled=job.drawing||!job.pdf;find.disabled=!job.pdf||job.searching;nextMatch.disabled=job.drawing||job.searching;};buttons();
         async function draw(){
@@ -48,9 +49,9 @@
                 canvas.dataset.rendered='false';job.renderTask=page.render({canvasContext:canvas.getContext('2d'),viewport,transform:density!==1?[density,0,0,density,0,0]:null});await job.renderTask.promise;if(!live())return;
                 canvas.dataset.rendered='true';canvas.dataset.page=String(job.page);canvas.dataset.rotation=String(job.rotation);canvas.setAttribute('aria-label',name+' · '+t('Halaman ','Page ')+job.page+' / '+job.pdf.numPages);
                 position.textContent=job.page+' / '+job.pdf.numPages+' · '+Math.round(job.zoom*100)+'%';pageInput.value=String(job.page);
-                helper.textContent=t('PDF diproses di perangkat Anda. Pencarian tersedia untuk PDF yang memiliki teks.','The PDF is processed on your device. Search works with PDFs containing text.');
+                message(helper,'PDF diproses di perangkat Anda. Pencarian tersedia untuk PDF yang memiliki teks.','The PDF is processed on your device. Search works with PDFs containing text.');
                 const text=await page.getTextContent();if(live())accessible.textContent=text.items.map(item=>item.str||'').join(' ').slice(0,12000);
-            }catch(error){if(live()&&error.name!=='RenderingCancelledException')helper.textContent=t('Halaman PDF belum dapat ditampilkan. Gunakan Buka Pratinjau atau Unduh Berkas.','This PDF page could not be displayed. Use Open Preview or Download File.');}
+            }catch(error){if(live()&&error.name!=='RenderingCancelledException')message(helper,'Halaman PDF belum dapat ditampilkan. Gunakan Buka Pratinjau atau Unduh Berkas.','This PDF page could not be displayed. Use Open Preview or Download File.');}
             finally{job.drawing=false;if(live()){buttons();if(job.redraw){job.redraw=false;draw();}}}
         }
         previous.addEventListener('click',()=>{if(job.page>1){job.page--;draw();}});next.addEventListener('click',()=>{if(job.pdf&&job.page<job.pdf.numPages){job.page++;draw();}});
@@ -96,7 +97,7 @@
             const base=new URL('./vendor/pdfjs/',location.href).href;
             job.loading=library.getDocument({data:bytes,isEvalSupported:false,enableXfa:false,cMapUrl:base+'cmaps/',cMapPacked:true,standardFontDataUrl:base+'standard_fonts/',wasmUrl:base+'wasm/'});
             job.pdf=await job.loading.promise;if(!live())return;pageInput.max=String(job.pdf.numPages);await draw();
-        }catch(error){if(live())helper.textContent=t('PDF rusak, dilindungi kata sandi, atau tidak dapat dibaca. Gunakan Buka Pratinjau atau Unduh Berkas.','This PDF is damaged, password protected, or unreadable. Use Open Preview or Download File.');}
+        }catch(error){if(live())message(helper,'PDF rusak, dilindungi kata sandi, atau tidak dapat dibaca. Gunakan Buka Pratinjau atau Unduh Berkas.','This PDF is damaged, password protected, or unreadable. Use Open Preview or Download File.');}
     }
     function render(panel,url,mime,name) {
         reset(panel); panel.hidden=false;
@@ -109,7 +110,7 @@
             if(mime!=='application/pdf'){const viewer=document.createElement('img');viewer.className='document-renderer';viewer.src=url;viewer.alt=t('Pratinjau: ','Preview: ')+name;panel.insertBefore(viewer,helper);}actions.append(open);
         }
         actions.append(download);panel.insertBefore(actions,helper);
-        helper.textContent=canPreview?t('Periksa isi dokumen. Jika penampil kosong, gunakan Buka Pratinjau di Tab Baru atau Unduh Berkas.','Check the document contents. If the viewer is blank, use Open Preview in New Tab or Download File.'):t('Format Word atau arsip dibuka melalui aplikasi di perangkat Anda. Pilih Unduh Berkas.','Word documents and archives open in an app on your device. Select Download File.');
+        message(helper,...(canPreview?['Periksa isi dokumen. Jika penampil kosong, gunakan Buka Pratinjau di Tab Baru atau Unduh Berkas.','Check the document contents. If the viewer is blank, use Open Preview in New Tab or Download File.']:['Format Word atau arsip dibuka melalui aplikasi di perangkat Anda. Pilih Unduh Berkas.','Word documents and archives open in an app on your device. Select Download File.']));
         if(mime==='application/pdf')pdfPreview(panel,url,name);
     }
     function trustedMime(bytes,mime,name) {

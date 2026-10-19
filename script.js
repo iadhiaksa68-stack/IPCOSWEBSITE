@@ -398,6 +398,7 @@ function clearPrivateCache() {
     window.IPCOSAcademic?.reset();
     window.IPCOSResources?.reset();
     window.IPCOSHelp?.reset();
+    window.IPCOSFileCenter?.reset();
     window.IPCOSNotifications?.reset();
     window.IPCOSSupervisors?.reset();
     window.IPCOSMaster?.reset();
@@ -762,6 +763,7 @@ function logoutUser() {
 // ==========================================
 function renderNotifications() {
     renderTaskHome();
+    window.IPCOSFileCenter?.render();
     window.IPCOSSearch?.refresh();
     if (window.IPCOSNotifications) { window.IPCOSNotifications.render(); return; }
     const listContainer = document.getElementById('notif-list-container');
@@ -2814,7 +2816,7 @@ function canAccessTab(tabId) {
     if (['sop-magang','sop-tugas-akhir'].includes(tabId)) return ['mhs','admin'].includes(currentUser.role);
     if (tabId === 'academic-journey') return ['mhs','admin'].includes(currentUser.role);
     if (tabId === 'internationalization') return currentUser.role === 'admin';
-    if (['pendaftaran','student-status'].includes(tabId)) return currentUser.role === 'mhs';
+    if (['pendaftaran','student-status','student-files'].includes(tabId)) return currentUser.role === 'mhs';
     if (['admin-data','admin-dosen','admin-master'].includes(tabId)) return currentUser.role === 'admin';
     return true;
 }
@@ -2824,9 +2826,11 @@ function switchTab(event, tabId) {
     if (window.IPCOSSop && !window.IPCOSSop.beforeNavigate(tabId)) return false;
     if (tabId === 'academic-journey') renderAcademicJourney();
     if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return false;
+    if (tabId !== 'student-files') window.IPCOSFileCenter?.beforeNavigate();
     if (tabId === 'dashboard') renderTaskHome();
     if (tabId === 'notifications') window.IPCOSNotifications?.render();
     if (tabId === 'feedback') window.IPCOSHelp?.render();
+    if (tabId === 'student-files') window.IPCOSFileCenter?.render();
     window.IPCOSExperience?.beforeTab(tabId);
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));

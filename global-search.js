@@ -16,6 +16,7 @@
         ['notifications','Pusat Notifikasi','Notifications','notifikasi pengumuman pemberitahuan announcement inbox'],
         ['pendaftaran','Pusat Pendaftaran','Registration Center','daftar ujian outline sempro proposal pendadaran jurnal register exam'],
         ['student-status','Status Pengajuanku','My Requests','status pengajuan riwayat revisi request history correction'],
+        ['student-files','Pusat Berkas Mahasiswa','Student File Center','berkas saya file dokumen unggahan submitted documents uploads'],
         ['academic-journey','Perjalanan Akademik','Academic Journey','tahapan progres magang skripsi progress thesis internship'],
         ['templates-faq','Template Berkas & FAQ','Document Templates & FAQ','dokumen unduh tanya jawab document download questions answers'],
         ['kalender','Kalender Yudisium & Wisuda','Graduation Calendar','jadwal tanggal tenggat batas deadline schedule ceremony clearance'],
