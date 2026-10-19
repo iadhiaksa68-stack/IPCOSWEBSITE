@@ -1,0 +1,89 @@
+/* Shared portal rhythm. Task-specific grids, editors and reading tools keep their layouts. */
+:root {
+    --portal-title-size:30px;
+    --portal-title-leading:1.3;
+    --portal-title-tracking:-.75px;
+    --portal-heading-gap:8px;
+    --portal-section-gap:24px;
+    --portal-control-radius:10px;
+    --portal-error:#a52a3e;
+    --portal-success:#306847;
+}
+body.dark-mode { --portal-error:#ffb6c5; --portal-success:#a6d9b7; }
+/* An animated page must resolve its own theme color. Inherited color can retain
+   the previous theme while the reveal animation holds its final frame. */
+.tab-content { color:var(--text-color); }
+:where(#main-workspace .tab-content) :is(h2,h3,h4) { color:var(--heading-color); }
+
+#main-workspace .tab-content h1 {
+    font-size:var(--portal-title-size);
+    line-height:var(--portal-title-leading);
+    letter-spacing:var(--portal-title-tracking);
+    font-weight:650;
+    color:var(--heading-color);
+    margin-block-start:0;
+    overflow-wrap:anywhere;
+    text-wrap:balance;
+}
+#main-workspace :is(.page-intro,.student-requests-heading,.supervisor-heading,.resources-heading,.agenda-heading,.notification-heading,.help-heading,.journey-heading,.sop-heading) {
+    margin-block:0 var(--portal-section-gap);
+}
+#main-workspace :is(.preparation-heading,.reference-header) { margin-block:0 var(--portal-heading-gap); }
+#main-workspace :is(.page-intro,.student-requests-heading,.supervisor-heading,.resources-heading,.agenda-heading,.notification-heading,.help-heading,.journey-heading,.sop-heading) h1,
+#main-workspace :is(#pendaftaran,#admin-master)>h1 { margin-bottom:var(--portal-heading-gap); }
+#main-workspace :is(.page-intro,.student-requests-heading,.supervisor-heading,.resources-heading,.agenda-heading,.notification-heading,.help-heading,.journey-heading) p,
+#main-workspace :is(.registration-intro,.master-intro,.preparation-intro,.reference-intro) {
+    font-size:14px;
+    line-height:1.75;
+    color:var(--text-muted);
+    max-width:72ch;
+    margin-block:0;
+    overflow-wrap:anywhere;
+}
+#main-workspace :is(.supervisor-heading,.resources-heading)>p,
+#main-workspace :is(.registration-intro,.master-intro,.preparation-intro,.reference-intro) { margin-bottom:var(--portal-section-gap); }
+#main-workspace :is(.student-requests-heading,.agenda-heading,.notification-heading,.help-heading,.journey-heading,.preparation-heading,.reference-header,.sop-heading) { gap:16px; align-items:flex-start; }
+#main-workspace :is(.student-requests-heading,.agenda-heading,.notification-heading,.help-heading,.journey-heading,.sop-heading)>div { min-width:0; }
+
+.tab-content :is(.btn-primary,.btn-secondary,.btn-print,.btn-broadcast) {
+    min-height:44px;
+    border-radius:var(--portal-control-radius);
+    line-height:1.6;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    transition:var(--trans-fast);
+}
+/* Consistent field feedback without recoloring controls that are merely disabled. */
+:is(#main-workspace,.overlay) :is(input,select,textarea)[aria-invalid="true"] {
+    /* The legacy validation rule is important; preserve the semantic color on focus. */
+    border-color:var(--portal-error)!important;
+    border-inline-start-width:3px;
+}
+:is(#main-workspace,.overlay) :is(input,select,textarea):focus-visible {
+    outline:2px solid var(--sidebar-active-text)!important;
+    outline-offset:2px!important;
+}
+.tab-content :is(input,textarea)::placeholder { color:var(--text-muted); opacity:1; }
+.tab-content button:disabled { cursor:not-allowed; }
+.tab-content button[aria-busy="true"] { cursor:wait; }
+.tab-content .operation-feedback {
+    border-radius:12px;
+    border-inline-start-width:3px;
+    font-size:14px;
+    line-height:1.75;
+    padding:12px 16px;
+    color:var(--text-color);
+    background:var(--card-bg);
+}
+.tab-content .operation-feedback[data-state="error"] { border-color:var(--portal-error); }
+.tab-content .operation-feedback[data-state="success"] { border-color:var(--portal-success); }
+.tab-content .operation-feedback[data-state="busy"] { border-color:var(--sidebar-active-text); }
+
+@media(max-width:600px) {
+    :root { --portal-title-size:26px; --portal-title-tracking:-.5px; --portal-section-gap:20px; }
+    /* Later page styles previously reduced selects to 13px and triggered iOS focus zoom. */
+    body :is(#main-workspace,.overlay) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea) { font-size:16px; }
+}
+@media print {
+    #main-workspace .tab-content h1 { text-wrap:wrap; }
+}
