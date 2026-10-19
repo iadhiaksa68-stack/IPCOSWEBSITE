@@ -126,7 +126,7 @@
     window.addEventListener('scroll',()=>{if(readerFrame||!readerType)return;readerFrame=requestAnimationFrame(()=>{readerFrame=0;readerMeasure(readerType);});},{passive:true});
     window.addEventListener('resize',()=>{if(readerType){readerGeometry(readerType);readerMeasure(readerType);}});
     document.addEventListener('change',event=>{const type=event.target.dataset.readerSize;if(!types.includes(type)||!getSessionToken())return;const position=readerCapture(type);readerState(type).size=event.target.value==='large'?'large':'normal';render(type,position);});
-    document.addEventListener('toggle',event=>{if(getSessionToken()&&event.target.isConnected&&event.target.matches?.('.sop-reading-index .sop-contents')){contentsOpen.set(event.target.dataset.contentsKey,event.target.open);if(readerType)readerGeometry(readerType);}},true);
+    document.addEventListener('toggle',event=>{if(getSessionToken()&&event.target.isConnected&&event.target.matches?.('.sop-reading-index .sop-contents')&&readerType)readerGeometry(readerType);},true);
     document.addEventListener('keydown',event=>{if(event.key!=='Escape'||!readerType||event.target.matches('input,textarea,select')||[...document.querySelectorAll('.overlay,dialog[open],.document-expanded')].some(node=>node.getClientRects().length))return;event.preventDefault();readerFocus(readerType);});
     const anchorId = (doc,section,preview) => `${preview?'sop-preview':'sop'}-${doc.type}-${section.id}`;
     function jump(event,link) {
