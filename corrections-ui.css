@@ -1,0 +1,26 @@
+.correction-instructions,.correction-task,.correction-summary{min-width:0;overflow-wrap:anywhere}
+.correction-instruction{padding:14px 0;border-top:1px solid var(--item-border)}
+.correction-instruction h4,.correction-summary h4{font-size:14px;line-height:1.6;margin:0 0 8px;color:var(--heading-color)}
+.correction-instruction p,.correction-task p{font-size:13px;line-height:1.7;margin:6px 0 12px}
+.correction-instruction button,.correction-task button,.correction-summary button{min-height:44px;max-width:100%;white-space:normal}
+.correction-task{padding:12px;border:1px solid var(--item-border);border-radius:12px;margin:10px 0;background:var(--card-bg)}
+.correction-task .check-row{margin:0!important;align-items:flex-start}
+.correction-task>.field-helper{margin-left:0}
+.correction-summary{padding:18px;margin-top:18px;border:2px solid var(--umy-maroon);border-radius:14px;background:var(--card-bg);color:var(--text-color)}
+#modal-case-detail.student-corrections-review .student-detail-workspace{grid-template-columns:minmax(0,1fr)}
+#modal-case-detail.student-corrections-review .case-document-column,#modal-case-detail.student-corrections-review #workspace-view-toggle{display:none}
+#modal-case-detail.student-corrections-review .case-action-column{width:100%;min-width:0;border-left:0;padding-left:0}
+#modal-case-detail.student-corrections-review .student-detail-overview,
+#modal-case-detail.student-corrections-review .revision-instructions,
+#modal-case-detail.student-corrections-review .case-academic-details,
+#modal-case-detail.student-corrections-review .case-history,
+#modal-case-detail.student-corrections-review .student-detail-links{display:none}
+#modal-case-detail.student-corrections-review #case-action-panel>:not(#correction-summary):not(#case-action-feedback):not(.button-row){display:none}
+.student-corrections-review .correction-summary{max-width:800px;margin-left:auto;margin-right:auto}
+.correction-summary h3{margin-top:0;line-height:1.6;font-size:17px}
+.correction-summary p{line-height:1.7;font-size:13px}
+.correction-summary-files{list-style:none;padding:0;margin:14px 0}
+.correction-summary-files li{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-bottom:1px solid var(--item-border);line-height:1.7;font-size:13px}
+.correction-field-change{padding:12px 0;border-bottom:1px solid var(--item-border)}
+.correction-field-change p{margin:5px 0}
+@media(max-width:600px){.correction-summary{padding:12px}.correction-instruction button,.correction-summary button{width:100%}}

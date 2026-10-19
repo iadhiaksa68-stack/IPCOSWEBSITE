@@ -139,7 +139,7 @@ async function layout(page,label) {
     await page.evaluate(()=>toggleLanguage()); await page.evaluate(()=>toggleLanguage());
     assert.equal(await page.inputValue('#case-reply-note'),'Catatan asli mahasiswa'); assert.equal(await page.locator('#case-reply-files').evaluate(el=>el.files[0].name),'defense-corrected.pdf');
     assert(await page.isChecked('[name="correction-complete"]')); assert((await page.locator('#case-action-panel h3').textContent()).includes('Corrections')); assert((await page.locator('#revision-label-0').textContent()).includes('Thesis Defense Documents'));
-    await page.click('#btn-case-submit'); await page.waitForFunction(()=>!activeUpdateIds.size && !isPreparingCorrection);
+    await page.click('#btn-case-submit'); await page.waitForSelector('#correction-summary');await page.waitForFunction(()=>!isPreparingCorrection);await page.click('#btn-case-submit'); await page.waitForFunction(()=>!activeUpdateIds.size && !isPreparingCorrection);
     const correction = calls.find(call=>call.action === 'update'); assert.equal(correction.files[0].label,'Berkas Pendadaran'); assert.equal(correction.noteText,'Catatan asli mahasiswa');
     await page.evaluate(()=>closeModal('modal-case-detail',true));
     pass('Student corrections survive language switching; filenames, admin instructions and submitted notes remain intact');

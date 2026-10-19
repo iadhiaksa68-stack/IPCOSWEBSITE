@@ -1203,6 +1203,7 @@ function getRevisionInstructions(item) {
 function revisionInstructionsHtml(item) {
     const rev = getRevisionInstructions(item);
     if (!rev.instruction && !rev.files.length) return '';
+    if(currentUser.role==='mhs'&&String(item.status).toLowerCase()==='revision'&&window.IPCOSCorrections)return window.IPCOSCorrections.instructions(item);
     const heading = String(item.status).toLowerCase() === 'resubmitted' ? uxText('Instruksi revisi sebelumnya', 'Previous correction instructions') : currentUser.role === 'admin' ? uxText('Instruksi untuk mahasiswa', 'Instructions for the student') : uxText('Yang perlu Anda perbaiki', 'Corrections requested');
     return `<section class="revision-instructions"><h3>${heading}</h3>
         ${rev.files.length ? `<ul>${rev.files.map(label => `<li>${escapeHtml(systemText(label))}</li>`).join('')}</ul>` : ''}
@@ -1382,7 +1383,7 @@ function caseDetailAction(action) {
     window.IPCOSReviewTools?.prepareDecision(action);
     if(document.getElementById('modal-case-detail').classList.contains('has-document-preview')){document.getElementById('modal-case-detail').dataset.workspaceView='review';document.querySelector('#workspace-view-toggle button[data-workspace-view=review]')?.click();}
     (panel.querySelector('textarea, select, input') || panel.querySelector('button')).focus();
-    if(action === 'reply') window.IPCOSNext?.revisionFields(item,panel);
+    if(action === 'reply') { window.IPCOSNext?.revisionFields(item,panel); window.IPCOSCorrections?.refresh(); }
     window.IPCOSReview?.actionsChanged();
 }
 function cancelCaseAction() {
@@ -1391,6 +1392,7 @@ function cancelCaseAction() {
     window.IPCOSReview?.restoreActions();
     document.getElementById('case-action-panel').dataset.dirty = 'false';
     document.getElementById('case-action-panel').hidden = true;
+    window.IPCOSCorrections?.refresh();
     document.getElementById('case-detail-actions').hidden = false;
     window.IPCOSReview?.actionsChanged();
 }
@@ -1402,7 +1404,7 @@ async function submitCaseAction() {
     const panel = document.getElementById('case-action-panel');
     const action = panel.dataset.action;
     const feedback = document.getElementById('case-action-feedback');
-    feedback.ipcosNotice=null;
+    feedback.ipcosNotice=null;delete feedback.dataset.correctionNotice;
     const fail = (message,field=null) => { feedback.textContent = systemText(message); field?.focus(); return false; };
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
@@ -1441,6 +1443,7 @@ async function submitCaseAction() {
     feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
     setSubmissionStage('case-action-feedback','preparing');
     isPreparingCorrection = true;
+    if(action==='reply')window.IPCOSCorrections?.busy(true);
     window.IPCOSUploads?.refresh();
     window.IPCOSReview?.actionsChanged();
     const requestEpoch = sessionEpoch;
@@ -1450,6 +1453,10 @@ async function submitCaseAction() {
             if (requestEpoch !== sessionEpoch) return;
             const problem = inspections.find(result=>result.error);
             if (problem) { setSubmissionStage('case-action-feedback','error'); fail(systemText(problem.error)); return; }
+            if(window.IPCOSCorrections&&!window.IPCOSCorrections.review({files,labels:correctionLabels,note,correctedFields})){
+                document.getElementById('case-action-feedback-steps')?.remove();
+                feedback.dataset.correctionNotice='review';feedback.textContent=uxText('Periksa ringkasan, lalu pilih Konfirmasi & Kirim Perbaikan.','Review the summary, then select Confirm & Send Corrections.');return;
+            }
         }
         const labels = correctionLabels;
         const payloadFiles = await Promise.all(files.map(async (file,index) => ({label:labels[index],fileName:file.name,mimeType:file.type,base64:await fileToBase64(file)})));
@@ -1465,8 +1472,8 @@ async function submitCaseAction() {
         else if (!success && document.getElementById('case-action-feedback')) setProcessNotice('case-action-feedback','case-uncertain');
     } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); setProcessNotice('case-action-feedback','case-error',error.message); }
     finally {
-        if (requestEpoch === sessionEpoch) { isPreparingCorrection = false; window.IPCOSUploads?.refresh(); }
-        if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = uxText('Coba Simpan Lagi', 'Try Saving Again'); }
+        if (requestEpoch === sessionEpoch) { isPreparingCorrection = false; if(action==='reply')window.IPCOSCorrections?.busy(false); window.IPCOSUploads?.refresh(); }
+        if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = action==='reply'&&window.IPCOSCorrections ? window.IPCOSCorrections.label() : uxText('Coba Simpan Lagi', 'Try Saving Again'); }
         if (requestEpoch === sessionEpoch) window.IPCOSReview?.actionsChanged();
     }
 }
@@ -2210,6 +2217,7 @@ function toggleLanguage() {
             window.IPCOSReviewTools?.renderArchives();
     window.IPCOSPolish?.refresh();
     window.IPCOSRegistration?.refresh();
+    window.IPCOSCorrections?.refresh();
 }
 
 function applyDynamicLanguage() {
@@ -2359,6 +2367,7 @@ function openCaseDetail(id, languageRefresh = false) {
     if (!languageRefresh) modal.querySelector('.case-close').focus();
     window.IPCOSReview?.opened(item,{languageRefresh});
     window.IPCOSReviewTools?.opened(item,{languageRefresh});
+    window.IPCOSCorrections?.refresh();
     if (restoreFocus?.node.isConnected && !restoreFocus.node.disabled) {
         restoreFocus.node.focus({preventScroll:true});
         if (typeof restoreFocus.start==='number') restoreFocus.node.setSelectionRange(restoreFocus.start,restoreFocus.end,restoreFocus.direction || 'none');

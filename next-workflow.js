@@ -91,8 +91,9 @@
         try {
             const result=await call('get_revision_form',{id});if(epoch!==sessionEpoch||selectedCaseId!==id||!form.isConnected)return;
             revision={id,epoch,loading:false,version:result.version,requestId:requestId()};
+            form.dataset.originalFields=JSON.stringify(result.fields);
             form.innerHTML=`<legend>${text('Perbaiki Isian Pengajuan','Correct Request Details')}</legend>${Object.entries(result.fields).map(([key,value])=>`<label for="correction-${key}">${text(...fieldNames[key])}</label><textarea id="correction-${key}" data-correction-field="${key}" rows="${key==='reason'?3:2}" maxlength="${key==='reason'?2000:500}" required>${escapeHtml(value)}</textarea>`).join('')}<p class="field-helper">${text('Perubahan dicatat dalam pengajuan ini. Penetapan dosen tetap dilakukan admin.','Changes are recorded in this request. Supervisor assignment remains an admin decision.')}</p>`;
-            document.getElementById('btn-case-submit').disabled=false;
+            document.getElementById('btn-case-submit').disabled=false;window.IPCOSCorrections?.refresh();
         } catch(error) {if(epoch!==sessionEpoch||!form.isConnected)return;form.innerHTML=`<legend>${text('Perbaiki Isian Pengajuan','Correct Request Details')}</legend><p class="field-error">${escapeHtml(error.message)}</p><button type="button" class="btn-secondary" data-revision-retry>${text('Coba Lagi','Retry')}</button>`;}
     }
     function correctionPayload() {
