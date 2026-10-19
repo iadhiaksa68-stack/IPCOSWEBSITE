@@ -66,6 +66,8 @@
 [data-nav-icon="student-files"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z M14 2v6h6 M8 13h8 M8 17h5'/%3E%3C/svg%3E")}
 #file-center-filters{margin:0;padding:0;border:0;border-radius:0;background:transparent;min-width:0}
 #file-center-filters>summary{display:flex;align-items:center;gap:12px;min-height:44px;font-size:13px;line-height:1.7;color:var(--heading-color);cursor:pointer;padding:8px 0}
+#file-center-filters>summary::after{content:'+';display:grid;place-items:center;width:20px;height:20px;flex:0 0 20px;border:0;transform:none;margin:0;background:none;font-size:18px;line-height:1;font-weight:500}
+#file-center-filters[open]>summary::after{content:'−'}
 #file-center-filters-count{margin-inline-start:auto;color:var(--text-muted);font-size:12px;white-space:nowrap}
 #file-center-filters-count:empty{display:none}
 .file-center-filter-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding-top:14px;border-top:1px solid var(--item-border)}
