@@ -26,7 +26,7 @@
         ['magang','Kewajiban Magang','Internship Requirements','checklist persiapan internship preparation requirements'],
         ['skripsi','Kewajiban Skripsi','Thesis Requirements','checklist persiapan thesis preparation requirements'],
         ['internationalization','Mahasiswa Internasional','International Students','admin bahasa internasional language international'],
-        ['feedback','Kontak & Bantuan','Contact & Help','kontak bantuan whatsapp support help admin']
+        ['feedback','Pusat Bantuan','Help Center','kontak bantuan kendala whatsapp support help admin']
     ];
     const groupLabels={menus:['Menu','Pages'],requests:['Pengajuan','Requests'],templates:['Template Berkas','Document Templates'],faq:['FAQ','FAQ'],references:['Referensi Akademik','Academic References'],calendar:['Kalender','Calendar'],sop:['SOP Terbit','Published SOPs']};
     const serviceEnglish={Outline:'Outline',Proposal:'Proposal Seminar',Pendadaran:'Thesis Defense','Skripsi Jurnal':'Journal Thesis','Pergantian Pembimbing':'Supervisor Change'};

@@ -46,6 +46,7 @@
     <link rel="stylesheet" href="student-requests.css">
     <link rel="stylesheet" href="journey-ui.css">
     <link rel="stylesheet" href="resources-ui.css">
+    <link rel="stylesheet" href="help-ui.css">
     <link rel="stylesheet" href="notifications-ui.css">
     <link rel="stylesheet" href="supervisor-ui.css">
     <link rel="stylesheet" href="master-ui.css">
@@ -384,8 +385,8 @@
                 data-en="Thesis Requirements">Kewajiban Skripsi</li><li data-nav-target="kurikulum" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kurikulum')" data-nav-icon="kurikulum" data-id="Sebaran Mata Kuliah"
                 data-en="Course Curriculum">Sebaran Mata Kuliah</li><li data-nav-target="kalender" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'kalender')" data-nav-icon="kalender" data-id="Kalender Akademik"
                 data-en="Academic Calendar">Kalender Akademik</li></ul></details></li><li class="nav-group"><details data-nav-group="help"><summary><span class="lang" data-id="Bantuan" data-en="Help">Bantuan</span></summary><ul><li data-nav-target="templates-faq" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'templates-faq')" data-nav-icon="templates-faq" data-id="Template & FAQ"
-                data-en="Templates & FAQ">Template & FAQ</li><li data-nav-target="feedback" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'feedback')" data-nav-icon="feedback" data-id="Kontak Kami" data-en="Contact Us">
-                Kontak Kami</li></ul></details></li></ul>
+                data-en="Templates & FAQ">Template & FAQ</li><li data-nav-target="feedback" tabindex="0" role="button" class="nav-item lang" onclick="switchTab(event, 'feedback')" data-nav-icon="feedback" data-id="Pusat Bantuan" data-en="Help Center">
+                Pusat Bantuan</li></ul></details></li></ul>
 
         <button class="btn-sidebar" id="lang-btn" onclick="toggleLanguage()">Switch to English</button>
         <button class="btn-sidebar lang" onclick="toggleDarkMode()" data-id="Mode Gelap / Terang"
@@ -968,14 +969,24 @@
             </div>
         </div>
 
-        <div id="feedback" class="tab-content">
-            <h1>Kontak Kami</h1>
-            <div class="card" style="text-align: center; padding: 30px 20px;">
-                <h2 style="margin-top: 0;">Hubungi Tim IPCOS</h2>
-                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                    <a href="https://wa.me/6285172228960" target="_blank" rel="noopener noreferrer" class="btn-contact btn-whatsapp">WhatsApp
-                        Mincos</a>
-                </div>
+        <div id="feedback" class="tab-content help-page" data-preserve-case>
+            <header class="help-heading"><div><h1 id="help-title" tabindex="-1">Pusat Bantuan</h1><p id="help-intro"></p></div><button type="button" class="btn-secondary" id="help-resume-request" hidden></button></header>
+            <section aria-labelledby="help-topic-title"><h2 id="help-topic-title"></h2><div class="help-topics" id="help-topics" role="group"></div></section>
+            <div class="help-layout">
+                <section class="help-guides" aria-labelledby="help-faq-title">
+                    <div class="help-guidance"><h3 id="help-guidance-title" tabindex="-1"></h3><p id="help-guidance-copy"></p><div class="help-actions" id="help-actions"></div></div>
+                    <h2 id="help-faq-title"></h2><label for="help-search" id="help-search-label"></label><div class="help-search-row"><input type="search" id="help-search" autocomplete="off" aria-describedby="help-faq-count"><button type="button" id="help-search-reset" class="btn-secondary" hidden></button></div>
+                    <p id="help-faq-count" role="status" aria-live="polite"></p><div id="help-faq-list" class="help-faq-list"></div><button type="button" class="btn-secondary" id="help-more-faq" data-help-tab="templates-faq" hidden></button>
+                </section>
+                <section class="help-contact" aria-labelledby="help-contact-title"><h2 id="help-contact-title"></h2><p id="help-contact-intro"></p>
+                    <p id="help-context-notice" role="status" aria-live="polite" hidden></p>
+                    <div id="help-compose">
+                        <div class="help-field" id="help-request-field"><label for="help-request" id="help-request-label"></label><select id="help-request" aria-describedby="help-request-hint" data-preserve-case></select><p id="help-request-hint" class="help-hint"></p></div>
+                        <div class="help-field"><label for="help-description" id="help-description-label"></label><textarea id="help-description" rows="5" maxlength="1200" aria-describedby="help-description-hint help-description-count help-description-error"></textarea><p id="help-description-hint" class="help-hint"></p><p id="help-description-count"></p><p id="help-description-error" role="status" aria-live="polite"></p></div>
+                        <button type="button" class="btn-primary" id="help-review-button"></button>
+                    </div>
+                    <div id="help-message-review" class="help-review" hidden><h3 id="help-review-title" tabindex="-1"></h3><label for="help-message" id="help-message-label"></label><textarea id="help-message" rows="9" readonly aria-describedby="help-review-hint"></textarea><p id="help-review-hint"></p><div class="help-review-actions"><button type="button" class="btn-secondary" id="help-edit-message"></button><a id="help-whatsapp" class="btn-primary" target="_blank" rel="noopener noreferrer"></a></div></div>
+                </section>
             </div>
         </div>
         <div id="notifications" class="tab-content">
@@ -1013,6 +1024,7 @@
     <script src="corrections-ui.js" defer></script>
     <script src="student-requests.js" defer></script>
     <script src="resources-ui.js" defer></script>
+    <script src="help-ui.js" defer></script>
     <script src="notifications-ui.js" defer></script>
     <script src="supervisor-ui.js" defer></script>
     <script src="master-ui.js" defer></script>

@@ -160,7 +160,7 @@
     async function detour(entry,action,originId){
         const template=action==='template'?templates(entry):[];if(action==='template'&&template.length!==1)return;
         const tab=action==='template'?'templates-faq':sopTab(entry.type);if(!navigate(tab))return;
-        window.IPCOSNext?.clearGuide?.();clearGuide();guide={owner:ownerKey(),epoch:sessionEpoch,type:entry.type,key:entry.key,tab,originId};renderGuide();const run=++navigation;
+        window.IPCOSNext?.clearGuide?.();window.IPCOSHelp?.clearGuide?.();clearGuide();guide={owner:ownerKey(),epoch:sessionEpoch,type:entry.type,key:entry.key,tab,originId};renderGuide();const run=++navigation;
         let target;
         if(action==='template')target=window.IPCOSResources?.reveal?.('template_berkas',template[0].key);
         else{await window.IPCOSSop?.open?.(sopType(entry.type));if(guide?.owner!==ownerKey()||guide?.epoch!==sessionEpoch||run!==navigation)return;const section=String(metadata(entry,'sopSectionId')??'').trim();target=window.IPCOSSop?.reveal?.(sopType(entry.type),section);if(!target){target=window.IPCOSSop?.reveal?.(sopType(entry.type),'')||el(sopType(entry.type)+'-view')?.querySelector('h1,[role="status"]');if(section)showToast(t('Bagian SOP terkait belum tersedia. Panduan umum ditampilkan.','The linked SOP section is unavailable. Showing the general guide.'),'error');}}
@@ -179,6 +179,6 @@
         const back=event.target.closest('[data-preparation-return]');if(back){if(back.dataset.preparationReturn==='guide')returnGuide();else returnJourney(back.dataset.preparationType);return;}
         const next=event.target.closest('[data-preparation-next]');if(next){if(next.dataset.preparationComplete==='true'){if(navigate('academic-journey'))focusAfter('academic-journey',el('journey-position-title'));return;}const type=next.dataset.preparationNext,target=reveal(type,next.dataset.preparationKey);navigation++;focusAfter(type,target);}
     });
-    window.IPCOSPreparation=Object.freeze({render,reset,open,reveal,entries,service});
+    window.IPCOSPreparation=Object.freeze({render,reset,open,reveal,entries,service,clearGuide});
     render();
 })();

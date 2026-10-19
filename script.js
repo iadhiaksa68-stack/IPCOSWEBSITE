@@ -183,7 +183,7 @@ const searchDatabase = [
     { title: "SOP Magang", keywords: "sop magang internship procedure panduan lampiran", tab: "sop-magang" },
     { title: "SOP Tugas Akhir", keywords: "sop tugas akhir final project thesis procedure panduan", tab: "sop-tugas-akhir" },
     { title: "Kalender Yudisium", keywords: "kalender jadwal batas yudisium wisuda deadline", tab: "kalender" },
-    { title: "Kontak Kami / Bantuan", keywords: "bantuan kontak whatsapp admin hubungi", tab: "feedback" }
+    { title: "Pusat Bantuan", keywords: "bantuan kendala kontak whatsapp admin hubungi help support", tab: "feedback" }
 ];
 
 document.addEventListener('keydown', function (event) {
@@ -397,6 +397,7 @@ function clearPrivateCache() {
     window.IPCOSStudentRequests?.reset();
     window.IPCOSAcademic?.reset();
     window.IPCOSResources?.reset();
+    window.IPCOSHelp?.reset();
     window.IPCOSNotifications?.reset();
     window.IPCOSSupervisors?.reset();
     window.IPCOSMaster?.reset();
@@ -1887,6 +1888,7 @@ function renderDynamicContent() {
 
     window.IPCOSPreparation?.render();
     window.IPCOSResources?.render();
+    window.IPCOSHelp?.render();
     window.IPCOSCalendar?.render();
     window.IPCOSReferences?.render();
     window.IPCOSSearch?.refresh();
@@ -2824,6 +2826,7 @@ function switchTab(event, tabId) {
     if (tabId !== 'pendaftaran' && document.getElementById('pendaftaran').classList.contains('active') && !confirmLeaveRegistration()) return false;
     if (tabId === 'dashboard') renderTaskHome();
     if (tabId === 'notifications') window.IPCOSNotifications?.render();
+    if (tabId === 'feedback') window.IPCOSHelp?.render();
     window.IPCOSExperience?.beforeTab(tabId);
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));

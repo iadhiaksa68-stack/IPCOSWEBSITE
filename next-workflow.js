@@ -143,6 +143,7 @@
         const dirty=registrationDirty;let switched=false;registrationDirty=false;
         try{switched=switchTab(null,tab);}finally{registrationDirty=dirty;}
         if(!switched||!document.getElementById(tab).classList.contains('active'))return;
+        window.IPCOSHelp?.clearGuide?.();
         guideContext={tab,field,service,owner:String(currentUser.nim).trim(),epoch:sessionEpoch};
         renderGuideBack();
         if(tab==='templates-faq')window.IPCOSResources?.context({service,field,label:requirement[1]});

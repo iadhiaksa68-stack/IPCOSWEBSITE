@@ -88,7 +88,15 @@ async function boundary(page,selector) {
     await page.keyboard.press('Escape'); await page.waitForSelector('#modal-global-search',{state:'hidden'});
     await page.locator('.notification-toggle').click(); assert.equal(await page.locator('.notification-toggle').getAttribute('aria-expanded'),'true');
     await page.keyboard.press('Escape'); await focused(page,'.notification-toggle'); assert.equal(await page.locator('.notification-toggle').getAttribute('aria-expanded'),'false');
-    assert.equal(await page.locator('#feedback .btn-whatsapp').getAttribute('href'),'https://wa.me/6285172228960');
+    assert.equal(await page.locator('.login-support').getAttribute('href'),'https://wa.me/6285172228960');
+    await page.evaluate(()=>switchTab(null,'feedback'));
+    assert.equal(await page.locator('#help-whatsapp').getAttribute('href'),null,'Help requires reviewing a message before creating its WhatsApp link');
+    await page.fill('#help-description','The preview did not load after choosing my document.');await page.locator('#help-review-button').click();
+    const contact=new URL(await page.locator('#help-whatsapp').getAttribute('href'));
+    assert.equal(contact.origin+contact.pathname,'https://wa.me/6285172228960');
+    assert.equal(contact.searchParams.get('text'),await page.inputValue('#help-message'));
+    assert.equal(await page.locator('#help-whatsapp').textContent(),'Open WhatsApp');
+    assert.equal(await page.locator('#help-message').getAttribute('readonly'),'');
     assert.equal(await page.locator('#wa-float-btn').count(),0,'Redundant floating support must not obscure workspace controls');
     assert.equal(await page.locator('#iframe-doc-viewer').getAttribute('title'),'Document preview');
     assert.equal(await page.evaluate(() => systemText('Draft Proposal')),'Proposal Draft');
