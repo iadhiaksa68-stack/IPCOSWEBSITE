@@ -217,6 +217,10 @@ async function editSop(page) {await openSop(page);await page.evaluate(()=>IPCOSS
 
     for(const width of [320,390,768,1365]) {
         await admin.setViewportSize({width,height:width===320?568:900});
+        // Chromium can report innerWidth/innerHeight before responsive CSS has
+        // repainted. Wait for the existing editor to fit, then keep the action
+        // visibility and hit-target assertions below unchanged.
+        await admin.waitForFunction(()=>{const rect=document.querySelector('.sop-editor-card').getBoundingClientRect();return rect.top>=0&&rect.bottom<=innerHeight&&rect.height<=innerHeight;});
         for(const position of [0,0.5,1]) {await admin.locator('.sop-editor-scroll').evaluate((el,position)=>el.scrollTop=(el.scrollHeight-el.clientHeight)*position,position);await frames(admin);await visibleAction(admin,'#sop-save','SOP save '+width+' at '+position);await visibleAction(admin,'#sop-preview','SOP preview '+width+' at '+position);}
         await layout(admin,'SOP editor '+width);
     }
