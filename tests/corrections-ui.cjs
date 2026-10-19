@@ -36,7 +36,7 @@ let fail=true;
  await page.locator('#case-reply-files-selection [data-upload-action=remove]').first().click();assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');
  await page.evaluate(()=>{window.keptCorrectionFile=document.getElementById('case-reply-files').files[0];});
  await page.evaluate(()=>renderRevisionAssociations());assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');
- await page.evaluate(()=>toggleLanguage());assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');assert(await page.evaluate(()=>document.getElementById('case-reply-files').files[0]===window.keptCorrectionFile));
+ await page.evaluate(()=>toggleLanguage());assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');assert(await page.evaluate(()=>document.getElementById('case-reply-files').files[0]===window.keptCorrectionFile));assert.equal(await page.locator('#revision-associations label>span').textContent(),'proposal-OConnor.pdf');
  await page.setInputFiles('#case-reply-files',[a,b]);await page.selectOption('#revision-label-0','Transkrip');await page.selectOption('#revision-label-1','Draft Proposal');
  for(const box of await page.locator('[name=correction-complete]').all())await box.check();await page.fill('#case-reply-note','Tanda tangan dan judul eCommerce O’Connor sudah diperbaiki.');
  pass('Removing one attachment, refreshing associations, and switching language preserve the other exact file and its document label');

@@ -65,7 +65,7 @@ function renderRevisionAssociations() {
     let assignments=revisionAssociations.get(input);if(!assignments){assignments=new Map();revisionAssociations.set(input,assignments);}
     const chosen=[...input.files];
     for(const file of assignments.keys())if(!chosen.includes(file))assignments.delete(file);
-    box.innerHTML=[...input.files].map((file,index)=>`<label class="revision-association"><span data-preserve-case>${escapeHtml(file.name)}</span><select id="revision-label-${index}" required aria-label="${uxText('Jenis dokumen untuk','Document type for')} ${escapeHtml(file.name)}"><option value="">${systemText('Pilih dokumen yang diperbaiki')}</option>${options.map(label=>`<option value="${escapeHtml(label)}" ${((requested.length===1 && input.files.length===1 && requested[0]===label) || (options.length===1 && options[0]===label))?'selected':''}>${escapeHtml(systemText(label))}</option>`).join('')}</select></label>`).join('');
+    box.innerHTML=[...input.files].map((file,index)=>`<label class="revision-association" data-preserve-case><span data-preserve-case>${escapeHtml(file.name)}</span><select id="revision-label-${index}" required aria-label="${uxText('Jenis dokumen untuk','Document type for')} ${escapeHtml(file.name)}"><option value="">${systemText('Pilih dokumen yang diperbaiki')}</option>${options.map(label=>`<option value="${escapeHtml(label)}" ${((requested.length===1 && input.files.length===1 && requested[0]===label) || (options.length===1 && options[0]===label))?'selected':''}>${escapeHtml(systemText(label))}</option>`).join('')}</select></label>`).join('');
     bindLanguageBlock(box);
     box.querySelectorAll('select').forEach((select,index)=>{
         const file=chosen[index];
