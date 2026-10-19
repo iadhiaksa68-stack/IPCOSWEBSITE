@@ -71,34 +71,98 @@
         closeList(); return html;
     }
     const contentsOpen = new Map();
+    const readerStates = new Map();
+    const readable=doc=>!!doc&&(doc.sections.length>0||!!localized(doc,'intro').trim());
+    let readerType='',readerFrame=0,readerObserver=null,readerRender=0;
+    const readerState=type=>{if(!readerStates.has(type))readerStates.set(type,{size:'normal',section:'',contentsBefore:undefined});return readerStates.get(type);};
+    const readerRoot=type=>document.getElementById(type+'-view');
+    const readerOrigin=type=>readerRoot(type)?.closest('.tab-content')?.querySelector('[data-guide-return],[data-help-return],[data-preparation-return="guide"]');
+    function readerGeometry(type){
+        const root=readerRoot(type);if(!root)return;
+        const height=readerType===type?root.querySelector('.sop-reader-tools')?.getBoundingClientRect().height||0:0;
+        const index=readerType===type&&matchMedia('(max-width:850px)').matches?root.querySelector('.sop-contents>summary')?.getBoundingClientRect().height||0:0;
+        root.style.setProperty('--reader-bar-height',height+'px');root.style.setProperty('--reader-offset',(height+index+24)+'px');
+    }
+    function readerMeasure(type){
+        const root=readerRoot(type);if(!root?.closest('.tab-content.active'))return;
+        const sections=[...root.querySelectorAll('.sop-reading-content>.sop-section')],state=readerState(type);if(!sections.length)return;
+        const offset=readerType===type?parseFloat(getComputedStyle(root).getPropertyValue('--reader-offset'))||24:100;
+        let section=sections[0];for(const node of sections)if(node.getBoundingClientRect().top<=offset+24)section=node;
+        if(scrollY>0&&document.documentElement.scrollHeight-innerHeight-scrollY<3&&sections.at(-1).getBoundingClientRect().bottom<=innerHeight+3)section=sections.at(-1);
+        state.section=section.id;const position=sections.indexOf(section)+1;
+        root.querySelectorAll('.sop-reading-index [data-sop-action="jump"]').forEach(link=>{const active=link.getAttribute('href')==='#'+state.section;if(active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});
+        if(readerType===type){const index=root.querySelector('.sop-reading-index'),link=index?.querySelector('[aria-current="location"]');if(index&&link&&index.scrollHeight>index.clientHeight){const box=link.getBoundingClientRect(),bounds=index.getBoundingClientRect();if(box.top<bounds.top)index.scrollTop-=bounds.top-box.top;else if(box.bottom>bounds.bottom)index.scrollTop+=box.bottom-bounds.bottom;}}
+        const label=root.querySelector('[data-reader-position]'),value=t(`Bagian ${position} dari ${sections.length}`,`Section ${position} of ${sections.length}`);if(label&&label.textContent!==value)label.textContent=value;
+    }
+    function readerCapture(type){
+        const root=readerRoot(type);if(!root?.closest('.tab-content.active')||!root.querySelector('.sop-reading-layout'))return null;
+        readerMeasure(type);const active=document.activeElement,state=readerState(type),section=document.getElementById(state.section),inside=root.contains(active);
+        const focus=inside?active.matches('[data-reader-size]')?'size':active.closest('[data-sop-action="focus"]')?'mode':active.closest('.sop-contents>summary')?'contents':active.closest('[data-sop-action="jump"]')?.getAttribute('href')||active.closest('.sop-section')?.id||'':null;
+        return {section:state.section,top:section?.getBoundingClientRect().top??null,focus};
+    }
+    function readerTools(type,doc){
+        if(!readable(doc))return '';
+        const state=readerState(type),origin=readerOrigin(type),back=origin?.hasAttribute('data-guide-return')?t('Kembali ke Pengajuan','Back to Request'):origin?.hasAttribute('data-help-return')?t('Kembali ke Pusat Bantuan','Back to Help Center'):t('Kembali ke Persiapan','Back to Preparation');
+        return `<div class="sop-reader-tools" aria-label="${t('Pengaturan mode fokus','Focus mode controls')}"><strong>${t('Mode Fokus','Focus Mode')}</strong><button type="button" class="btn-secondary" data-sop-action="focus" data-sop-type="${type}">${t('Keluar Mode Fokus','Exit Focus Mode')}</button><div class="sop-reader-size"><label for="reader-size-${type}">${t('Ukuran teks','Text size')}</label><select id="reader-size-${type}" data-reader-size="${type}"><option value="normal" ${state.size==='normal'?'selected':''}>${t('Standar','Standard')}</option><option value="large" ${state.size==='large'?'selected':''}>${t('Lebih besar','Larger')}</option></select></div><p data-reader-position aria-live="off">${t('Panduan','Guide')}</p>${origin?`<button type="button" class="btn-secondary sop-reader-return" data-sop-action="return" data-sop-type="${type}">${back}</button>`:''}</div>`;
+    }
+    function readerRefresh(type,position){
+        const root=readerRoot(type),state=readerState(type);if(!root)return;
+        root.dataset.readerSize=state.size;readerGeometry(type);if(!root.closest('.tab-content.active'))return;
+        const run=++readerRender,epoch=sessionEpoch;readerObserver?.disconnect();
+        const tools=root.querySelector('.sop-reader-tools');if(tools&&readerType===type){readerObserver=new ResizeObserver(()=>{readerGeometry(type);readerMeasure(type);});readerObserver.observe(tools);}
+        const restore=()=>{if(run!==readerRender||epoch!==sessionEpoch||!root.closest('.tab-content.active'))return;const section=position?.section&&root.querySelector('[id="'+position.section+'"]');if(section&&position.top!==null)scrollBy({top:section.getBoundingClientRect().top-position.top,behavior:'instant'});readerGeometry(type);readerMeasure(type);};
+        restore();requestAnimationFrame(restore);
+        if(position?.focus){const target=position.focus==='size'?root.querySelector('[data-reader-size]'):position.focus==='mode'?root.querySelector(readerType===type?'.sop-reader-tools [data-sop-action="focus"]':'.sop-heading [data-sop-action="focus"]'):position.focus==='contents'?root.querySelector('.sop-contents>summary'):position.focus.startsWith('#')?[...root.querySelectorAll('[data-sop-action="jump"]')].find(link=>link.getAttribute('href')===position.focus):document.getElementById(position.focus)?.querySelector('h2');target?.focus({preventScroll:true});}
+    }
+    function readerFocus(type){
+        const root=readerRoot(type),doc=documents.get(type);if(!getSessionToken()||!root?.closest('.tab-content.active')||!readable(doc))return;
+        const position=readerCapture(type),state=readerState(type),leaving=readerType===type;
+        if(leaving){readerType='';if(state.contentsBefore===undefined)contentsOpen.delete(type);else contentsOpen.set(type,state.contentsBefore);}
+        else{state.contentsBefore=contentsOpen.get(type);contentsOpen.set(type,!matchMedia('(max-width:850px)').matches);readerType=type;}
+        document.body.classList.toggle('sop-focus-mode',!!readerType);render(type,position?{...position,focus:null}:null);
+        const epoch=sessionEpoch;requestAnimationFrame(()=>{if(epoch!==sessionEpoch||!root.closest('.tab-content.active'))return;const target=leaving?[...root.querySelectorAll('.sop-reading-content h2,.sop-reading-content p,.sop-reading-content li')].find(node=>{const box=node.getBoundingClientRect();return box.top>=24&&box.top<innerHeight-40;})||root.querySelector('h1'):root.querySelector('.sop-reader-tools [data-sop-action="focus"]');if(target){if(!target.matches('button,[tabindex]'))target.tabIndex=-1;target.focus({preventScroll:true});}});
+    }
+    function readerLeave(){if(readerType){const state=readerState(readerType);if(state.contentsBefore===undefined)contentsOpen.delete(readerType);else contentsOpen.set(readerType,state.contentsBefore);}readerType='';readerRender++;readerObserver?.disconnect();document.body.classList.remove('sop-focus-mode');}
+    window.addEventListener('scroll',()=>{if(readerFrame||!readerType)return;readerFrame=requestAnimationFrame(()=>{readerFrame=0;readerMeasure(readerType);});},{passive:true});
+    window.addEventListener('resize',()=>{if(readerType){readerGeometry(readerType);readerMeasure(readerType);}});
+    document.addEventListener('change',event=>{const type=event.target.dataset.readerSize;if(!types.includes(type)||!getSessionToken())return;const position=readerCapture(type);readerState(type).size=event.target.value==='large'?'large':'normal';render(type,position);});
+    document.addEventListener('toggle',event=>{if(getSessionToken()&&event.target.isConnected&&event.target.matches?.('.sop-reading-index .sop-contents')){contentsOpen.set(event.target.dataset.contentsKey,event.target.open);if(readerType)readerGeometry(readerType);}},true);
+    document.addEventListener('keydown',event=>{if(event.key!=='Escape'||!readerType||event.target.matches('input,textarea,select')||[...document.querySelectorAll('.overlay,dialog[open],.document-expanded')].some(node=>node.getClientRects().length))return;event.preventDefault();readerFocus(readerType);});
     const anchorId = (doc,section,preview) => `${preview?'sop-preview':'sop'}-${doc.type}-${section.id}`;
     function jump(event,link) {
         const target = document.getElementById(link.getAttribute('href')?.slice(1));
         if (!target || target.closest('.sop-page') !== link.closest('.sop-page')) return;
         event.preventDefault();
+        if(readerType&&matchMedia('(max-width:850px)').matches){const toc=link.closest('.sop-contents');toc.open=false;contentsOpen.set(toc.dataset.contentsKey,false);readerGeometry(readerType);}
         target.querySelector('h2')?.focus({preventScroll:true});
         target.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
     }
     function bodyHtml(doc, preview = false) {
         const toc = doc.sections.length > 1 ? `<details class="sop-contents" data-contents-key="${preview?'preview-':''}${doc.type}" id="${preview?'preview-':''}${doc.type}-contents" ${contentsOpen.get((preview?'preview-':'')+doc.type) ?? !matchMedia('(max-width:600px)').matches ? 'open' : ''}><summary>${t('Daftar Isi · Lompat ke Bagian','Contents · Jump to a Section')}</summary><nav class="sop-toc" aria-label="${t('Daftar isi SOP','SOP contents')}"><h2>${t('Daftar isi','Contents')}</h2><ol>${doc.sections.map((section,index) => `<li><a href="#${escapeHtml(anchorId(doc,section,preview))}" data-sop-action="jump"><span aria-hidden="true">${index+1}</span><span>${escapeHtml(localized(section,'title') || t('Bagian '+(index+1),'Section '+(index+1)))}</span><span aria-hidden="true">↘</span></a></li>`).join('')}</ol></nav></details>` : '';
-        return `${doc.intro || doc.introEn ? `<div class="sop-intro sop-prose">${markdown(localized(doc,'intro'))}</div>` : ''}${toc}${doc.sections.map((section, index) => `<section class="card sop-section" id="${escapeHtml(anchorId(doc,section,preview))}">
+        const intro=doc.intro || doc.introEn ? `<div class="sop-intro sop-prose">${markdown(localized(doc,'intro'))}</div>` : '';
+        const sections=doc.sections.map((section, index) => `<section class="card sop-section" id="${escapeHtml(anchorId(doc,section,preview))}">
             <div class="sop-section-heading"><span class="sop-step" aria-hidden="true">${index + 1}</span><h2 tabindex="-1">${escapeHtml(localized(section,'title'))}</h2></div>
             <div class="sop-prose">${markdown(localized(section,'body'))}</div>
             ${section.links.length ? `<ul class="sop-links">${section.links.map(link => { const url = allowedUrl(link.url); return url ? `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(localized(link,'label') || url)} <span aria-hidden="true">↗</span></a></li>` : ''; }).join('')}</ul>` : ''}
-            ${section.files.length ? `<div class="sop-files"><h3>${t('Lampiran','Attachments')}</h3>${section.files.map(file => `<div class="sop-file"><div><strong>${escapeHtml(file.fileName)}</strong><span>${escapeHtml(size(file.size))}</span></div><button type="button" class="btn-secondary" data-sop-action="download" data-sop-type="${doc.type}" data-file-id="${escapeHtml(file.id)}" ${preview?'disabled':''}>${preview?t('Tersedia setelah disimpan','Available after saving'):t('Unduh','Download')}</button></div>`).join('')}</div>` : ''}
+            ${section.files.length ? `<div class="sop-files"><h3>${t('Lampiran','Attachments')}</h3>${section.files.map(file => `<div class="sop-file"><div><strong>${escapeHtml(file.fileName)}</strong><span>${escapeHtml(size(file.size))}</span></div><button type="button" class="btn-secondary" data-sop-action="download" data-sop-type="${doc.type}" data-file-id="${escapeHtml(file.id)}" ${preview||downloads.has(doc.type+':'+file.id)?'disabled':''}>${preview?t('Tersedia setelah disimpan','Available after saving'):downloads.has(doc.type+':'+file.id)?t('Mengunduh…','Downloading…'):t('Unduh','Download')}</button></div>`).join('')}</div>` : ''}
             ${doc.sections.length>1?`<a class="text-link sop-back" href="#${preview?'preview-':''}${doc.type}-contents" data-sop-action="contents">${t('Kembali ke Daftar Isi','Back to Contents')}</a>`:''}
-        </section>`).join('')}`;
+        </section>`).join('');
+        return preview?`${intro}${toc}${sections}`:`${intro}<div class="sop-reading-layout">${toc?`<aside class="sop-reading-index">${toc}</aside>`:''}<div class="sop-reading-content">${sections}</div></div>`;
     }
-    function render(type) {
+    function render(type,position=readerCapture(type)) {
         const root = document.getElementById(type + '-view'); if (!root) return;
         if (!getSessionToken()) { root.textContent = ''; return; }
         const doc = documents.get(type), busy = loading.has(type), error = loadErrors.get(type);
-        root.innerHTML = `<div class="page-intro sop-heading"><div><span class="eyebrow">${t('PANDUAN / SOP','GUIDES / SOP')}</span><h1>${escapeHtml(doc ? localized(doc,'title') : name(type))}</h1><p>${t('Prosedur dan dokumen resmi yang diterbitkan admin IPCOS.','Procedures and official documents published by IPCOS admins.')}</p>${doc?.updatedAt ? `<p class="sop-updated">${t('Diperbarui','Updated')} ${escapeHtml(formatDate(doc.updatedAt))} · ${t('Versi','Version')} ${escapeHtml(doc.revision)}</p>` : ''}</div><div class="button-row">
+        if(readerType===type&&!readable(doc))readerLeave();
+        root.setAttribute('aria-live',doc?'off':'polite');
+        root.innerHTML = `${readerTools(type,doc)}<div class="page-intro sop-heading"><div><span class="eyebrow">${t('PANDUAN / SOP','GUIDES / SOP')}</span><h1>${escapeHtml(doc ? localized(doc,'title') : name(type))}</h1><p>${t('Prosedur dan dokumen resmi yang diterbitkan admin IPCOS.','Procedures and official documents published by IPCOS admins.')}</p>${doc?.updatedAt ? `<p class="sop-updated">${t('Diperbarui','Updated')} ${escapeHtml(formatDate(doc.updatedAt))} · ${t('Versi','Version')} ${escapeHtml(doc.revision)}</p>` : ''}</div><div class="button-row">
+            ${readable(doc)?`<button type="button" class="btn-secondary" data-sop-action="focus" data-sop-type="${type}">${t('Mode Fokus','Focus Mode')}</button>`:''}
             <button type="button" class="btn-secondary" data-sop-action="refresh" data-sop-type="${type}" ${busy?'disabled':''}>${t('Segarkan','Refresh')}</button>
             ${currentUser.role === 'admin' && doc ? `<button type="button" class="btn-primary" data-sop-action="edit" data-sop-type="${type}">${t('Edit SOP','Edit SOP')}</button>` : ''}</div></div>
             ${busy ? `<p class="sop-notice" role="status">${t('Memuat SOP terbaru…','Loading the latest SOP…')}</p>` : ''}
             ${error ? `<p class="sop-notice field-error" role="alert">${escapeHtml(errorText(error))} ${doc?t('Versi terakhir ditampilkan.','Showing the last loaded version.'):''}</p>` : ''}
-            ${doc && !doc.sections.length && !doc.intro ? `<div class="card sop-empty"><h2>${t('SOP belum diterbitkan','SOP not published yet')}</h2><p>${currentUser.role === 'admin'?t('Pilih Edit SOP untuk menambahkan section, teks, tautan, dan lampiran.','Choose Edit SOP to add sections, text, links and attachments.'):t('Admin sedang menyiapkan panduan ini. Silakan periksa kembali nanti.','Admins are preparing this guide. Please check again later.')}</p></div>` : doc ? bodyHtml(doc) : ''}`;
+            ${doc && !readable(doc) ? `<div class="card sop-empty"><h2>${doc.intro||doc.introEn?t('Isi SOP pada bahasa ini belum tersedia','SOP content is unavailable in this language'):t('SOP belum diterbitkan','SOP not published yet')}</h2><p>${currentUser.role === 'admin'?t('Pilih Edit SOP untuk menambahkan section, teks, tautan, dan lampiran.','Choose Edit SOP to add sections, text, links and attachments.'):t('Silakan periksa kembali panduan yang diterbitkan admin.','Please check the admin-published guide again later.')}</p></div>` : doc ? bodyHtml(doc) : ''}`;
+        readerRefresh(type,position);
     }
     async function request(payload) {
         return readApiResult(await apiPost(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'}}));
@@ -235,6 +299,7 @@
     async function edit(type) {
         if (currentUser.role !== 'admin' || !types.includes(type)) return;
         if (editor && !cancel()) return;
+        readerLeave();
         if (!documents.has(type)) await open(type,true);
         if (currentUser.role !== 'admin' || !documents.has(type)) return;
         returnFocus = document.activeElement;
@@ -371,16 +436,17 @@
             blobs.add(url); const anchor = document.createElement('a'); anchor.href = url; anchor.download = result.fileName; document.body.appendChild(anchor); anchor.click(); anchor.remove();
             setTimeout(()=>{URL.revokeObjectURL(url);blobs.delete(url);},30000);
         } catch (error) { if (current(epoch,run) && !error.staleSession) showToast(errorText(error),'error'); }
-        finally { if (current(epoch,run)) { downloads.delete(key); if (button.isConnected) { button.disabled = false; button.textContent = t('Unduh','Download'); } } }
+        finally { if (current(epoch,run)) { downloads.delete(key); document.querySelectorAll('[data-sop-action="download"]').forEach(node=>{if(node.dataset.sopType===type&&node.dataset.fileId===fileId&&!node.closest('#modal-sop-editor')){node.disabled=false;node.textContent=t('Unduh','Download');}}); } }
     }
     function reset() {
+        readerLeave();readerStates.clear();cancelAnimationFrame(readerFrame);readerFrame=0;
         contentsOpen.clear();
         generation++; documents.clear(); loading.clear(); loadErrors.clear(); downloads.clear(); blobs.forEach(url=>URL.revokeObjectURL(url)); blobs.clear(); editor = null; returnFocus = null;
         types.forEach(type=>{ const view = document.getElementById(type+'-view'); if (view) view.textContent = ''; try { localStorage.removeItem('ipcos_content_'+type); } catch (_) {} });
         document.getElementById('modal-sop-editor')?.remove();
     }
     document.addEventListener('click',event=>{ const summary=event.target.closest('.sop-contents>summary');if(summary){const details=summary.parentElement;contentsOpen.set(details.dataset.contentsKey,!details.open);} });
-    function languageChanged() { types.forEach(render); if (editor) renderEditor(); }
+    function languageChanged() { types.forEach(type=>render(type)); if (editor) renderEditor(); }
     function receive(contents) {
         if (!getSessionToken()) return;
         for (const item of contents) {
@@ -395,6 +461,8 @@
     document.addEventListener('click',event=> {
         const button = event.target.closest('.sop-page [data-sop-action]'); if (!button || button.disabled || button.closest('#modal-sop-editor')) return;
         const type = button.dataset.sopType;
+        if(button.dataset.sopAction==='focus'){readerFocus(type);return;}
+        if(button.dataset.sopAction==='return'){readerOrigin(type)?.click();return;}
         if (button.dataset.sopAction === 'jump') jump(event,button);
         if (button.dataset.sopAction === 'contents') { const toc=document.getElementById(button.getAttribute('href')?.slice(1)); if(toc && toc.closest('.sop-page')===button.closest('.sop-page')) { event.preventDefault();contentsOpen.set(toc.dataset.contentsKey,true);toc.open=true;toc.querySelector('summary').focus({preventScroll:true});toc.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); } }
         else if (button.dataset.sopAction === 'edit') edit(type);
@@ -404,5 +472,5 @@
     window.addEventListener('beforeunload',event=> { if (editor && (editor.dirty || editor.busy || editor.filesBusy)) { event.preventDefault(); event.returnValue = ''; } });
     const snapshot=()=>getSessionToken()&&['mhs','admin'].includes(currentUser.role)?[...documents.values()].map(doc=>({type:doc.type,title:doc.title,titleEn:doc.titleEn,intro:doc.intro,introEn:doc.introEn,sections:doc.sections.map(section=>({id:section.id,title:section.title,titleEn:section.titleEn,body:section.body,bodyEn:section.bodyEn,links:(section.links||[]).map(link=>({label:link.label,labelEn:link.labelEn})),files:(section.files||[]).map(file=>({fileName:file.fileName}))}))})):[];
     function reveal(type,id){if(!getSessionToken()||!types.includes(type)||!documents.has(type))return null;render(type);return id?document.getElementById(`sop-${type}-${id}`)?.querySelector('h2')||null:document.querySelector(`#${type}-view h1`);}
-    window.IPCOSSop = {open,edit,save,cancel,reset,receive,languageChanged,snapshot,reveal,beforeNavigate:tab => !editor || tab === pageId(editor.draft.type) || cancel()};
+    window.IPCOSSop = {open,edit,save,cancel,reset,receive,languageChanged,snapshot,reveal,beforeNavigate:tab => {if(editor&&tab!==pageId(editor.draft.type)&&!cancel())return false;if(readerType&&tab!==pageId(readerType))readerLeave();return true;}};
 })();
