@@ -5,7 +5,11 @@
     const localUrls = new Set();
     const jobs=new Map();let pdfLibrary,pdfLibraryAttempt=0;
     function loadPdfLibrary() {
-        if(!pdfLibrary){const attempt=pdfLibraryAttempt++;pdfLibrary=(attempt?import('./vendor/pdfjs/pdf.min.mjs?retry='+attempt):import('./vendor/pdfjs/pdf.min.mjs')).catch(error=>{pdfLibrary=null;throw error;});}
+        if(!pdfLibrary){
+            const attempt=pdfLibraryAttempt++,suffix=attempt?'?retry='+attempt:'';
+            const pending=(attempt?import('./vendor/pdfjs/pdf.min.mjs?retry='+attempt):import('./vendor/pdfjs/pdf.min.mjs')).then(library=>({library,workerSrc:new URL('./vendor/pdfjs/pdf.worker.min.mjs'+suffix,location.href).href})).catch(error=>{if(pdfLibrary===pending)pdfLibrary=null;throw error;});
+            pdfLibrary=pending;
+        }
         return pdfLibrary;
     }
     function reset(panel) {
@@ -96,14 +100,15 @@
         const closeExpanded=event=>{if(event.key==='Escape'&&panel.classList.contains('document-expanded')){event.stopPropagation();panel.classList.remove('document-expanded');job.fullscreenChanged();}};panel.addEventListener('keydown',closeExpanded);job.closeExpanded=closeExpanded;
         let lastWidth=viewer.clientWidth;job.resizeObserver=new ResizeObserver(()=>{if(!live()||viewer.clientWidth===lastWidth)return;lastWidth=viewer.clientWidth;clearTimeout(job.resizeTimer);job.resizeTimer=setTimeout(()=>{if(viewer.clientWidth===job.renderedWidth)return;if(job.drawing)job.redraw=true;else draw();},100);});job.resizeObserver.observe(viewer);
         job.translate=()=>{toolsTitle.textContent=t('Alat PDF','PDF Tools');previous.setAttribute('aria-label',t('Halaman Sebelumnya','Previous Page'));next.setAttribute('aria-label',t('Halaman Berikutnya','Next Page'));minus.setAttribute('aria-label',t('Perkecil PDF','Zoom Out'));plus.setAttribute('aria-label',t('Perbesar PDF','Zoom In'));rotate.setAttribute('aria-label',t('Putar Halaman','Rotate Page'));pageInput.setAttribute('aria-label',t('Nomor Halaman','Page Number'));go.textContent=t('Ke Halaman','Go to Page');query.placeholder=t('Cari teks di PDF','Search PDF text');query.setAttribute('aria-label',query.placeholder);find.textContent=t('Cari','Search');nextMatch.textContent=t('Hasil Berikutnya','Next Match');job.fullscreenChanged();};
+        let libraryRequest;
         try{
-            const library=await loadPdfLibrary();if(!live())return;
-            library.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.min.mjs',location.href).href;
+            libraryRequest=loadPdfLibrary();const {library,workerSrc}=await libraryRequest;if(!live())return;
+            library.GlobalWorkerOptions.workerSrc=workerSrc;
             const bytes=new Uint8Array(await (await fetch(url)).arrayBuffer());if(!live())return;
             const base=new URL('./vendor/pdfjs/',location.href).href;
             job.loading=library.getDocument({data:bytes,isEvalSupported:false,enableXfa:false,cMapUrl:base+'cmaps/',cMapPacked:true,standardFontDataUrl:base+'standard_fonts/',wasmUrl:base+'wasm/'});
             job.pdf=await job.loading.promise;if(!live())return;pageInput.max=String(job.pdf.numPages);await draw();
-        }catch(error){if(live()){retry.hidden=false;if(error.name==='PasswordException')message(helper,'PDF memerlukan kata sandi. Buka Pratinjau di Tab Baru untuk membacanya.','This PDF requires a password. Open Preview in New Tab to read it.');else message(helper,'Pembaca PDF belum dapat memuat dokumen. Muat Ulang Pratinjau, buka di tab baru, atau unduh berkas.','The PDF reader could not load this document. Reload Preview, open it in a new tab, or download the file.');}}
+        }catch(error){if(!['PasswordException','InvalidPDFException','AbortException'].includes(error.name)&&pdfLibrary===libraryRequest)pdfLibrary=null;if(live()){retry.hidden=false;if(error.name==='PasswordException')message(helper,'PDF memerlukan kata sandi. Buka Pratinjau di Tab Baru untuk membacanya.','This PDF requires a password. Open Preview in New Tab to read it.');else message(helper,'Pembaca PDF belum dapat memuat dokumen. Muat Ulang Pratinjau, buka di tab baru, atau unduh berkas.','The PDF reader could not load this document. Reload Preview, open it in a new tab, or download the file.');}}
     }
     function render(panel,url,mime,name) {
         reset(panel); panel.hidden=false;

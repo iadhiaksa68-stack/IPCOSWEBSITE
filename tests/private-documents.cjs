@@ -4,12 +4,13 @@ const origin=process.env.IPCOS_TEST_BASE_URL||'http://127.0.0.1:8766';
 const firstUrl='https://drive.google.com/file/d/owned/view',secondUrl='https://drive.google.com/file/d/second/view';
 const externalUrl='https://example.com/private-original.pdf';
 const record={id:'mine',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal',status:'Pending',date:new Date().toISOString(),detail:'Judul',link:`<a href="${firstUrl}">Form ACC</a><a href="${secondUrl}">Dokumen Kedua</a><a href="${externalUrl}">Berkas Eksternal</a>`,note:'[]'};
-const errors=[],calls=[];let nextGate=null,failReader=true,readerRetries=0,externalReads=0;
+const errors=[],calls=[];let nextGate=null,failReader=true,readerRetries=0,externalReads=0,workerFailures=0;
 function gate(error=false){let release,entered;return {error,wait:new Promise(resolve=>release=resolve),entered:new Promise(resolve=>entered=resolve),release:()=>release(),enter:()=>entered()};}
 (async()=>{
     const browser=await chromium.launch(),context=await browser.newContext({reducedMotion:'reduce'});
     await context.route('**/*',async route=>{
         const url=route.request().url();
+        if(url.includes('/vendor/pdfjs/pdf.worker.min.mjs')&&!url.includes('?retry=2')){workerFailures++;return route.abort();}
         if(url.includes('/vendor/pdfjs/pdf.min.mjs')){if(failReader){failReader=false;return route.abort();}if(url.includes('?retry='))readerRetries++;return route.continue();}
         if(url===externalUrl){externalReads++;return route.abort();}
         if(url===firstUrl)return route.fulfill({contentType:'text/html',body:'<!doctype html><title>Original test document</title><p>Original owned document fixture</p>'});
@@ -40,8 +41,8 @@ function gate(error=false){let release,entered;return {error,wait:new Promise(re
     await page.evaluate(()=>toggleLanguage());
     assert(await page.locator('[data-preview-index="0"]').isDisabled());assert.equal(await page.locator('[data-preview-index="0"]').getAttribute('aria-busy'),'true');assert.equal(calls.length,requestCount);
     held.release();await page.waitForSelector('[data-document-retry]:not([hidden])');assert.equal(await page.locator('#case-file-preview canvas[data-rendered=true]').count(),0);assert((await page.locator('#case-file-preview>.field-helper:not(.pdf-search-status)').textContent()).includes('could not load'));
-    await page.locator('[data-document-retry]').click();await rendered();assert.equal(readerRetries,1);assert.equal(calls.length,requestCount,'Reloading the reader reuses authenticated bytes');assert(!await page.locator('[data-preview-index="0"]').isDisabled());assert.equal(await page.evaluate(()=>caseBlobUrls.size),1);
-    console.log('PASS A failed PDF module load recovers on Reload Preview without a page refresh or another private API request');
+    await page.locator('[data-document-retry]').click();await page.waitForSelector('[data-document-retry]:not([hidden])');assert(workerFailures>0);await page.locator('[data-document-retry]').click();await rendered();assert.equal(readerRetries,2);assert.equal(calls.length,requestCount,'Reloading the reader reuses authenticated bytes');assert(!await page.locator('[data-preview-index="0"]').isDisabled());assert.equal(await page.evaluate(()=>caseBlobUrls.size),1);
+    console.log('PASS Failed PDF module and worker loads both recover on Reload Preview without a page refresh or another private API request');
     assert.equal(await page.locator('[data-preview-index="0"]').getAttribute('aria-busy'),null);await page.evaluate(()=>toggleLanguage());
     const download=page.waitForEvent('download');await page.locator('[data-document-index="0"]').click();assert.equal((await download).suggestedFilename(),'private.pdf');assert.equal(calls.length,requestCount+1,'Download keeps its separate authenticated request');
     console.log('PASS Repeated private preview intent sends one authenticated request; busy controls survive language changes, recover and keep downloads separate');
