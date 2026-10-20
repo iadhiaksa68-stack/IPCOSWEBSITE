@@ -31,6 +31,6 @@ async function run(suite) {
 }
 (async () => {
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(8766, '127.0.0.1', resolve); });
-    for (const suite of ['transactions', 'private-documents', 'language-layout', 'sop', 'review-tools', 'academic-international', 'accessibility', 'portal-polish', 'admin-ui', 'follow-file-review', 'student-ui', 'registration-ui', 'student-status', 'journey-ui', 'resources-ui', 'notifications-ui', 'supervisor-ui', 'master-ui', 'calendar-ui', 'references-ui', 'global-search', 'preparation-ui', 'content-studio', 'upload-ui', 'corrections-ui', 'help-ui', 'sop-focus', 'portal-alignment', 'student-files']) await run(suite);
-    console.log('PASS Twenty-nine browser suites verified the minified production artifact.');
+    for (const suite of ['transactions', 'private-documents', 'language-layout', 'sop', 'review-tools', 'academic-international', 'accessibility', 'portal-polish', 'admin-ui', 'follow-file-review', 'admin-decision', 'student-ui', 'registration-ui', 'student-status', 'journey-ui', 'resources-ui', 'notifications-ui', 'supervisor-ui', 'master-ui', 'calendar-ui', 'references-ui', 'global-search', 'preparation-ui', 'content-studio', 'upload-ui', 'corrections-ui', 'help-ui', 'sop-focus', 'portal-alignment', 'student-files']) await run(suite);
+    console.log('PASS Thirty browser suites verified the minified production artifact.');
 })().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(() => server.close());

@@ -1,3 +1,4 @@
+const {previewAdminDecision} = require('./admin-decision-helpers.cjs');
 const {selectService, reviewRequest} = require('./registration-helpers.cjs');
 const {chromium,reportFailure} = require('./browser.cjs');
 const assert = require('node:assert/strict');
@@ -166,9 +167,15 @@ async function layout(page,label) {
     pass('Admin correction drafts and unsaved service settings survive language changes');
     await admin.evaluate(()=>openCaseDetail('created')); await admin.evaluate(()=>caseDetailAction('dospem'));
     assert((await admin.locator('#case-action-panel h3').textContent()).includes('Assign Supervisor & Approve'));
-    assert((await admin.locator('#btn-case-submit').textContent()).includes('Confirm Approval'));
-    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Konfirmasi Persetujuan'));
-    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Confirm Approval'));
+    assert((await admin.locator('#btn-case-submit').textContent()).includes('Review Decision'));
+    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Periksa Keputusan'));
+    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Review Decision'));
+    await admin.selectOption('#case-supervisor','Dosen Uji');
+    await previewAdminDecision(admin,calls,'Dosen Uji');
+    assert((await admin.locator('#btn-case-submit').textContent()).includes('Confirm & Approve'));
+    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Konfirmasi & Setujui'));
+    await admin.evaluate(()=>toggleLanguage()); assert((await admin.locator('#btn-case-submit').textContent()).includes('Confirm & Approve'));
+    assert.equal(records.find(item=>item.id==='created').status,'Pending','Translating the decision summary never sends approval');
     await admin.evaluate(()=>closeModal('modal-case-detail',true));
     pass('Approval labels describe request approval and remain translated without changing the academic stage');
 

@@ -399,6 +399,7 @@ function clearPrivateCache() {
     resetWorkflowSession();
     clearCaseBlobUrls();
     window.IPCOSReviewTools?.reset();
+    window.IPCOSAdminDecision?.reset();
     ratioChartInstance?.destroy(); typeChartInstance?.destroy();
     ratioChartInstance = null; typeChartInstance = null;
     const chartStatus = document.getElementById('chart-load-status'); if (chartStatus) { chartStatus.hidden = true; chartStatus.textContent = ''; }
@@ -1351,6 +1352,7 @@ function caseDetailAction(action) {
     if(!panel.hidden&&panel.dataset.action===action)return;
     if(!panel.hidden&&panel.dataset.dirty==='true'&&!confirmLeaveCase())return;
     window.IPCOSReview?.restoreActions();
+    window.IPCOSAdminDecision?.reset();
     panel.dataset.action = action; panel.dataset.dirty = 'false';
     let html = '';
     if (action === 'revision') {
@@ -1367,7 +1369,7 @@ function caseDetailAction(action) {
         <label for="case-reply-files">${uxText('Berkas perbaikan · maksimal 10 MB per berkas', 'Corrected files · maximum 10 MB per file')}</label><input type="file" id="case-reply-files" multiple accept="${item.jenis === 'Pendadaran' ? '.pdf,.zip,.rar' : '.pdf,.doc,.docx'}"><p class="field-helper">${uxText('Pilih hingga 5 berkas dengan total maksimal 20 MB. Berkas lama tetap ada dalam riwayat.', 'Choose up to 5 files, 20 MB total. Previous files remain in the history.')}</p><div id="case-reply-file-list"></div><label for="case-reply-note">${uxText('Jelaskan perbaikan Anda', 'Describe Your Corrections')}</label><textarea id="case-reply-note" rows="3"></textarea>`;
     }
     if (!html) return;
-    panel.innerHTML = `${html}<p id="case-action-feedback" class="field-error" role="status"></p><div class="button-row"><button type="button" class="btn-secondary" onclick="cancelCaseAction()">${uxText('Batal','Cancel')}</button><button type="button" id="btn-case-submit" class="btn-primary" onclick="submitCaseAction()">${action === 'revision' ? uxText('Kirim Instruksi Revisi','Send Correction Request') : action === 'reply' ? uxText('Kirim Perbaikan','Send Corrections') : uxText('Konfirmasi Persetujuan','Confirm Approval')}</button></div>`;
+    panel.innerHTML = `${currentUser.role==='admin'?`<div class="admin-decision-fields">${html}</div>`:html}<p id="case-action-feedback" class="field-error" role="status"></p><div class="button-row"><button type="button" class="btn-secondary" onclick="cancelCaseAction()">${uxText('Batal','Cancel')}</button><button type="button" id="btn-case-submit" class="btn-primary" onclick="submitCaseAction(event)">${action === 'revision' ? uxText('Kirim Instruksi Revisi','Send Correction Request') : action === 'reply' ? uxText('Kirim Perbaikan','Send Corrections') : uxText('Konfirmasi Persetujuan','Confirm Approval')}</button></div>`;
     bindLanguageBlock(panel);
     panel.hidden = false;
     document.getElementById('case-detail-actions').hidden = true;
@@ -1376,14 +1378,16 @@ function caseDetailAction(action) {
         document.getElementById('case-reply-file-list').innerHTML = [...reply.files].map(file => `<p>${escapeHtml(file.name)} · ${formatFileSize(file.size)}${fileProblem(file, reply.accept) ? `<span class="field-error">${escapeHtml(fileProblem(file, reply.accept))}</span>` : ''}</p>`).join('');
     });
     window.IPCOSReviewTools?.prepareDecision(action);
+    window.IPCOSAdminDecision?.start(action);
     if(document.getElementById('modal-case-detail').classList.contains('has-document-preview')){document.getElementById('modal-case-detail').dataset.workspaceView='review';document.querySelector('#workspace-view-toggle button[data-workspace-view=review]')?.click();}
     (panel.querySelector('textarea, select, input') || panel.querySelector('button')).focus();
     if(action === 'reply') { window.IPCOSNext?.revisionFields(item,panel); window.IPCOSCorrections?.refresh(); }
     window.IPCOSReview?.actionsChanged();
 }
 function cancelCaseAction() {
-    if (activeUpdateIds.has(selectedCaseId) || isPreparingCorrection) return;
+    if (activeUpdateIds.has(selectedCaseId) || isPreparingCorrection || isPreparingReviewDecision) return;
     if (!confirmLeaveCase()) return;
+    window.IPCOSAdminDecision?.reset();
     window.IPCOSReview?.restoreActions();
     document.getElementById('case-action-panel').dataset.dirty = 'false';
     document.getElementById('case-action-panel').hidden = true;
@@ -1393,19 +1397,17 @@ function cancelCaseAction() {
 }
 let isPreparingCorrection = false;
 let isPreparingReviewDecision = false;
-async function submitCaseAction() {
+async function submitCaseAction(event) {
+    if(event?.detail>1)return;
     const item = currentCase();
     if (!item || activeUpdateIds.has(item.id) || isPreparingCorrection || isPreparingReviewDecision) return;
     const panel = document.getElementById('case-action-panel');
     const action = panel.dataset.action;
     const feedback = document.getElementById('case-action-feedback');
-    feedback.ipcosNotice=null;delete feedback.dataset.correctionNotice;
+    feedback.ipcosNotice=null;delete feedback.dataset.correctionNotice;delete feedback.dataset.decisionNotice;
     const fail = (message,field=null) => { feedback.textContent = systemText(message); field?.focus(); return false; };
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
-    const reviewEpoch=sessionEpoch;isPreparingReviewDecision=true;
-    try { if(window.IPCOSReviewTools && !await window.IPCOSReviewTools.beforeDecision(action))return; } catch(error) { if(!error.staleSession && reviewEpoch===sessionEpoch)fail(systemText(error.message)); return; } finally {if(reviewEpoch===sessionEpoch)isPreparingReviewDecision=false;}
-    if(reviewEpoch!==sessionEpoch || selectedCaseId!==String(item.id))return;
     let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [], correctedFields=null;
     if (action === 'revision') {
         const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
@@ -1433,16 +1435,29 @@ async function submitCaseAction() {
         files = chosen;
         try { correctionLabels = revisionFileLabels(files,item); } catch (error) { return fail(systemText(error.message)); }
     } else return;
+    const decision = {action,note,newStatus,dospem};
+    if(currentUser.role==='admin') {
+        try {
+            window.IPCOSReviewTools?.validateDecision(action);
+            if(window.IPCOSAdminDecision&&!window.IPCOSAdminDecision.review(decision))return;
+        } catch(error) { return fail(error.message); }
+    }
     const button = document.getElementById('btn-case-submit');
     button.disabled = true; button.textContent = uxText('Sedang menyimpan...', 'Saving...');
     feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
     setSubmissionStage('case-action-feedback','preparing');
     isPreparingCorrection = true;
     if(action==='reply')window.IPCOSCorrections?.busy(true);
+    else {isPreparingReviewDecision=true;window.IPCOSAdminDecision?.busy(true);}
     window.IPCOSUploads?.refresh();
     window.IPCOSReview?.actionsChanged();
     const requestEpoch = sessionEpoch;
     try {
+        if(currentUser.role==='admin') {
+            if(window.IPCOSReviewTools&&!await window.IPCOSReviewTools.beforeDecision(action))return;
+            if(requestEpoch!==sessionEpoch||selectedCaseId!==String(item.id))return;
+            window.IPCOSAdminDecision?.afterReviewSave(decision);
+        }
         if (action === 'reply') {
             const inspections = await Promise.all(files.map(inspectDocument));
             if (requestEpoch !== sessionEpoch) return;
@@ -1467,8 +1482,8 @@ async function submitCaseAction() {
         else if (!success && document.getElementById('case-action-feedback')) setProcessNotice('case-action-feedback','case-uncertain');
     } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); setProcessNotice('case-action-feedback','case-error',error.message); }
     finally {
-        if (requestEpoch === sessionEpoch) { isPreparingCorrection = false; if(action==='reply')window.IPCOSCorrections?.busy(false); window.IPCOSUploads?.refresh(); }
-        if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = action==='reply'&&window.IPCOSCorrections ? window.IPCOSCorrections.label() : uxText('Coba Simpan Lagi', 'Try Saving Again'); }
+        if (requestEpoch === sessionEpoch) { isPreparingCorrection = false; isPreparingReviewDecision=false; if(action==='reply')window.IPCOSCorrections?.busy(false); else window.IPCOSAdminDecision?.busy(false); window.IPCOSUploads?.refresh(); }
+        if (requestEpoch === sessionEpoch && button.isConnected) { button.disabled = false; button.textContent = action==='reply'&&window.IPCOSCorrections ? window.IPCOSCorrections.label() : window.IPCOSAdminDecision?.label() || uxText('Coba Simpan Lagi', 'Try Saving Again'); }
         if (requestEpoch === sessionEpoch) window.IPCOSReview?.actionsChanged();
     }
 }
@@ -2295,7 +2310,7 @@ function openCaseDetail(id, languageRefresh = false) {
     const savedPreview = languageRefresh && document.getElementById('case-file-preview');
     const savedReviewTools = languageRefresh && document.getElementById('document-review-tools');
     const savedFeedback = languageRefresh && document.querySelector('#modal-case-detail .operation-feedback');
-    if (!languageRefresh) document.getElementById('toast-container').replaceChildren();
+    if (!languageRefresh) { document.getElementById('toast-container').replaceChildren(); window.IPCOSAdminDecision?.reset(); }
     if (!languageRefresh) { clearCaseBlobUrls(); window.IPCOSDocuments?.clearLocal(); }
     selectedCaseId = String(item.id);
     const isAdmin = currentUser.role === 'admin';
@@ -2364,6 +2379,7 @@ function openCaseDetail(id, languageRefresh = false) {
     window.IPCOSReview?.opened(item,{languageRefresh});
     window.IPCOSReviewTools?.opened(item,{languageRefresh});
     window.IPCOSCorrections?.refresh();
+    window.IPCOSAdminDecision?.refresh();
     if (restoreFocus?.node.isConnected && !restoreFocus.node.disabled) {
         restoreFocus.node.focus({preventScroll:true});
         if (typeof restoreFocus.start==='number') restoreFocus.node.setSelectionRange(restoreFocus.start,restoreFocus.end,restoreFocus.direction || 'none');

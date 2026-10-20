@@ -1,3 +1,4 @@
+const {previewAdminDecision} = require('./admin-decision-helpers.cjs');
 const {selectService, reviewRequest} = require('./registration-helpers.cjs');
 const {chromium, reportFailure} = require('./browser.cjs');
 const assert = require('node:assert/strict');
@@ -154,7 +155,7 @@ async function editSop(page) {await openSop(page);await page.evaluate(()=>IPCOSS
 
     await admin.evaluate(id=>openCaseDetail(id),expected[0]);await admin.evaluate(()=>caseDetailAction('revision'));await admin.check('[name="revision-document"][value="Isian pengajuan"]');await admin.fill('#case-revision-note','Instruksi admin tidak boleh hilang');
     await admin.click('#case-review-next');assert.equal(await admin.evaluate(()=>selectedCaseId),expected[0]);assert.equal(await admin.inputValue('#case-revision-note'),'Instruksi admin tidak boleh hilang');assert(await admin.isChecked('[name="revision-document"][value="Isian pengajuan"]'));
-    nextUpdate='failure';const busy=gate();heldUpdate=busy;const updatesBefore=calls.filter(call=>call.action==='update').length;await admin.click('#btn-case-submit');await busy.entered;
+    nextUpdate='failure';const busy=gate();heldUpdate=busy;const updatesBefore=calls.filter(call=>call.action==='update').length;await previewAdminDecision(admin,calls,'Instruksi admin tidak boleh hilang');await admin.click('#btn-case-submit');await busy.entered;
     await admin.evaluate(()=>IPCOSReview.navigate(1));assert.equal(await admin.evaluate(()=>selectedCaseId),expected[0]);assert.equal(calls.filter(call=>call.action==='update').length,updatesBefore+1);assert(await admin.locator('#btn-case-submit').isDisabled());
     const progress=await admin.locator('#case-action-feedback-steps').getAttribute('data-stage');assert.equal(progress,'sending');assert(!(await admin.locator('#case-action-feedback-steps').textContent()).includes('berhasil'));
     busy.release();await busy.done;await admin.waitForFunction(()=>!isPreparingCorrection&&!activeUpdateIds.size);assert.equal(await admin.inputValue('#case-revision-note'),'Instruksi admin tidak boleh hilang');assert.equal(await admin.locator('#case-action-feedback-steps').getAttribute('data-stage'),'uncertain');assert((await admin.locator('#case-action-feedback').textContent()).trim());
@@ -165,7 +166,7 @@ async function editSop(page) {await openSop(page);await page.evaluate(()=>IPCOSS
     admin.permitLeave=true;await admin.click('#case-review-next');assert.equal(await admin.evaluate(()=>selectedCaseId),expected[1]);admin.permitLeave=false;
     pass('Dirty review navigation cancellation and busy guards preserve admin inputs; failed writes remain unconfirmed and retain editable feedback across languages');
 
-    await admin.evaluate(id=>openCaseDetail(id),expected[0]);await admin.evaluate(()=>caseDetailAction('accept'));await admin.click('#btn-case-submit');await admin.waitForFunction(()=>!isPreparingCorrection&&!activeUpdateIds.size);assert.equal(records.find(item=>item.id===expected[0]).status,'Accepted');
+    await admin.evaluate(id=>openCaseDetail(id),expected[0]);await admin.evaluate(()=>caseDetailAction('accept'));await previewAdminDecision(admin,calls,'Berkas telah disetujui dan terverifikasi.');await admin.click('#btn-case-submit');await admin.waitForFunction(()=>!isPreparingCorrection&&!activeUpdateIds.size);assert.equal(records.find(item=>item.id===expected[0]).status,'Accepted');
     await admin.click('#case-review-next');assert.equal(await admin.evaluate(()=>selectedCaseId),expected[1],'Successful case leaving the active filter continues at the next surviving queue neighbor');
     await admin.evaluate(()=>closeModal('modal-case-detail',true));await student.bringToFront();await student.evaluate(()=>openCaseDetail('correction-A'));
     assert.equal(await student.locator('#case-review-navigation').count(),0,'Student does not receive administrative queue controls');const studentCase=await student.evaluate(()=>selectedCaseId);await student.evaluate(()=>IPCOSReview.navigate(1));assert.equal(await student.evaluate(()=>selectedCaseId),studentCase);
