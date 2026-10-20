@@ -7,7 +7,7 @@ const note='Unggah halaman bertanda tangan. Pertahankan eCommerce dan nama lengk
 const calls=[],errors=[];
 const records=[
  {id:'rev',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal',status:'Revision',date:'2026-10-01T01:00:00Z',detail:'<b>Judul:</b> '+('Komunikasi digital dan partisipasi akademik internasional ').repeat(3),link:`<a href="${url}">Form ACC Seminar Proposal</a>`,note:JSON.stringify([{role:'mhs',time:'2026-10-01T01:00:00Z',documents:[{url,label:'Form ACC Seminar Proposal',version:1,fileName:'form-acc.pdf'}]},{kind:'document_review',role:'system',time:'2026-10-02T01:00:00Z',reviews:[{url,status:'revision',note}]},{role:'admin',time:'2026-10-02T02:00:00Z',message:'Berkas yang perlu diperbaiki:\n- Form ACC Seminar Proposal\n\nInstruksi:\n'+note}])},
- {id:'pending',nim:'A',nama:'Mahasiswa Uji',jenis:'Outline',status:'Pending',date:'2026-10-03T01:00:00Z',detail:'<b>Judul:</b> Penelitian kedua',link:'',note:'[]'},
+ {ID:'pending',NIM:'A',Nama:'Mahasiswa Uji',Jenis:'Outline',Status:'Pending',Date:'2026-10-03T01:00:00Z',Detail:'<b>Judul:</b> Penelitian kedua',Link:'',Note:'[]',Dospem:'Dosen Tercatat'},
  {id:'done',nim:'A',nama:'Mahasiswa Uji',jenis:'Pendadaran',status:'Accepted',date:'2026-09-01T01:00:00Z',detail:'Selesai diverifikasi',link:'',note:'[]'},
  {id:'other',nim:'B',nama:'Rahasia Mahasiswa Lain',jenis:'Proposal',status:'Revision',date:'2026-10-04T01:00:00Z',detail:'Private student title',link:'',note:'[]'}
 ];
@@ -29,6 +29,9 @@ async function layout(page,scope,label){const state=await page.locator(scope).ev
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
  await page.goto(origin);await page.fill('#input-nim','A');await page.locator('#input-nim').press('Enter');await page.waitForFunction(()=>syncPhase==='success'&&window.IPCOSReviewTools.supported()===true);
  assert.deepEqual(await page.locator('.student-overview dd').allTextContents(),['1','1','1']);assert.equal(await page.locator('#task-home [data-case-id]').first().getAttribute('data-case-id'),'rev');assert(!(await page.locator('#task-home').textContent()).includes('Private student title'));
+ assert.deepEqual(await page.evaluate(()=>{const row=JSON.parse(sessionStorage.getItem('ipcos_registrations')).find(r=>r.id==='pending');return [row.id,row.nim,row.status,row.dospem];}),['pending','A','Pending','Dosen Tercatat']);
+ await page.evaluate(()=>openCaseDetail('pending'));assert.equal(await page.locator('.student-detail-overview [aria-current=step]').textContent().then(s=>/pemeriksaan|review/i.test(s)),true);require('node:fs').mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/audit-pending-status-desktop.png'});await page.evaluate(()=>closeModal('modal-case-detail',true));
+ console.log('PASS Uppercase legacy ID/NIM records remain owned and visible; an assigned supervisor cannot mark a pending request completed');
  for(const width of [320,390,768,1365])for(const lang of ['id','en'])for(const dark of [false,true]){await mode(page,width,lang,dark);await layout(page,'#task-home',`home ${width}/${lang}/${dark}`);}
  console.log('PASS Student home priority, owned request counts, long titles and layout across 16 screen/language/theme combinations');
  await mode(page,390,'id',true);await page.locator('[data-student-home-action]').click();await page.waitForSelector('#case-reply-note');assert.equal(await page.evaluate(()=>selectedCaseId),'rev');await page.fill('#case-reply-note','Catatan revisi eCommerce yang belum dikirim.');

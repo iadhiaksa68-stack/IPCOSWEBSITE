@@ -53,6 +53,9 @@
 .student-detail-workspace .revision-instructions { margin-top:0; }
 .student-detail-links { display:flex; flex-direction:column; align-items:flex-start; gap:10px; border-top:1px solid var(--item-border); margin-top:18px; padding-top:14px; }
 .student-detail-links button { margin:0; min-height:44px; text-align:left; }
+.student-detail-links .text-link { width:auto;max-width:100%;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:var(--umy-maroon);font:inherit;font-size:13px;line-height:1.6;white-space:normal;overflow-wrap:anywhere;cursor:pointer; }
+.student-detail-links .text-link:hover { background:var(--item-hover); }
+.student-detail-links .text-link:focus-visible { outline:2px solid var(--umy-maroon);outline-offset:2px; }
 .student-no-action { font-size:13px; line-height:1.7; color:var(--text-muted); }
 .student-detail-mode .workspace-view-toggle button { background:var(--card-bg); color:var(--text-color); border:1px solid var(--item-border); border-radius:12px; font:inherit; font-size:13px; font-weight:650; line-height:1.6; padding:10px 14px; }
 .student-detail-mode .workspace-view-toggle button[aria-pressed=true] { background:#9f2442; color:#fff; border-color:#9f2442; }

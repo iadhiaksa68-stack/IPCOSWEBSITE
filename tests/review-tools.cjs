@@ -11,7 +11,7 @@ async function mock(context){await context.route('**/*',async route=>{
         const data=route.request().postDataJSON();calls.push(data);let result;
         if(data.action==='admin_login')result={status:'success',token:'admin'};
         else if(data.action==='student_login')result={status:'success',token:'student-A',nama:'Student Test'};
-        else if(data.action==='get_data')result={status:'success',registrations:f.records().filter(item=>data.token==='admin'||item.nim==='A').map(item=>({...item,reviewVersion:f.ctx.nextRevisionVersion(item),detail:item.detail.split("<br><br><b style='color:#E03F4F;'>Dosen Pembimbing:")[0]})),students:[],dosens:[{Nama:'Supervisor',Maksimal:10,Terpakai:0}],contents:[],announcements:[],services:[]};
+        else if(data.action==='get_data')result={status:'success',registrations:f.records().filter(item=>data.token==='admin'||item.nim==='A').map(item=>({...item,dospem:item.id==='fields'?'Supervisor':item.dospem,reviewVersion:f.ctx.nextRevisionVersion(item),detail:item.detail.split("<br><br><b style='color:#E03F4F;'>Dosen Pembimbing:")[0]})),students:[],dosens:[{Nama:'Supervisor',Maksimal:10,Terpakai:0}],contents:[],announcements:[],services:[]};
         else if(data.action==='get_document'){if(holdDocument)await new Promise(resolve=>releaseDocument=resolve);result={status:'success',fileName:'acc.pdf',mimeType:'application/pdf',base64:pdf('Private document fixture',2).toString('base64')};}
         else if(['save_document_review','archive_request','restore_request'].includes(data.action)){try{result=f.ctx.nextDispatch(data);}catch(error){result={status:'error',message:error.message};}if(lostReview&&data.action==='save_document_review'){lostReview=false;return route.abort();}}
         else if(data.action==='get_review_capabilities')result=oldBackend?{status:'error',message:'Aksi tidak valid.'}:{status:'success',documentReviewSupported:true,archiveSupported:true};
@@ -32,6 +32,7 @@ async function login(browser,role){const context=await browser.newContext({viewp
 }
 (async()=>{
     const browser=await chromium.launch(),admin=await login(browser,'admin');
+    assert.equal(await admin.evaluate(()=>JSON.parse(sessionStorage.getItem('ipcos_registrations')).find(row=>row.id==='fields').status),'Pending');
     await admin.evaluate(()=>openCaseDetail('fields'));await admin.click('[data-preview-index="0"]');await admin.waitForFunction(()=>document.querySelector('#case-file-preview canvas')?.dataset.rendered==='true');
     assert(await admin.locator('#case-file-preview canvas').isVisible());assert.equal(await admin.locator('#case-file-preview .pdf-accessible-text').textContent(),'Private document fixture');await admin.waitForFunction(()=>{const canvas=document.querySelector('#case-file-preview canvas');if(canvas?.dataset.rendered!=='true')return false;const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;return pixels.some((value,i)=>i%4!==3&&value<150);});
     const bytes=await admin.evaluate(async()=>{const response=await fetch(document.querySelector('#case-file-preview .document-preview-actions a').href);return {mime:response.headers.get('content-type'),text:await response.text()};});assert.equal(bytes.mime,'application/pdf');assert(bytes.text.startsWith('%PDF-'));

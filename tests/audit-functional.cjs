@@ -6,6 +6,42 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../script.js'), 'utf8');
 const section = (from, to) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
 
+test('a recorded supervisor never turns an explicit pending or unknown status into approval', () => {
+  const context=vm.createContext({});
+  vm.runInContext(section('function normalizeData(', 'window.onload ='),context);
+  const input=['Pending','Revision','Resubmitted','Accepted','Ditunda',''].map(status=>({id:status||'blank',status,dospem:'Dosen Tercatat'}));
+  input.push({id:'legacy',Status:' Pending ',Nim:'A',Dospem:'Dosen Lain'});
+  assert.deepEqual(Array.from(context.normalizeData(input),row=>row.status),['Pending','Revision','Resubmitted','Accepted','Ditunda','','Pending']);
+});
+test('legacy ID and NIM headers retain request identity and explicit lowercase values take precedence',()=>{
+  const context=vm.createContext({});vm.runInContext(section('function normalizeData(', 'window.onload ='),context);
+  const [row]=context.normalizeData([{ID:'REQ-UPPER',NIM:'00123',Nama:'Nama Tercatat',STATUS:' Pending ',Dospem:'Dosen Tercatat',note:'[]',NOTE:'older'}]);
+  assert.equal(row.id,'REQ-UPPER');assert.equal(row.nim,'00123');assert.equal(row.nama,'Nama Tercatat');assert.equal(row.status,'Pending');assert.equal(row.dospem,'Dosen Tercatat');assert.equal(row.note,'[]');
+});
+
+class UtcBrowserDate extends Date {
+  constructor(...args){if(typeof args[0]==='string'&&/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?$/.test(args[0]))args[0]+='Z';super(...args);}
+  static parse(value){return new UtcBrowserDate(value).getTime();}
+}
+test('global request search orders mixed legacy WIB and explicit UTC activity chronologically',()=>{
+  const context=vm.createContext({Date:UtcBrowserDate});
+  vm.runInContext(section('function displayDate(', 'function formatDate('),context);
+  const search=fs.readFileSync(path.join(__dirname,'../global-search.js'),'utf8');
+  vm.runInContext(search.slice(search.indexOf('    function activity('),search.indexOf('    function setup(')),context);
+  const older={date:'2026-10-20 08:00:00',note:'[]'},newer={date:'2026-10-20T02:00:00Z',note:'[]'};
+  assert(context.activity(older)<context.activity(newer));
+  assert.equal(context.activity({date:'invalid',note:JSON.stringify([{time:'2026-10-20 10:00:00'}])}),Date.parse('2026-10-20T03:00:00Z'));
+});
+test('archive period previews use the recorded WIB day independent of the browser timezone',()=>{
+  const rows=[{id:'local',date:'2026-12-31 22:30:00',status:'Accepted',jenis:'Proposal'},{id:'next-day',date:'2026-12-31T18:00:00Z',status:'Accepted',jenis:'Proposal'},{id:'invalid',date:'invalid',status:'Accepted',jenis:'Proposal'}];
+  const values={'archive-from':'2026-12-31','archive-to':'2026-12-31','archive-service':''};
+  const context=vm.createContext({Date:UtcBrowserDate,sessionStorage:{},readStoredJSON:()=>rows,archived:()=>false,el:id=>({value:values[id]})});
+  vm.runInContext(section('function displayDate(', 'function formatDate('),context);
+  const review=fs.readFileSync(path.join(__dirname,'../review-tools.js'),'utf8');
+  vm.runInContext(review.slice(review.indexOf('    function archiveCandidates('),review.indexOf('    function renderArchives(')),context);
+  assert.deepEqual(Array.from(context.archiveCandidates(),row=>row.id),['local']);
+});
+
 test('relative notification dates use WIB for timestamps without an offset', () => {
   const clock = Date.parse('2026-10-13T05:00:00Z');
   class FixedDate extends Date {

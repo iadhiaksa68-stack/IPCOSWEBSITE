@@ -1,7 +1,7 @@
 const {chromium,reportFailure}=require('./browser.cjs');
 const assert=require('node:assert/strict');
 const origin=process.env.IPCOS_TEST_BASE_URL||'http://127.0.0.1:8766';
-const firstUrl='https://drive.google.com/file/d/owned/view',secondUrl='https://drive.google.com/file/d/second/view';
+const firstUrl='https://DRIVE.GOOGLE.COM/file/d/owned/view',secondUrl='https://drive.google.com/file/d/second/view';
 const externalUrl='https://example.com/private-original.pdf';
 const record={id:'mine',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal',status:'Pending',date:new Date().toISOString(),detail:'Judul',link:`<a href="${firstUrl}">Form ACC</a><a href="${secondUrl}">Dokumen Kedua</a><a href="${externalUrl}">Berkas Eksternal</a>`,note:'[]'};
 const errors=[],calls=[];let nextGate=null,failReader=true,readerRetries=0,externalReads=0,workerFailures=0;
@@ -13,7 +13,7 @@ function gate(error=false){let release,entered;return {error,wait:new Promise(re
         if(url.includes('/vendor/pdfjs/pdf.worker.min.mjs')&&!url.includes('?retry=2')){workerFailures++;return route.abort();}
         if(url.includes('/vendor/pdfjs/pdf.min.mjs')){if(failReader){failReader=false;return route.abort();}if(url.includes('?retry='))readerRetries++;return route.continue();}
         if(url===externalUrl){externalReads++;return route.abort();}
-        if(url===firstUrl)return route.fulfill({contentType:'text/html',body:'<!doctype html><title>Original test document</title><p>Original owned document fixture</p>'});
+        if(url===new URL(firstUrl).href)return route.fulfill({contentType:'text/html',body:'<!doctype html><title>Original test document</title><p>Original owned document fixture</p>'});
         if(url.includes('script.google.com/macros/')){
             const data=route.request().postDataJSON();if(await require('./next-mock.cjs')(route,data))return;let result;
             if(data.action==='student_login')result={status:'success',token:'mhs',nama:'Mahasiswa Uji'};
@@ -35,7 +35,7 @@ function gate(error=false){let release,entered;return {error,wait:new Promise(re
     const open=async()=>{await page.locator('#task-home [data-case-id]').click();await page.waitForSelector('#modal-case-detail',{state:'visible'});};
     const rendered=()=>page.waitForFunction(()=>document.querySelector('#case-file-preview canvas')?.dataset.rendered==='true');
     const heldPreview=async(index,error=false)=>{const held=gate(error);nextGate=held;await page.locator(`[data-preview-index="${index}"]`).click();await held.entered;return held;};
-    await open();let held=await heldPreview(0);const requestCount=calls.length;
+    await open();assert.equal(await page.evaluate(()=>getCaseFiles(currentCase())[0].url),firstUrl,'A Drive link must retain its exact stored URL for authenticated backend membership');let held=await heldPreview(0);const requestCount=calls.length;
     await page.evaluate(()=>{previewCaseFile(0);previewCaseFile(0);});await page.waitForTimeout(80);assert.equal(calls.length,requestCount);
     assert(await page.locator('[data-preview-index="0"]').isDisabled());assert.equal(await page.locator('[data-preview-index="0"]').getAttribute('aria-busy'),'true');
     await page.evaluate(()=>toggleLanguage());
@@ -50,7 +50,7 @@ function gate(error=false){let release,entered;return {error,wait:new Promise(re
     held=await heldPreview(0,true);held.release();await page.waitForFunction(()=>!document.querySelector('[data-preview-index="0"]').disabled);
     assert.equal(await page.evaluate(()=>caseBlobUrls.size),0);assert((await page.locator('#case-file-preview>.field-helper:not(.pdf-search-status)').textContent()).includes('belum dapat dimuat'));
     assert.equal(await page.locator('.case-preview-context a').getAttribute('href'),firstUrl);assert.equal(await page.locator('.case-preview-context a').getAttribute('rel'),'noopener noreferrer');assert(await page.locator('[data-case-preview-retry]').isVisible());assert.equal(await page.locator('#case-file-preview').getAttribute('aria-busy'),'false');
-    const originalPage=context.waitForEvent('page');await page.locator('.case-preview-context a').click();const opened=await originalPage;await opened.waitForSelector('p');assert.equal(await opened.locator('p').textContent(),'Original owned document fixture');assert.equal(opened.url(),firstUrl);await opened.close();
+    const originalPage=context.waitForEvent('page');await page.locator('.case-preview-context a').click();const opened=await originalPage;await opened.waitForSelector('p');assert.equal(await opened.locator('p').textContent(),'Original owned document fixture');assert.equal(opened.url(),new URL(firstUrl).href);await opened.close();
     for(const width of [320,390,768,1365])for(const lang of ['id','en'])for(const dark of [false,true]){
         await page.setViewportSize({width,height:900});await page.evaluate(({lang,dark})=>{if(currentLang!==lang)toggleLanguage();document.body.classList.toggle('dark-mode',dark);},{lang,dark});
         const layout=await page.locator('.case-preview-context').evaluate(root=>({overflow:document.documentElement.scrollWidth>innerWidth+2,clipped:[...root.querySelectorAll('h4,a,button')].filter(n=>n.checkVisibility()&&n.scrollWidth>n.clientWidth+3).map(n=>n.textContent),heights:[...root.querySelectorAll('a,button')].filter(n=>n.checkVisibility()).map(n=>n.getBoundingClientRect().height)}));

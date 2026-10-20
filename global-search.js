@@ -85,7 +85,7 @@
         });
         return list;
     }
-    function activity(row){let logs=[];try{logs=JSON.parse(row.note||'[]');}catch(_){}return Math.max(0,...[row.date,...(Array.isArray(logs)?logs.map(log=>log?.time):[])].map(value=>Date.parse(value)).filter(Number.isFinite));}
+    function activity(row){let logs=[];try{logs=JSON.parse(row.note||'[]');}catch(_){}return Math.max(0,...[row.date,...(Array.isArray(logs)?logs.map(log=>log?.time):[])].map(value=>displayDate(value).getTime()).filter(Number.isFinite));}
     function setup(){
         const modal=el('modal-global-search'),input=el('global-search-input'),box=el('global-search-results');if(!modal||!input||!box)return false;
         modal.classList.add('global-search-dialog');modal.querySelector('.modal-card')?.classList.add('global-search-card');input.parentElement?.parentElement?.classList.add('global-search-header');

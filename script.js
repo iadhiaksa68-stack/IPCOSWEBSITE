@@ -340,25 +340,9 @@ function expireSession() {
 function normalizeData(registrations) {
     if (!registrations) return [];
     return registrations.map(r => {
-        // --- FIX CASE-SENSITIVITY HEADER GOOGLE SHEETS ---
-        if (r.Status !== undefined && r.status === undefined) r.status = r.Status;
-        if (r.Note !== undefined && r.note === undefined) r.note = r.Note;
-        if (r.Jenis !== undefined && r.jenis === undefined) r.jenis = r.Jenis;
-        if (r.Detail !== undefined && r.detail === undefined) r.detail = r.Detail;
-        if (r.Date !== undefined && r.date === undefined) r.date = r.Date;
-        if (r.Id !== undefined && r.id === undefined) r.id = r.Id;
-        if (r.Nim !== undefined && r.nim === undefined) r.nim = r.Nim;
-        if (r.Nama !== undefined && r.nama === undefined) r.nama = r.Nama;
-        if (r.Link !== undefined && r.link === undefined) r.link = r.Link;
-        // -------------------------------------------------
-
+        const fields=new Set(['id','nim','nama','status','note','jenis','detail','date','link','dospem']);
+        for(const key of Object.keys(r)){const field=key.toLowerCase();if(fields.has(field)&&r[field]===undefined)r[field]=r[key];}
         if (r.status) r.status = String(r.status).trim();
-        const safeStatus = String(r.status || '').trim().toLowerCase();
-
-        const isExplicitDecision = safeStatus === 'revision' || safeStatus === 'resubmitted';
-        if (r.dospem && String(r.dospem).trim() !== '' && safeStatus !== 'accepted' && !isExplicitDecision) {
-            r.status = 'Accepted';
-        }
         return r;
     });
 }
@@ -1191,7 +1175,12 @@ function editRegistration() {
 }
 function getCaseFiles(item) {
     const doc = new DOMParser().parseFromString(String(item.link || ''), 'text/html');
-    return [...doc.querySelectorAll('a')].filter(a => a.getAttribute('href') && !a.getAttribute('href').startsWith('#')).map(a => ({ label: a.textContent.trim() || uxText('Berkas', 'Document'), url: safeUrl(a.getAttribute('href')) })).filter(file => file.url !== '#');
+    return [...doc.querySelectorAll('a')].filter(a => a.getAttribute('href') && !a.getAttribute('href').startsWith('#')).map(a => {
+        const original=a.getAttribute('href'),validated=safeUrl(original);
+        // Private access checks exact membership in the stored request links.
+        const url=validated!=='#'&&/^https?:\/\//i.test(original)?original:validated;
+        return {label:a.textContent.trim()||uxText('Berkas','Document'),url};
+    }).filter(file => file.url !== '#');
 }
 function getRevisionInstructions(item) {
     let logs = [];
