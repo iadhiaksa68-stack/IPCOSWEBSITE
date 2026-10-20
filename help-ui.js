@@ -97,7 +97,7 @@
         guide=tab==='pendaftaran'?null:{tab,owner:ownerKey(),origin};const run=++navigation;renderGuide();let target;
         if(tab==='templates-faq'){window.IPCOSResources?.clearContext?.();target=key?window.IPCOSResources?.reveal?.('faq',key):el('resource-search');}
         else if(tab.startsWith('sop-')){const type=tab==='sop-magang'?'sop_magang':'sop_tugas_akhir';try{await window.IPCOSSop?.open?.(type);}catch(_){/* The SOP reader presents its own retry action. */}if(run!==navigation||guide?.owner!==ownerKey())return;target=window.IPCOSSop?.reveal?.(type,'')||el(type+'-view')?.querySelector('h1,[role=status]');}
-        else if(tab==='pendaftaran')target=!el('registration-review').hidden?el('review-heading'):el('reg-jenis-utama');
+        else if(tab==='pendaftaran')target=!el('registration-review').hidden?el('review-heading'):el('registration-main')?.querySelector('.registration-step-section:not([hidden]) h2');
         else target=el(tab)?.querySelector('h1,h2');
         focusAfter(tab,target||el(tab)?.querySelector('h1,h2'),run);
     }

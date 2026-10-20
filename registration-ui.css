@@ -37,6 +37,8 @@
 #registration-main .field-counter { font-size:11px; margin:6px 0 0; }
 #registration-main #reg-jenis-utama { border-width:1px!important; border-color:var(--item-border)!important; min-height:52px; }
 #registration-main #service-availability { padding:14px 16px; font-size:12px; line-height:1.8; margin:16px 0 0; border-radius:12px; }
+#registration-shell:not([data-current-step=service]):not(.registration-service-blocked) #service-availability { display:none; }
+#registration-shell.registration-service-blocked #service-availability { margin-bottom:24px; }
 #registration-main #service-availability strong { overflow-wrap:anywhere; }
 #registration-main #service-availability p { margin:6px 0; }
 .registration-draft-row { border-top:1px solid var(--item-border); margin-top:22px; padding-top:14px; }
@@ -45,18 +47,20 @@
 .registration-draft-row .draft-help p { font-size:12px; }
 .registration-draft-row .form-helper { display:none; }
 .registration-draft-row .form-draft-status { font-size:12px; margin:6px 0; }
-#registration-main #dynamic-exam-form { margin-top:24px!important; padding-top:24px!important; }
-.registration-section-next { display:flex; justify-content:flex-end; margin:18px 0 28px; }
-.registration-section-next button { display:flex; align-items:center; justify-content:center; gap:14px; width:auto; margin:0; min-height:44px; }
-#registration-document-step { border-top:1px solid var(--item-border); padding-top:28px; }
+#registration-main #dynamic-exam-form { margin-top:0!important; padding-top:0!important; border-top:0!important; }
+.registration-stage-actions { display:flex; justify-content:flex-end; margin-top:24px; }
+.registration-stage-actions button,#registration-data-next { display:flex; align-items:center; justify-content:center; gap:12px; }
+.registration-stage-actions button { width:auto; margin:0; min-height:48px; }
+#registration-document-step { border-top:0; padding-top:0; }
 #registration-document-step .form-group { padding:18px; margin:0 0 16px; border:1px solid var(--item-border); border-radius:14px; background:var(--bg-color); }
 #registration-main .upload-format { font-size:11px; line-height:1.7; margin:4px 0 12px; }
 #registration-main input[type=file] { padding:0 10px 0 0; background:var(--card-bg); font-size:12px; }
 #registration-main input[type=file]::file-selector-button { min-height:46px; padding:10px 14px; margin-right:12px; border:0; border-right:1px solid var(--item-border); background:var(--sidebar-active-bg); color:var(--sidebar-active-text); font:inherit; font-weight:650; cursor:pointer; }
 #registration-main .upload-guidance { margin:10px 0 0; gap:4px 16px; }
 #registration-main .upload-guidance button { min-height:44px; font-size:11px; }
-#registration-main #registration-actions { margin-top:24px; padding-top:16px; }
-#registration-main #registration-actions button { min-height:48px; border-radius:10px; font-size:13px; }
+#registration-main #registration-actions { position:static; margin-top:24px; padding:20px 0 0; justify-content:space-between; align-items:stretch; }
+#registration-main #registration-actions button { width:auto; min-width:0; max-width:100%; min-height:48px; border-radius:10px; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+#registration-main #registration-actions .btn-primary { margin-left:auto!important; }
 #registration-review h3 { font-size:22px; line-height:1.5; margin:0 0 24px; }
 #registration-review .receipt-list { padding:18px; background:var(--bg-color); border:1px solid var(--item-border); border-radius:14px; }
 #registration-review .receipt-list dd { overflow-wrap:anywhere; }
@@ -86,7 +90,13 @@
  .registration-section-heading p { font-size:12px; }
  .registration-section-heading>span { min-width:30px; height:30px; font-size:11px; }
  #registration-document-step .form-group { padding:14px 12px; }
- .registration-section-next button { width:100%; }
+ .registration-stage-actions button { width:100%; }
+ #registration-main #registration-actions { flex-direction:column-reverse; gap:10px; }
+ #registration-main #registration-actions button { width:100%; flex:auto; }
+ #registration-main #registration-actions .btn-primary { margin-left:0!important; }
+ #registration-main .upload-file-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+ #registration-main .upload-file-actions [data-upload-action=preview] { grid-column:1/-1; }
+ #registration-main .upload-file-actions button { overflow-wrap:normal; word-break:normal; }
  #registration-companion .requirement-list { display:block; }
  #registration-review h3 { font-size:20px; }
 }

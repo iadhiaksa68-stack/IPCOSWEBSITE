@@ -1,3 +1,4 @@
+const {selectService, reviewRequest} = require('./registration-helpers.cjs');
 const {chromium,reportFailure} = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const {pdf} = require('./fixtures.cjs');
@@ -77,8 +78,8 @@ async function layout(page,label) {
     await page.locator('#skripsi [data-start-service="Proposal"]').click(); assert.equal(await page.inputValue('#reg-jenis-utama'),'Proposal');
     await page.evaluate(()=>{document.getElementById('reg-jenis-utama').value='';toggleExamForm();});
     pass('English academic guidance and journey shortcuts keep canonical service values');
-    await page.selectOption('#reg-jenis-utama','Outline'); await page.fill('#reg-judul','');
-    await page.click('#btn-review-registration');
+    await selectService(page,'Outline'); await page.fill('#reg-judul','');
+    await reviewRequest(page);
     assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-judul');
     assert.equal(await page.getAttribute('#reg-judul','aria-invalid'),'true');
     assert((await page.getAttribute('#reg-judul','aria-describedby')).includes('reg-judul-error'));
@@ -87,29 +88,29 @@ async function layout(page,label) {
     assert((await page.locator('#reg-judul-hint').textContent()).includes('20 / 500 characters'));
     assert((await page.getAttribute('#reg-judul','aria-describedby')).includes('reg-judul-hint'));
     assert.equal(await page.locator('#file-transkrip').evaluate(el=>el.required),true);
-    await page.fill('#reg-judul','X'.repeat(501)); await page.click('#btn-review-registration');
+    await page.fill('#reg-judul','X'.repeat(501)); await reviewRequest(page);
     assert.equal(await page.getAttribute('#reg-judul','aria-invalid'),'true');
     await page.evaluate(()=>toggleLanguage()); assert.equal(await page.inputValue('#reg-judul'),'X'.repeat(501));
     assert((await page.locator('#reg-judul-hint').textContent()).includes('501 / 500 karakter'));
-    await page.evaluate(()=>toggleLanguage()); await page.selectOption('#reg-jenis-utama','Pergantian Pembimbing');
+    await page.evaluate(()=>toggleLanguage()); await selectService(page,'Pergantian Pembimbing');
     assert.equal(await page.locator('#reg-judul').evaluate(el=>el.required),false);
     assert.equal(await page.getAttribute('#reg-judul','aria-invalid'),'false');
     assert.equal(await page.locator('#file-transkrip').evaluate(el=>el.required),false);
     assert.equal(await page.locator('#reg-alasan-ganti').evaluate(el=>el.required),true);
     await page.fill('#reg-dosen-lama','Supervisor A'); await page.fill('#reg-dosen-baru','Supervisor A');
-    await page.fill('#reg-alasan-ganti','A reason for requesting a different supervisor.'); await page.click('#btn-review-registration');
+    await page.fill('#reg-alasan-ganti','A reason for requesting a different supervisor.'); await reviewRequest(page);
     assert.equal(await page.getAttribute('#reg-dosen-baru','aria-invalid'),'true');
     await page.fill('#reg-dosen-lama','Supervisor B'); assert.equal(await page.getAttribute('#reg-dosen-baru','aria-invalid'),'false');
     pass('Text errors clear when corrected, limits are visible, long drafts remain intact, and required fields follow the selected service');
 
     for (const type of ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing']) {
-        await page.selectOption('#reg-jenis-utama',type);
+        await selectService(page,type);
         if (type === 'Pergantian Pembimbing') { await page.fill('#reg-dosen-lama','Dosen Lama Asli'); await page.fill('#reg-dosen-baru','Dosen Baru Asli'); await page.fill('#reg-alasan-ganti','Alasan mahasiswa tetap asli'); }
         else await page.fill('#reg-judul','Judul asli mahasiswa tetap utuh');
         const specs = await page.evaluate(()=>registrationSpecs(document.getElementById('reg-jenis-utama').value));
         for (const [id,label] of specs) await page.setInputFiles('#'+id,{name:id+'.pdf',mimeType:'application/pdf',buffer:pdf(label)});
         if(type === 'Outline') await page.locator('#pendaftaran').screenshot({path:'test-results/polished-student-form.png'});
-        await page.click('#btn-review-registration'); assert(await page.locator('#registration-review').isVisible());
+        await reviewRequest(page); assert(await page.locator('#registration-review').isVisible());
         const text = await page.locator('#registration-review').textContent();
         assert(text.includes('Review Before Sending')); assert(!/Dosen sekarang|Usulan dosen|Draft Jurnal|Berkas Pendadaran|Surat Permohonan/.test(text));
         if(type === 'Pergantian Pembimbing') assert(text.includes('Dosen Lama Asli'));
@@ -120,12 +121,12 @@ async function layout(page,label) {
         await page.click('#btn-edit-registration');
     }
     pass('All five English request summaries preserve entered text, selected files and backend enums across language changes');
-    await page.selectOption('#reg-jenis-utama','Outline');
+    await selectService(page,'Outline');
     await page.setInputFiles('#file-transkrip',{name:'fake.pdf',mimeType:'application/pdf',buffer:Buffer.from('not a pdf')});
-    await page.click('#btn-review-registration'); assert((await page.locator('#file-transkrip-error').textContent()).includes('do not match'));
+    await reviewRequest(page); assert((await page.locator('#file-transkrip-error').textContent()).includes('do not match'));
     await page.setInputFiles('#file-transkrip',{name:'transcript.pdf',mimeType:'application/pdf',buffer:pdf('transcript')});
     await page.setInputFiles('#file-proposal',{name:'proposal.pdf',mimeType:'application/pdf',buffer:pdf('proposal')});
-    await page.click('#btn-review-registration'); await page.click('#btn-submit-registration');
+    await reviewRequest(page); await page.click('#btn-submit-registration');
     await page.waitForSelector('#modal-submission-receipt',{state:'visible'}); assert((await page.locator('#submission-receipt-content').textContent()).includes('Request ID'));
     const create = calls.find(call=>call.action === 'create'); assert.equal(create.jenis,'Outline'); assert.deepEqual(create.files.map(file=>file.label),['Transkrip','Proposal']); assert(create.detail.startsWith('<b>Judul:</b>'));
     await page.evaluate(()=>closeModal('modal-submission-receipt',true));

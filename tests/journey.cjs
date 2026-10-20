@@ -1,3 +1,4 @@
+const {selectService, reviewRequest} = require('./registration-helpers.cjs');
 const { chromium } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -59,7 +60,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
 
     const types = [['Outline',3],['Proposal',2],['Pendadaran',2],['Skripsi Jurnal',3],['Pergantian Pembimbing',4]];
     for (const [type,total] of types) {
-        await page.selectOption('#reg-jenis-utama',type);
+        await selectService(page,type);
         if (type==='Pergantian Pembimbing') {
             await page.fill('#reg-dosen-lama','Dosen A');await page.fill('#reg-dosen-baru',' dosen a ');await page.fill('#reg-alasan-ganti','Perubahan topik');
             assert.equal(await page.locator('[data-requirement-field="reg-dosen-baru"] span').textContent(),'Pilih dosen yang berbeda.');
@@ -68,7 +69,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
         const fileIds = await page.evaluate(type=>registrationSpecs(type).map(([id])=>id),type);
         for (const id of fileIds) await page.setInputFiles('#'+id,pdf);
         await page.waitForFunction(total=>document.querySelector('#registration-readiness .stage-progress').textContent===`${total}/${total} siap`,total);
-        await page.click('#btn-review-registration');assert(await page.locator('#registration-review').isVisible());
+        await reviewRequest(page);assert(await page.locator('#registration-review').isVisible());
         if(type==='Outline') {
             const title=await page.inputValue('#reg-judul');
             permit=true;await page.evaluate(()=>switchTab(null,'skripsi'));await page.click('[data-start-service="Outline"]');permit=false;
@@ -80,10 +81,10 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
         }
         await page.click('#btn-edit-registration');
     }
-    await page.selectOption('#reg-jenis-utama','Proposal');
+    await selectService(page,'Proposal');
     await page.setInputFiles('#file-acc-sempro',{name:'kosong.pdf',mimeType:'application/pdf',buffer:Buffer.alloc(0)});
     assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'1/2 siap');
-    await page.click('#btn-review-registration'); assert(await page.locator('#registration-fields').isVisible());
+    await reviewRequest(page); assert(await page.locator('#registration-fields').isVisible());
     assert.equal(calls.filter(c=>c.action==='create').length,0);
     console.log('PASS All five services share validated readiness; missing/empty documents cannot reach submission');
 
@@ -104,7 +105,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     await page.check('#custom');assert.equal(await page.locator('#magang .stage-progress').textContent(),'1/1 disiapkan');
     console.log('PASS Admin-edited academic content updates stages and safely displays text');
 
-    await page.evaluate(()=>switchTab(null,'pendaftaran'));await page.selectOption('#reg-jenis-utama','Proposal');
+    await page.evaluate(()=>switchTab(null,'pendaftaran'));await selectService(page,'Proposal');
     for (const width of [320,390,768,1365]) {
         await page.setViewportSize({width,height:900});
         for (const dark of [false,true]) {

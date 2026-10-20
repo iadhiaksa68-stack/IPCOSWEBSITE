@@ -85,15 +85,15 @@ function openStageRegistration(type) {
     const target = !document.getElementById('registration-review').hidden
         ? document.getElementById('review-heading')
         : document.getElementById(registrationRequirements(type).find(item => !item.ready)?.id) || select;
-    target?.scrollIntoView({block:'center'});
-    target?.focus({preventScroll:true});
+    if(target?.id!=='review-heading'&&window.IPCOSRegistration)window.IPCOSRegistration.focus(target.id);
+    else {target?.scrollIntoView({block:'center'});target?.focus({preventScroll:true});}
 }
 
 document.addEventListener('click', event => {
     const start = event.target.closest('[data-start-service]');
     if (start) openStageRegistration(start.dataset.startService);
     const target = event.target.closest('[data-requirement-field]');
-    if (target) { const field = document.getElementById(target.dataset.requirementField); field?.scrollIntoView({block:'center'}); field?.focus({preventScroll:true}); }
+    if (target) { window.IPCOSRegistration?.focus(target.dataset.requirementField); }
 });
 ['input', 'change'].forEach(name => document.addEventListener(name, event => {
     if (event.target.closest('#registration-fields') || event.target.id === 'reg-jenis-utama') renderRegistrationReadiness();

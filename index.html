@@ -660,16 +660,13 @@
                     </select>
                 </div>
 
-                <section id="service-availability" class="service-availability" aria-live="polite" hidden></section></section>
-                <div class="registration-draft-row">                <details class="draft-help"><summary class="lang" data-id="Tentang Draf & Berkas" data-en="About Drafts & Files">Tentang Draf & Berkas</summary><p class="lang" data-id="Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim." data-en="Text drafts are kept for 14 days and can be continued on another device. Select files on the device you use; files are uploaded only when you submit the request.">Draf teks disimpan selama 14 hari dan dapat dilanjutkan di perangkat lain. Pilih berkas pada perangkat yang digunakan; berkas diunggah hanya saat pengajuan dikirim.</p></details>
-                <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p><div id="draft-controls"></div><div id="service-reminder" hidden></div>
-                <p class="form-helper lang" data-id="Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim." data-en="Fields marked * are required. Review the summary before submitting.">Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim.</p>
-</div>
-            <form id="dynamic-exam-form" onsubmit="reviewRegistration(event)" novalidate
+                </section><section id="service-availability" class="service-availability" aria-live="polite" hidden></section>
+                <div id="registration-service-actions" class="registration-stage-actions"><button type="button" id="registration-service-next" class="btn-primary" disabled><span class="lang" data-id="Lanjut ke Data" data-en="Continue to Details">Lanjut ke Data</span><span aria-hidden="true"> →</span></button></div>
+            <form id="dynamic-exam-form" onsubmit="window.IPCOSRegistration.submit(event)" novalidate
                     style="display: none; margin-top: 25px; border-top: 1px solid var(--item-border); padding-top: 25px;">
                     <p id="form-submit-status" class="form-submit-status" role="status" aria-live="polite"></p>
                     <div id="registration-fields">
-                    <section id="registration-data-step" class="registration-step-section" aria-labelledby="registration-data-title"><div class="registration-section-heading"><span aria-hidden="true">02</span><div><h2 id="registration-data-title" class="lang" data-id="Lengkapi data pengajuan" data-en="Complete your request details">Lengkapi data pengajuan</h2><p class="lang" data-id="Gunakan data yang akan diperiksa admin. Kolom bertanda * wajib diisi." data-en="Enter the details admin will review. Fields marked * are required.">Gunakan data yang akan diperiksa admin. Kolom bertanda * wajib diisi.</p></div></div>
+                    <section id="registration-data-step" hidden class="registration-step-section" aria-labelledby="registration-data-title"><div class="registration-section-heading"><span aria-hidden="true">02</span><div><h2 id="registration-data-title" class="lang" data-id="Lengkapi data pengajuan" data-en="Complete your request details">Lengkapi data pengajuan</h2><p class="lang" data-id="Gunakan data yang akan diperiksa admin. Kolom bertanda * wajib diisi." data-en="Enter the details admin will review. Fields marked * are required.">Gunakan data yang akan diperiksa admin. Kolom bertanda * wajib diisi.</p></div></div>
                     <div class="form-group" id="group-judul">
                         <label for="reg-judul">Judul Skripsi / Tugas Akhir *</label>
                         <input type="text" id="reg-judul" placeholder="Masukkan judul..." aria-describedby="reg-judul-hint" required>
@@ -692,8 +689,8 @@
                             <p id="reg-alasan-ganti-hint" class="field-helper field-counter"></p>
                         </div>
                     </div>
-                    <div class="registration-section-next"><button type="button" class="btn-secondary" data-registration-files-next><span class="lang" data-id="Lanjut ke Berkas" data-en="Continue to Files">Lanjut ke Berkas</span><span aria-hidden="true"> →</span></button></div></section>
-                    <section id="registration-document-step" class="registration-step-section" aria-labelledby="registration-files-title"><div class="registration-section-heading"><span aria-hidden="true">03</span><div><h2 id="registration-files-title" class="lang" data-id="Siapkan berkas persyaratan" data-en="Prepare the required files">Siapkan berkas persyaratan</h2><p class="lang" data-id="Periksa format dan isi setiap berkas. Berkas diunggah saat Anda mengirim pengajuan." data-en="Check each file’s format and contents. Files are uploaded when you submit your request.">Periksa format dan isi setiap berkas. Berkas diunggah saat Anda mengirim pengajuan.</p></div></div>
+                    </section>
+                    <section id="registration-document-step" hidden class="registration-step-section" aria-labelledby="registration-files-title"><div class="registration-section-heading"><span aria-hidden="true">03</span><div><h2 id="registration-files-title" class="lang" data-id="Siapkan berkas persyaratan" data-en="Prepare the required files">Siapkan berkas persyaratan</h2><p class="lang" data-id="Periksa format dan isi setiap berkas. Berkas diunggah saat Anda mengirim pengajuan." data-en="Check each file’s format and contents. Files are uploaded when you submit your request.">Periksa format dan isi setiap berkas. Berkas diunggah saat Anda mengirim pengajuan.</p></div></div>
                     <!-- Outline, Sempro, Pendadaran, Jurnal, Ganti Dosen blocks -->
                     <div id="req-outline-only" style="display:none;">
                         <div class="form-group">
@@ -752,11 +749,17 @@
                     </div>
                     <div id="registration-review" hidden aria-live="polite"></div>
                     <div id="registration-actions" class="context-actions">
+                    <button type="button" id="registration-back" class="btn-secondary" hidden><span>Kembali ke Layanan</span></button>
+                    <button type="button" id="registration-data-next" class="btn-primary" data-registration-files-next hidden><span class="lang" data-id="Lanjut ke Berkas" data-en="Continue to Files">Lanjut ke Berkas</span><span aria-hidden="true"> →</span></button>
                     <button type="submit" id="btn-review-registration" class="btn-primary" style="margin-top:20px;">Periksa Ringkasan</button>
                     <button type="button" onclick="submitForm(event)" id="btn-submit-registration" hidden class="btn-primary"
                         style="background-color: var(--umy-maroon); margin-top:20px;">Konfirmasi & Kirim</button>
                     </div>
                 </form>
+                <div class="registration-draft-row">                <details class="draft-help"><summary class="lang" data-id="Tentang Draf & Berkas" data-en="About Drafts & Files">Tentang Draf & Berkas</summary><p class="lang" data-id="Draf teks disimpan selama 14 hari. Berkas tetap tersedia saat pindah tahap dalam tab ini. Setelah memuat ulang halaman atau berganti perangkat, pilih ulang berkas. Berkas diunggah hanya saat pengajuan dikirim." data-en="Text drafts are kept for 14 days. Selected files remain available between stages in this tab. After reloading or changing devices, select your files again. Files are uploaded only when you submit the request.">Draf teks disimpan selama 14 hari. Berkas tetap tersedia saat pindah tahap dalam tab ini. Setelah memuat ulang halaman atau berganti perangkat, pilih ulang berkas. Berkas diunggah hanya saat pengajuan dikirim.</p></details>
+                <p id="form-draft-status" class="form-draft-status" aria-live="polite"></p><div id="draft-controls"></div><div id="service-reminder" hidden></div>
+                <p class="form-helper lang" data-id="Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim." data-en="Fields marked * are required. Review the summary before submitting.">Kolom bertanda * wajib diisi. Periksa ringkasan sebelum mengirim.</p>
+</div>
             </div><aside id="registration-companion" aria-labelledby="registration-companion-title"><div class="registration-companion-intro"><span class="lang registration-eyebrow" data-id="SEBELUM MENGIRIM" data-en="BEFORE YOU SUBMIT">SEBELUM MENGIRIM</span><h2 id="registration-companion-title" class="lang" data-id="Persiapan pengajuan" data-en="Request preparation">Persiapan pengajuan</h2><p id="registration-selected-service"></p><p id="registration-companion-help"></p></div>
                     <section id="registration-readiness" class="registration-readiness" aria-labelledby="readiness-heading" hidden></section>
             </aside></div>

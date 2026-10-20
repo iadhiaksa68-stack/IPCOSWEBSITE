@@ -1,3 +1,4 @@
+const {selectService, reviewRequest} = require('./registration-helpers.cjs');
 const {chromium}=require('./browser.cjs'),assert=require('node:assert/strict');
 const {pdf,zip}=require('./fixtures.cjs');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
@@ -113,13 +114,13 @@ async function verifyCloudAcknowledgements(){
     assert((await a.locator('.journey-cloud-status').textContent()).includes('belum tersimpan'));assert.equal(cloud.get('A').checks.m2,undefined);
     failSave=false;await a.click('[data-retry-progress]');await saved(a);assert.equal(cloud.get('A').checks.m2,true);
     console.log('PASS Failed saves remain visibly unconfirmed and retry preserves preparation without duplicate transactions');
-    await a.evaluate(()=>switchTab(null,'pendaftaran'));await a.selectOption('#reg-jenis-utama','Pendadaran');await a.fill('#reg-judul','Judul uji');
-    await a.setInputFiles('#file-folder-pendadaran',{name:'renamed.pdf',mimeType:'application/pdf',buffer:Buffer.from('ordinary text')});await a.click('#btn-review-registration');
+    await a.evaluate(()=>switchTab(null,'pendaftaran'));await selectService(a,'Pendadaran');await a.fill('#reg-judul','Judul uji');
+    await a.setInputFiles('#file-folder-pendadaran',{name:'renamed.pdf',mimeType:'application/pdf',buffer:Buffer.from('ordinary text')});await reviewRequest(a);
     assert(await a.locator('#registration-fields').isVisible());assert((await a.locator('#file-folder-pendadaran-error').textContent()).includes('tidak sesuai'));
-    await a.setInputFiles('#file-folder-pendadaran',{name:'cut.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\ntruncated')});await a.click('#btn-review-registration');assert((await a.locator('#file-folder-pendadaran-error').textContent()).includes('belum lengkap'));
+    await a.setInputFiles('#file-folder-pendadaran',{name:'cut.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\ntruncated')});await reviewRequest(a);assert((await a.locator('#file-folder-pendadaran-error').textContent()).includes('belum lengkap'));
     console.log('PASS Renamed files and interrupted PDFs cannot pass review or reach submission');
-    await a.setInputFiles('#file-folder-pendadaran',{name:'documents.zip',mimeType:'application/zip',buffer:zip(['document.pdf'])});await a.click('#btn-review-registration');assert(await a.locator('#registration-review').isVisible());assert((await a.locator('#registration-review .preflight-warning').textContent()).includes('arsip'));await a.click('#btn-edit-registration');
-    await a.selectOption('#reg-jenis-utama','Outline');await a.setInputFiles('#file-transkrip',{name:'trans.pdf',mimeType:'application/pdf',buffer:pdf()});await a.setInputFiles('#file-proposal',{name:'draft.pdf',mimeType:'application/pdf',buffer:pdf()});
+    await a.setInputFiles('#file-folder-pendadaran',{name:'documents.zip',mimeType:'application/zip',buffer:zip(['document.pdf'])});await reviewRequest(a);assert(await a.locator('#registration-review').isVisible());assert((await a.locator('#registration-review .preflight-warning').textContent()).includes('arsip'));await a.click('#btn-edit-registration');
+    await selectService(a,'Outline');await a.setInputFiles('#file-transkrip',{name:'trans.pdf',mimeType:'application/pdf',buffer:pdf()});await a.setInputFiles('#file-proposal',{name:'draft.pdf',mimeType:'application/pdf',buffer:pdf()});
     await a.evaluate(()=>inspectRegistrationDocuments());await a.evaluate(()=>renderRegistrationReadiness());assert((await a.locator('#registration-readiness .preflight-warning').textContent()).includes('berkas yang sama'));
     await a.setInputFiles('#file-proposal',{name:'draft.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:zip(['other.txt'])});await a.evaluate(()=>inspectRegistrationDocuments());assert((await a.locator('#file-proposal-error').textContent()).includes('tidak sesuai'));
     console.log('PASS Complete archives remain supported; repeated files are flagged and fake DOCX containers rejected');

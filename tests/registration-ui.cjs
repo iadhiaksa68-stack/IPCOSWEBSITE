@@ -1,3 +1,4 @@
+const {selectService, showFiles} = require('./registration-helpers.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {chromium, reportFailure} = require('./browser.cjs');
@@ -35,6 +36,12 @@ async function currentStep(page, expected) {
     const current = page.locator('#registration-stepper [aria-current="step"]');
     assert.equal(await current.count(), 1, 'Exactly one registration step is current');
     assert.equal(await current.getAttribute('data-registration-step'), expected);
+    for(const [step,id] of Object.entries({service:'registration-service-step',data:'registration-data-step',files:'registration-document-step',review:'registration-review'})) {
+        assert.equal(await page.locator('#'+id).isVisible(),step===expected,'Only '+expected+' is visible; '+step+' panel');
+    }
+    assert.equal(await page.locator('#btn-submit-registration').isVisible(),expected==='review','Final confirmation is only visible during review');
+    assert.equal(await page.locator('#registration-data-next').isVisible(),expected==='data');
+    assert.equal(await page.locator('#btn-review-registration').isVisible(),expected==='files');
 }
 async function rememberFiles(page, ids) {
     await page.evaluate(ids => {
@@ -52,14 +59,14 @@ async function layout(page, label) {
             .filter(node => visible(node) && node.clientWidth && !node.classList.contains('sr-only'))
             .filter(node => node.scrollWidth > node.clientWidth + 3 && getComputedStyle(node).textOverflow !== 'ellipsis')
             .map(node => ({id:node.id, text:node.textContent.trim().slice(0,90)}));
-        const buttons = [...root.querySelectorAll('#registration-stepper button')].map(node => ({
-            name:node.dataset.registrationStep, rect:node.getBoundingClientRect().toJSON(), clipped:node.scrollWidth > node.clientWidth + 3
+        const buttons = [...root.querySelectorAll('#registration-stepper button,#registration-service-next,#registration-actions>button,.upload-file-actions button')].filter(visible).map(node => ({
+            name:node.dataset.registrationStep||node.id||node.textContent, rect:node.getBoundingClientRect().toJSON(), clipped:node.scrollWidth > node.clientWidth + 3
         }));
         return {overflow:document.documentElement.scrollWidth > innerWidth + 2, clipped, buttons};
     });
     assert.equal(state.overflow, false, label + ' viewport overflow');
     assert.deepEqual(state.clipped, [], label + ' clipped text');
-    assert.equal(state.buttons.length, 4);
+    assert(state.buttons.length >= 5);
     for (const button of state.buttons) {
         assert(button.rect.width > 0 && button.rect.height >= 43.99, label + ' usable step ' + button.name);
         assert(button.rect.left >= -1 && button.rect.right <= (await page.viewportSize()).width + 1, label + ' step inside viewport ' + button.name);
@@ -71,11 +78,14 @@ async function layout(page, label) {
     }
 }
 async function fill(page, type) {
+    await page.locator('[data-registration-step="data"]').click();
     if (type === 'Pergantian Pembimbing') {
         await page.fill('#reg-dosen-lama', 'Dr. Pembimbing Sekarang O’Connor');
         await page.fill('#reg-dosen-baru', 'Dr. Usulan Pembimbing Internasional');
         await page.fill('#reg-alasan-ganti', 'Penyesuaian bidang kajian eCommerce dan komunikasi digital.');
     } else await page.fill('#reg-judul', title + ' — ' + type);
+    await page.locator('[data-registration-files-next]').click();
+    await currentStep(page,'files');
     for (const id of services[type]) await page.setInputFiles('#' + id, {
         name: id + '-dokumen-pengajuan-mahasiswa-internasional-eCommerce.pdf', mimeType:'application/pdf', buffer:pdf(type + ' ' + id)
     });
@@ -123,15 +133,22 @@ async function fill(page, type) {
     for (const width of [320,390,768,1365]) for (const lang of ['id','en']) for (const dark of [false,true]) {
         await mode(page,width,lang,dark); await layout(page,`empty ${width}/${lang}/${dark}`);
     }
+    await page.selectOption('#reg-jenis-utama','Outline');
+    await currentStep(page,'service');assert(await page.locator('#registration-service-next').isEnabled());
+    await page.locator('#registration-service-next').focus();await page.locator('#registration-service-next').press('Enter');
+    await currentStep(page,'data');await page.fill('#reg-judul',title);
+    await page.locator('#reg-judul').press('Enter');await currentStep(page,'files');
+    await page.locator('#registration-back').click();await currentStep(page,'data');
+    assert.equal(await page.inputValue('#reg-judul'),title);await page.locator('#registration-back').click();await currentStep(page,'service');
+    assert.equal(await page.inputValue('#reg-jenis-utama'),'Outline');assert.equal(createCalls().length,0);
+    pass('Selecting a service stays on its panel; explicit Continue and Enter advance one stage, and Back retains the title without sending');
     pass('Empty registration exposes four accessible steps and requires service selection in all 16 screen/language/theme combinations');
 
     for (const type of Object.keys(services)) {
-        await mode(page,1365,'id',false); await page.selectOption('#reg-jenis-utama',type);
-        const actual = await page.locator('#registration-fields input[type=file]').evaluateAll(nodes => nodes.filter(node => node.getClientRects().length && !node.closest('[hidden]')).map(node => node.id).sort());
-        assert.deepEqual(actual, [...services[type]].sort(), type + ' displays exactly its required files');
+        await mode(page,1365,'id',false); await selectService(page,type);
         assert.deepEqual(await page.locator('#registration-fields input[type=file]').evaluateAll(nodes => nodes.filter(node => node.required).map(node => node.id).sort()), [...services[type]].sort(), type + ' only requires its own files');
         assert(await page.locator('#registration-companion #registration-readiness').isVisible());
-        assert(await page.locator('#registration-data-step').isVisible()); assert(await page.locator('#registration-document-step').isVisible());
+        assert(await page.locator('#registration-data-step').isVisible()); assert(await page.locator('#registration-document-step').isHidden());
         await page.locator('[data-registration-step="data"]').focus(); await page.locator('[data-registration-step="data"]').press('Enter');
         await currentStep(page,'data');
         assert.equal(await page.evaluate(() => document.activeElement.id), type === 'Pergantian Pembimbing' ? 'reg-dosen-lama' : 'reg-judul');
@@ -146,11 +163,38 @@ async function fill(page, type) {
         }
         await fill(page,type);
         await page.locator('[data-registration-step="files"]').click(); await currentStep(page,'files');
+        const visibleFiles=await page.locator('#registration-fields input[type=file]').evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&!node.closest('[hidden]')).map(node=>node.id).sort());
+        assert.deepEqual(visibleFiles,[...services[type]].sort(),type+' shows exactly its own file fields');
+        if(type==='Outline') {
+            await page.evaluate(()=>{serviceSettings.find(item=>item.type==='Outline').enabled=false;refreshServiceAvailability();});
+            assert(await page.locator('#service-availability').isVisible(),'A service closing during entry remains visible');
+            assert(await page.locator('#btn-review-registration').isDisabled());await sameFiles(page,'Closing service retains selected files');
+            await page.locator('#registration-back').click();await currentStep(page,'data');
+            assert(await page.locator('#service-availability').isVisible());
+            await page.locator('#registration-back').click();await currentStep(page,'service');
+            await page.evaluate(()=>{serviceSettings.find(item=>item.type==='Outline').enabled=true;refreshServiceAvailability();});
+            await page.locator('#registration-service-next').click();await page.locator('[data-registration-files-next]').click();await currentStep(page,'files');
+        }
         assert.equal(await page.evaluate(() => document.activeElement.id), services[type][0]);
         for (const width of [320,390,768,1365]) for (const lang of ['id','en']) for (const dark of [false,true]) {
             await mode(page,width,lang,dark); await layout(page,`${type} fields ${width}/${lang}/${dark}`);
             await sameFiles(page,type + ' selected files survive language/theme/width changes');
         }
+        if(type==='Outline') {
+            await mode(page,1365,'id',false);await page.waitForFunction(()=>!document.querySelector('#toast-container .toast'));await page.locator('#pendaftaran').screenshot({path:'test-results/registration-single-stage-files-desktop.png'});
+            await mode(page,390,'id',true);await page.locator('#registration-main').screenshot({path:'test-results/registration-single-stage-files-mobile-dark.png'});
+        }
+        await page.locator('#registration-back').click();await currentStep(page,'data');
+        await sameFiles(page,type+' back to details retains exact files');
+        assert.equal(await page.locator('#form-submit-status').textContent(),'','Resolved validation messages clear after completing the details');
+        for(const width of [320,390,768,1365])for(const lang of ['id','en'])for(const dark of [false,true]) {
+            await mode(page,width,lang,dark);await layout(page,`${type} details ${width}/${lang}/${dark}`);await currentStep(page,'data');
+        }
+        if(type==='Outline') {await mode(page,390,'id',false);await page.locator('#registration-main').screenshot({path:'test-results/registration-single-stage-data-mobile.png'});}
+
+        await page.locator('#registration-back').click();await currentStep(page,'service');
+        await sameFiles(page,type+' back to service retains exact files');
+        await page.locator('#registration-service-next').click();await page.locator('[data-registration-files-next]').click();await currentStep(page,'files');
         await page.locator('[data-registration-step="review"]').click(); await page.waitForSelector('#review-heading');
         assert(await page.locator('#registration-fields').isHidden()); await currentStep(page,'review');
         assert.equal(await page.locator('#registration-review .review-files li').count(), services[type].length);
@@ -159,6 +203,8 @@ async function fill(page, type) {
             await sameFiles(page,type + ' summary preserves selected File identities');
         }
         await mode(page,320,'id',false);
+        await page.locator('#registration-back').click();await currentStep(page,'files');await sameFiles(page,type+' review-back retains exact files');
+        await page.locator('#btn-review-registration').click();await page.waitForSelector('#review-heading');
         await page.locator('#btn-edit-registration').focus();await page.locator('#btn-edit-registration').press('Enter');assert(await page.locator('#registration-fields').isVisible());
         const editField=type==='Pergantian Pembimbing'?'reg-dosen-lama':'reg-judul';
         assert.equal(await page.evaluate(()=>document.activeElement.id),editField,'Editing returns focus to the visible first detail field');
@@ -168,9 +214,9 @@ async function fill(page, type) {
         assert.equal(await page.evaluate(() => document.activeElement.id), 'reg-jenis-utama');
         assert.equal(createCalls().length, 0, 'Navigation/review must never submit ' + type);
     }
-    pass('All five services show only their requirements; keyboard navigation, summary/edit, and 160 populated form/review layouts preserve exact File objects without creating a request');
+    pass('All five services show only their requirements; keyboard navigation, summary/edit, and 240 populated details/files/review layouts preserve exact File objects without creating a request');
 
-    await mode(page,390,'id',true); await page.selectOption('#reg-jenis-utama','Outline'); await fill(page,'Outline');
+    await mode(page,390,'id',true); await selectService(page,'Outline'); await fill(page,'Outline');
     await page.locator('#file-proposal-guidance [data-guide="sop-tugas-akhir"]').click();
     await page.waitForSelector('#sop_tugas_akhir-view .sop-section'); await page.locator('[data-guide-return]').click();
     assert.equal(await page.inputValue('#reg-judul'), title + ' — Outline'); await sameFiles(page,'SOP detour preserves exact original file objects');
@@ -178,8 +224,8 @@ async function fill(page, type) {
     await sameFiles(page,'Template detour preserves exact original file objects'); assert.equal(createCalls().length,0);
     pass('Contextual SOP and template detours return to the same in-progress registration with text, files and no academic writes');
 
-    await page.selectOption('#reg-jenis-utama','Pergantian Pembimbing'); await fill(page,'Pergantian Pembimbing');
-    await page.fill('#reg-dosen-baru','  Dr. Pembimbing Sekarang O’Connor  '); await page.locator('[data-registration-step="review"]').click();
+    await selectService(page,'Pergantian Pembimbing'); await fill(page,'Pergantian Pembimbing');
+    await page.locator('[data-registration-step="data"]').click(); await page.fill('#reg-dosen-baru','  Dr. Pembimbing Sekarang O’Connor  '); await page.locator('[data-registration-step="review"]').click();
     await page.waitForFunction(() => !preflightBusy); assert(await page.locator('#registration-review').isHidden());
     assert.equal(await page.getAttribute('#reg-dosen-baru','aria-invalid'),'true');
     assert.equal(await page.evaluate(() => document.activeElement.id),'reg-dosen-baru');
@@ -200,31 +246,34 @@ async function fill(page, type) {
         };
     });
     for (const change of ['text','file','service','service-roundtrip']) {
-        await page.selectOption('#reg-jenis-utama','Proposal'); await page.fill('#reg-judul',title);
+        await selectService(page,'Proposal'); await page.fill('#reg-judul',title); await showFiles(page);
         await page.evaluate(() => window.registrationSlowReadEntered=false);
         await page.setInputFiles('#file-acc-sempro',{name:'registration-delayed-preflight-'+change+'.pdf',mimeType:'application/pdf',buffer:pdf('delayed preflight '+change)});
         await page.waitForFunction(() => window.registrationSlowReadEntered);
         await page.locator('[data-registration-step="review"]').click(); await page.waitForFunction(() => preflightBusy);
-        if (change === 'text') await page.fill('#reg-judul',title+' — diperbarui saat pemeriksaan');
+        if (change === 'text') await page.evaluate(value=>{const field=document.getElementById('reg-judul');field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));},title+' — diperbarui saat pemeriksaan');
         else if (change === 'file') await page.setInputFiles('#file-acc-sempro',{name:'replacement-after-preflight.pdf',mimeType:'application/pdf',buffer:pdf('replacement file')});
         else {
-            await page.selectOption('#reg-jenis-utama','Pendadaran');
-            if (change === 'service-roundtrip') await page.selectOption('#reg-jenis-utama','Proposal');
+            await page.evaluate(roundtrip=>{const select=document.getElementById('reg-jenis-utama');select.value='Pendadaran';toggleExamForm();if(roundtrip){select.value='Proposal';toggleExamForm();}},change==='service-roundtrip');
         }
         await page.evaluate(() => window.registrationReleaseSlowRead()); await page.waitForFunction(() => !preflightBusy);
         assert(await page.locator('#registration-review').isHidden(), 'Stale '+change+' preflight must not advance');
         assert.equal(await page.inputValue('#reg-jenis-utama'),change === 'service' ? 'Pendadaran' : 'Proposal');
         if (change === 'text') assert.equal(await page.inputValue('#reg-judul'),title+' — diperbarui saat pemeriksaan');
         else if (change === 'file') assert.equal(await page.locator('#file-acc-sempro').evaluate(node=>node.files[0].name),'replacement-after-preflight.pdf');
-        else assert(await page.locator(change === 'service' ? '#file-folder-pendadaran' : '#file-acc-sempro').isVisible());
+        else {await currentStep(page,'service');await page.locator('#registration-service-next').click();await showFiles(page);assert(await page.locator(change === 'service' ? '#file-folder-pendadaran' : '#file-acc-sempro').isVisible());}
         assert.equal(createCalls().length,0);
     }
     pass('Delayed preflights cannot open stale summaries after text/file/service changes, including service A to B to A');
 
-    await page.selectOption('#reg-jenis-utama','Outline'); await fill(page,'Outline'); await page.locator('[data-registration-step="review"]').click();
+    await selectService(page,'Outline'); await fill(page,'Outline'); await page.locator('[data-registration-step="review"]').click();
     await page.waitForSelector('#review-heading'); await rememberFiles(page,services.Outline);
     const pending=gate(); nextCreate=pending; await page.locator('#btn-submit-registration').click(); await pending.entered;
     assert(await page.locator('#btn-submit-registration').isDisabled()); assert(await page.locator('#btn-edit-registration').isDisabled());
+    await mode(page,390,'en',true);
+    assert(await page.locator('#btn-edit-registration').isDisabled(),'Changing language must not unlock the regenerated editing control during upload');
+    assert(await page.locator('#registration-back').isDisabled());await sameFiles(page,'Pending upload keeps the original selection across language changes');
+    await mode(page,390,'id',false);
     for (const step of steps) assert(await page.locator('[data-registration-step="'+step+'"]').isDisabled(), 'Pending upload visibly disables '+step+' navigation');
     assert(await page.locator('#registration-review').isVisible()); await currentStep(page,'review'); await sameFiles(page,'Pending request retains selected files');
     await page.evaluate(() => submitForm(new Event('submit',{cancelable:true}))); assert.equal(createCalls().length,1,'Busy guard rejects duplicate submission');

@@ -284,7 +284,9 @@ test('stage shortcuts preserve same-type review and files while a different type
     'file-transkrip': {files: [{name: 'preserved.pdf'}]},
     pendaftaran: {classList: {contains: () => true}},
   };
+  Object.entries(nodes).forEach(([id,node]) => node.id = id);
   const context = vm.createContext({
+    window: {IPCOSRegistration: {focus: id => {focused = id === 'reg-judul' ? 'title' : 'type';}}},
     document: {getElementById: id => nodes[id]}, currentUser: {role: 'mhs'}, SERVICE_TYPES: ['Outline','Proposal'],
     isSubmittingRegistration: false, registrationDirty: true, activeSameType: () => null,
     confirm: () => permit, uxText: text => text, switchTab: () => true, toggleExamForm: () => resets++, saveFormDraft: () => saves++,

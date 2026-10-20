@@ -1,3 +1,4 @@
+const {selectService, reviewRequest, showFiles} = require('./registration-helpers.cjs');
 const {chromium,reportFailure}=require('./browser.cjs'),assert=require('node:assert/strict'),fs=require('node:fs'),fixture=require('./next-backend.fixture.cjs'),{pdf}=require('./fixtures.cjs');
 const origin=process.env.IPCOS_TEST_BASE_URL || 'http://127.0.0.1:8766',f=fixture(),calls=[],errors=[],checks=[],assets=[];
 let dropSave=false,delaySave=null,delayDraft=null;
@@ -46,10 +47,11 @@ async function layout(page,label) {
 (async()=>{
     const browser=await chromium.launch(),student=await login(browser);await student.bringToFront();
     assert(!assets.includes('/sop.js'));assert(!assets.includes('/admin-export.js'));
-    await student.evaluate(()=>switchTab(null,'pendaftaran'));await student.selectOption('#reg-jenis-utama','Outline');await student.fill('#reg-judul','Original student title: eCommerce & IPCOS');
+    await student.evaluate(()=>switchTab(null,'pendaftaran'));await selectService(student,'Outline');await student.fill('#reg-judul','Original student title: eCommerce & IPCOS');
     await student.evaluate(()=>IPCOSNext.flushDraft());await student.waitForFunction(()=>document.getElementById('form-draft-status').textContent.includes('tersimpan di cloud'));
     assert.equal(saved().fields['reg-judul'],'Original student title: eCommerce & IPCOS');assert.equal(saved().revision,1);
     const second=await login(browser);await second.bringToFront();await second.waitForFunction(()=>document.getElementById('reg-judul').value==='Original student title: eCommerce & IPCOS');await second.evaluate(()=>switchTab(null,'pendaftaran'));assert.equal(await second.inputValue('#reg-jenis-utama'),'Outline');
+    await second.locator('#registration-service-next').click();
     pass('Private text drafts restore on a second device; student names/titles preserve their exact original capitalization and files are not uploaded');
 
     await student.bringToFront();await student.fill('#reg-judul','Device one title');await student.evaluate(()=>IPCOSNext.flushDraft());await student.waitForFunction(()=>document.getElementById('form-draft-status').textContent.includes('tersimpan di cloud'));
@@ -62,7 +64,7 @@ async function layout(page,label) {
     pass('A lost save acknowledgement retains the draft and retries the same request without another revision');
 
     await second.setInputFiles('#file-transkrip',{name:'Transcript eCommerce.pdf',mimeType:'application/pdf',buffer:pdf('transcript')});await second.setInputFiles('#file-proposal',{name:'Original Proposal.pdf',mimeType:'application/pdf',buffer:pdf('proposal')});
-    await second.click('#file-proposal-guidance [data-guide="sop-tugas-akhir"]');await second.waitForSelector('#sop_tugas_akhir-view .sop-section');assert(assets.includes('/sop.js'));assert.equal((await second.locator('#sop_tugas_akhir-view h1').textContent()).trim(),'SOP tugas akhir asli admin');
+    await showFiles(second);await second.click('#file-proposal-guidance [data-guide="sop-tugas-akhir"]');await second.waitForSelector('#sop_tugas_akhir-view .sop-section');assert(assets.includes('/sop.js'));assert.equal((await second.locator('#sop_tugas_akhir-view h1').textContent()).trim(),'SOP tugas akhir asli admin');
     await second.click('[data-guide-return]');assert.equal(await second.inputValue('#reg-judul'),'Retry without duplicate draft');assert.equal(await second.locator('#file-transkrip').evaluate(input=>input.files[0].name),'Transcript eCommerce.pdf');
     await second.click('#file-transkrip-guidance [data-guide="templates-faq"]');await second.click('[data-guide-return]');assert.equal(await second.locator('#file-proposal').evaluate(input=>input.files[0].name),'Original Proposal.pdf');
     pass('Contextual SOP/template detours load SOP on demand and return to the same form with selected files and authored guidance unchanged');
@@ -73,7 +75,7 @@ async function layout(page,label) {
     }
     pass('Service deadline downloads use 23:59 WIB correctly, include H-3/H-1 alarms and valid folded calendar lines');
 
-    await second.click('#btn-review-registration');const cleared=second.waitForResponse(response=>response.request().postData()?.includes('save_form_draft')&&response.request().postDataJSON().fields&&Object.keys(response.request().postDataJSON().fields).length===0);await second.click('#btn-submit-registration');await second.waitForSelector('#modal-submission-receipt',{state:'visible'});await cleared;assert.equal(saved().exists,false);assert.equal(await second.locator('#last-request-card [data-last-request]').count(),1);assert((await second.locator('#last-request-card').textContent()).includes('created-next'));assert(!/Pendaftaran & Berkas berhasil dikirim|Registration & Files submitted successfully/.test(await second.locator('#toast-container').textContent()));assert.equal(await second.getAttribute('#file-transkrip','aria-describedby'),'file-transkrip-format');
+    await reviewRequest(second);const cleared=second.waitForResponse(response=>response.request().postData()?.includes('save_form_draft')&&response.request().postDataJSON().fields&&Object.keys(response.request().postDataJSON().fields).length===0);await second.click('#btn-submit-registration');await second.waitForSelector('#modal-submission-receipt',{state:'visible'});await cleared;assert.equal(saved().exists,false);assert.equal(await second.locator('#last-request-card [data-last-request]').count(),1);assert((await second.locator('#last-request-card').textContent()).includes('created-next'));assert(!/Pendaftaran & Berkas berhasil dikirim|Registration & Files submitted successfully/.test(await second.locator('#toast-container').textContent()));assert.equal(await second.getAttribute('#file-transkrip','aria-describedby'),'file-transkrip-format');
     await second.evaluate(()=>closeModal('modal-submission-receipt',true));await second.click('[data-last-request]');await second.waitForSelector('#modal-case-detail',{state:'visible'});assert.equal(await second.evaluate(()=>selectedCaseId),'created-next');await second.evaluate(()=>{closeModal('modal-case-detail',true);switchTab(null,'pendaftaran');});
     pass('Confirmed submission clears the cloud text draft without storing or pre-uploading documents');
 

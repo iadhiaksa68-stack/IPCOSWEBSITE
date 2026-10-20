@@ -1113,7 +1113,7 @@ function validateRegistration() {
         const error = fileProblem(file, input.accept) || (documentInspections.get(file)?.pending !== false ? uxText('Tunggu pemeriksaan format atau pilih Periksa Ringkasan kembali.', 'Wait for the format check or select Review Summary again.') : '');
         setFieldError(id, error); if (error && !firstError) firstError = id;
     });
-    if (firstError) { document.getElementById(firstError).focus(); return false; }
+    if (firstError) { if(window.IPCOSRegistration)window.IPCOSRegistration.focus(firstError);else document.getElementById(firstError).focus(); return false; }
     return !!jenis;
 }
 async function reviewRegistration(event) {
@@ -1126,6 +1126,7 @@ async function reviewRegistration(event) {
     preflightBusy = true;
     window.IPCOSRegistration?.refresh();
     document.getElementById('form-submit-status').ipcosNotice=null;
+    delete document.getElementById('form-submit-status').dataset.registrationValidation;
     document.getElementById('form-submit-status-steps')?.remove();
     document.getElementById('form-submit-status').textContent = uxText('Memeriksa format berkas...', 'Checking document formats...');
     try { await inspectRegistrationDocuments(); } finally { if (epoch === sessionEpoch) {preflightBusy = false;window.IPCOSRegistration?.refresh();} }
@@ -1136,6 +1137,7 @@ async function reviewRegistration(event) {
     }
     if (!validateRegistration()) {
         document.getElementById('form-submit-status').textContent = uxText('Lengkapi isian yang ditandai sebelum melanjutkan.', 'Complete the marked fields to continue.');
+        document.getElementById('form-submit-status').dataset.registrationValidation='true';
         return;
     }
     renderRegistrationReview();

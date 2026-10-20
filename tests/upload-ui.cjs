@@ -1,3 +1,4 @@
+const {selectService, showFiles} = require('./registration-helpers.cjs');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {chromium,reportFailure}=require('./browser.cjs');
@@ -27,7 +28,7 @@ const record={id:'upload-revision',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal'
  });
  const page=await context.newPage();page.on('pageerror',error=>{errors.push(error.message);console.error('Browser error:',error.message);});page.on('dialog',dialog=>dialog.accept());
  await page.goto(origin);await page.fill('#input-nim','A');await page.locator('#input-nim').press('Enter');await page.waitForSelector('#welcome-modal',{state:'hidden'});await page.waitForFunction(()=>syncPhase==='success');
- await page.evaluate(()=>switchTab(null,'pendaftaran'));await page.selectOption('#reg-jenis-utama','Outline');await page.fill('#reg-judul','Judul penelitian untuk pengujian unggah');
+ await page.evaluate(()=>switchTab(null,'pendaftaran'));await selectService(page,'Outline');await page.fill('#reg-judul','Judul penelitian untuk pengujian unggah');await showFiles(page);
  const filename='Proposal eCommerce O’Connor '+ 'panjang-'.repeat(25)+'.pdf';
  await page.setInputFiles('#file-proposal',pdf(filename));await page.waitForSelector('#file-proposal-selection [data-state=ready]');
  assert.equal(await page.locator('#file-proposal-selection .upload-file-name').textContent(),filename);
