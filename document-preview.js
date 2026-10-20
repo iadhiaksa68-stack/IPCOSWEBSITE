@@ -48,21 +48,25 @@
         message(helper,'Memuat pembaca PDF lokal…','Loading the local PDF reader…');
         let hits=[],hitIndex=-1;
         const buttons=()=>{previous.disabled=job.drawing||!job.pdf||job.page<=1;next.disabled=job.drawing||!job.pdf||job.page>=job.pdf.numPages;minus.disabled=job.drawing||!job.pdf||job.zoom<=.75;plus.disabled=job.drawing||!job.pdf||job.zoom>=2;rotate.disabled=go.disabled=pageInput.disabled=job.drawing||!job.pdf;find.disabled=!job.pdf||job.searching;nextMatch.disabled=job.drawing||job.searching;};buttons();
-        async function draw(){
-            if(!live()||job.drawing||!job.pdf)return;job.drawing=true;buttons();
+        async function draw(preserveReading=false){
+            if(!live()||job.drawing||!job.pdf)return;
+            if(viewer.clientWidth<=0||!viewer.getClientRects().length){job.pendingDraw=true;return;}
+            job.pendingDraw=false;job.drawing=true;buttons();
             try{
-                const page=await job.pdf.getPage(job.page);if(!live())return;
+                const page=await job.pdf.getPage(job.page);if(!live())return;if(viewer.clientWidth<=0||!viewer.getClientRects().length){job.pendingDraw=true;return;}
+                const reading=preserveReading?{top:viewer.scrollTop,left:viewer.scrollLeft,width:canvas.clientWidth,height:canvas.clientHeight}:null;
                 job.renderedWidth=viewer.clientWidth;
                 const base=page.getViewport({scale:1,rotation:page.rotate+job.rotation}),width=Math.max(240,Math.min(1100,viewer.clientWidth-24));
                 const viewport=page.getViewport({scale:width/base.width*job.zoom,rotation:page.rotate+job.rotation}),density=Math.min(2,window.devicePixelRatio||1,Math.sqrt(4000000/(viewport.width*viewport.height)));
                 canvas.width=Math.floor(viewport.width*density);canvas.height=Math.floor(viewport.height*density);canvas.style.width=Math.floor(viewport.width)+'px';canvas.style.height=Math.floor(viewport.height)+'px';
+                if(reading){viewer.scrollTop=reading.height?reading.top*canvas.clientHeight/reading.height:reading.top;viewer.scrollLeft=reading.width?reading.left*canvas.clientWidth/reading.width:reading.left;}
                 canvas.dataset.rendered='false';job.renderTask=page.render({canvasContext:canvas.getContext('2d'),viewport,transform:density!==1?[density,0,0,density,0,0]:null});await job.renderTask.promise;if(!live())return;
                 canvas.dataset.rendered='true';canvas.dataset.page=String(job.page);canvas.dataset.rotation=String(job.rotation);canvas.setAttribute('aria-label',name+' · '+t('Halaman ','Page ')+job.page+' / '+job.pdf.numPages);
                 position.textContent=job.page+' / '+job.pdf.numPages+' · '+Math.round(job.zoom*100)+'%';pageInput.value=String(job.page);
                 message(helper,'PDF diproses di perangkat Anda. Pencarian tersedia untuk PDF yang memiliki teks.','The PDF is processed on your device. Search works with PDFs containing text.');
                 const text=await page.getTextContent();if(live())accessible.textContent=text.items.map(item=>item.str||'').join(' ').slice(0,12000);
             }catch(error){if(live()&&error.name!=='RenderingCancelledException'){retry.hidden=false;message(helper,'Halaman PDF belum dapat ditampilkan. Muat Ulang Pratinjau atau buka berkas di tab baru.','This PDF page could not be displayed. Reload Preview or open the file in a new tab.');}}
-            finally{job.drawing=false;if(live()){buttons();if(job.redraw){job.redraw=false;draw();}}}
+            finally{job.drawing=false;if(live()){buttons();if(job.redraw){const resize=job.resizeRedraw;job.redraw=false;job.resizeRedraw=false;draw(resize);}}}
         }
         previous.addEventListener('click',()=>{if(job.page>1){job.page--;draw();}});next.addEventListener('click',()=>{if(job.pdf&&job.page<job.pdf.numPages){job.page++;draw();}});
         minus.addEventListener('click',()=>{job.zoom=Math.max(.75,job.zoom-.25);draw();});plus.addEventListener('click',()=>{job.zoom=Math.min(2,job.zoom+.25);draw();});rotate.addEventListener('click',()=>{job.rotation=(job.rotation+90)%360;draw();});
@@ -98,7 +102,7 @@
         });
         job.fullscreenChanged=()=>{if(!live())return;expand.setAttribute('aria-label',document.fullscreenElement===panel||panel.classList.contains('document-expanded')?t('Keluar dari Layar Penuh','Exit Fullscreen'):t('Layar Penuh','Fullscreen'));};document.addEventListener('fullscreenchange',job.fullscreenChanged);
         const closeExpanded=event=>{if(event.key==='Escape'&&panel.classList.contains('document-expanded')){event.stopPropagation();panel.classList.remove('document-expanded');job.fullscreenChanged();}};panel.addEventListener('keydown',closeExpanded);job.closeExpanded=closeExpanded;
-        let lastWidth=viewer.clientWidth;job.resizeObserver=new ResizeObserver(()=>{if(!live()||viewer.clientWidth===lastWidth)return;lastWidth=viewer.clientWidth;clearTimeout(job.resizeTimer);job.resizeTimer=setTimeout(()=>{if(viewer.clientWidth===job.renderedWidth)return;if(job.drawing)job.redraw=true;else draw();},100);});job.resizeObserver.observe(viewer);
+        let lastWidth=viewer.clientWidth;job.resizeObserver=new ResizeObserver(()=>{const width=viewer.clientWidth;if(!live()||width<=0||!viewer.getClientRects().length||(width===lastWidth&&width===job.renderedWidth&&!job.pendingDraw))return;lastWidth=width;clearTimeout(job.resizeTimer);job.resizeTimer=setTimeout(()=>{if(!live()||viewer.clientWidth<=0||(viewer.clientWidth===job.renderedWidth&&!job.pendingDraw))return;if(job.drawing){job.redraw=true;job.resizeRedraw=true;}else draw(true);},100);});job.resizeObserver.observe(viewer);
         job.translate=()=>{toolsTitle.textContent=t('Alat PDF','PDF Tools');previous.setAttribute('aria-label',t('Halaman Sebelumnya','Previous Page'));next.setAttribute('aria-label',t('Halaman Berikutnya','Next Page'));minus.setAttribute('aria-label',t('Perkecil PDF','Zoom Out'));plus.setAttribute('aria-label',t('Perbesar PDF','Zoom In'));rotate.setAttribute('aria-label',t('Putar Halaman','Rotate Page'));pageInput.setAttribute('aria-label',t('Nomor Halaman','Page Number'));go.textContent=t('Ke Halaman','Go to Page');query.placeholder=t('Cari teks di PDF','Search PDF text');query.setAttribute('aria-label',query.placeholder);find.textContent=t('Cari','Search');nextMatch.textContent=t('Hasil Berikutnya','Next Match');job.fullscreenChanged();};
         let libraryRequest;
         try{

@@ -400,6 +400,7 @@ function clearPrivateCache() {
     clearCaseBlobUrls();
     window.IPCOSReviewTools?.reset();
     window.IPCOSAdminDecision?.reset();
+    window.IPCOSReviewWorkspace?.reset();
     ratioChartInstance?.destroy(); typeChartInstance?.destroy();
     ratioChartInstance = null; typeChartInstance = null;
     const chartStatus = document.getElementById('chart-load-status'); if (chartStatus) { chartStatus.hidden = true; chartStatus.textContent = ''; }
@@ -2387,6 +2388,7 @@ function openCaseDetail(id, languageRefresh = false) {
         document.getElementById('case-detail-content').scrollTop=restoreFocus.scroll;
     }
     savedPaneScroll.forEach(({name,top}) => {const pane = content.querySelector('.' + name);if (pane) pane.scrollTop = top;});
+    window.IPCOSReviewWorkspace?.opened();
     return true;
 }
 

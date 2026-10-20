@@ -185,10 +185,13 @@ async function footerReachable(page) {
     assert(await page.locator('.admin-review-rail').isHidden(),'The loading document never displays both mobile panes');
     await page.locator('button[data-workspace-view="review"]').click();
     held.release();
-    await page.waitForFunction(()=>document.querySelector('#case-file-preview canvas')?.dataset.rendered==='true');
+    await page.waitForSelector('#case-file-preview canvas',{state:'attached'});
+    assert.notEqual(await page.locator('#case-file-preview canvas').getAttribute('data-rendered'),'true','A hidden preview waits for a visible width before rendering');
     assert.equal(await page.locator('#modal-case-detail').getAttribute('data-workspace-view'),'review','A late document response does not replace the selected review view');
     assert(await page.locator('.admin-review-rail').isVisible());
     await page.locator('button[data-workspace-view="documents"]').click();
+    await page.waitForFunction(()=>document.querySelector('#case-file-preview canvas')?.dataset.rendered==='true');
+    await page.waitForFunction(text=>document.querySelector('#case-file-preview .pdf-accessible-text')?.textContent.includes(text),pdfText);
     assert((await page.locator('#case-file-preview .pdf-accessible-text').textContent()).includes(pdfText));
     assert(await page.locator('#case-file-preview canvas').evaluate(canvas=>{
         const context=canvas.getContext('2d'),data=context.getImageData(0,0,canvas.width,canvas.height).data;

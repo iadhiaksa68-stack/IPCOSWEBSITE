@@ -528,3 +528,33 @@
  #admin-decision-summary li { padding:14px; }
  #admin-decision-summary button { width:100%; }
 }
+
+/* Adjustable admin panels share the existing preview, draft and decision nodes. */
+#admin-workspace-tools { display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px; margin:0 0 12px; flex:0 0 auto; min-width:0; }
+#admin-workspace-tools[hidden] { display:none!important; }
+#admin-workspace-tools button { width:auto; min-height:44px; margin:0; padding:9px 12px; font-size:12px; line-height:1.6; white-space:normal; overflow-wrap:anywhere; }
+#admin-workspace-tools .admin-workspace-size { display:flex; align-items:center; gap:10px; min-width:0; }
+#admin-workspace-tools label { margin:0; font-size:12px; line-height:1.6; color:var(--text-muted); }
+#admin-workspace-tools input[type="range"] { width:150px; min-width:80px; min-height:44px; height:44px; padding:0; margin:0; border:0; background:transparent; accent-color:var(--umy-maroon); cursor:ew-resize; }
+#admin-workspace-tools output { min-width:34px; font-size:12px; line-height:1.6; color:var(--heading-color); font-variant-numeric:tabular-nums; }
+#admin-workspace-tools #admin-workspace-reset { margin-left:auto; color:var(--text-muted); background:transparent; border:0; text-decoration:underline; text-underline-offset:3px; font:inherit; font-size:12px; cursor:pointer; }
+#modal-case-detail.admin-review-mode[data-files-collapsed="true"] .admin-document-navigation { display:none; }
+.admin-pane-divider { display:none; }
+#modal-case-detail.admin-decision-review #admin-workspace-tools,
+#modal-case-detail.admin-decision-review #admin-pane-divider { display:none!important; }
+@media(min-width:901px) {
+ #modal-case-detail.admin-review-mode:not(.admin-decision-review) .admin-review-workspace { grid-template-columns:var(--admin-file-width,220px) minmax(0,1fr) 24px var(--admin-note-width,330px); gap:8px; }
+ #modal-case-detail.admin-review-mode:not(.admin-decision-review)[data-files-collapsed="true"] .admin-review-workspace { grid-template-columns:minmax(0,1fr) 24px var(--admin-note-width,330px); }
+ #modal-case-detail.admin-review-mode .admin-pane-divider { display:block; position:relative; min-width:24px; width:24px; min-height:44px; align-self:stretch; border-radius:8px; cursor:col-resize; touch-action:none; }
+ .admin-pane-divider::before { content:""; position:absolute; inset:12px 10px; border-radius:8px; background:var(--item-border); }
+ .admin-pane-divider:hover,.admin-pane-divider:focus-visible { background:var(--item-hover); }
+ .admin-pane-divider:hover::before,.admin-pane-divider:focus-visible::before { background:var(--umy-maroon); }
+ .admin-pane-divider[aria-disabled="true"] { cursor:default; opacity:.5; }
+ #modal-case-detail.admin-workspace-dragging,#modal-case-detail.admin-workspace-dragging * { cursor:col-resize!important; user-select:none!important; }
+ #modal-case-detail.admin-workspace-dragging iframe { pointer-events:none; }
+}
+@media(max-width:900px) {
+ #admin-workspace-tools .admin-workspace-size,#admin-workspace-tools #admin-workspace-reset { display:none; }
+ #modal-case-detail[data-workspace-view="review"] #admin-workspace-tools { display:none; }
+ #admin-workspace-tools { margin-bottom:10px; }
+}

@@ -131,6 +131,7 @@
 
     function actionsChanged() {
         renderNavigation();
+        window.IPCOSReviewWorkspace?.refresh();
         const card = modal()?.querySelector('.case-detail-card');
         if (!card || !isOpen() || !['admin', 'mhs'].includes(currentUser?.role)) { restoreActions(); return; }
         const panel = document.getElementById('case-action-panel');
