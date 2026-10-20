@@ -1437,6 +1437,7 @@ async function submitCaseAction(event) {
     } else return;
     const decision = {action,note,newStatus,dospem};
     if(currentUser.role==='admin') {
+        if(escapeHtml(note).length>5000)return fail(uxText('Instruksi terlalu panjang untuk dikirim utuh. Ringkas catatan sebelum melanjutkan.','These instructions are too long to send in full. Shorten the note before continuing.'),document.getElementById('case-revision-note'));
         try {
             window.IPCOSReviewTools?.validateDecision(action);
             if(window.IPCOSAdminDecision&&!window.IPCOSAdminDecision.review(decision))return;

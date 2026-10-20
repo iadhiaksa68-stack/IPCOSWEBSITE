@@ -3,8 +3,8 @@
     'use strict';
     const el=id=>document.getElementById(id),t=(id,en)=>uxText(id,en);
     let states=new WeakMap();
-    const stamp=item=>JSON.stringify([item.id,item.status,item.jenis,item.detail,item.link,item.note,item.dospem||'',item.reviewVersion||'']);
-    const structure=item=>JSON.stringify([item.id,item.status,item.jenis,item.detail,item.link,item.dospem||'']);
+    const stamp=item=>JSON.stringify([item.id,item.nim,item.nama,item.status,item.jenis,item.detail,item.link,item.note,item.dospem||'',item.reviewVersion||'']);
+    const structure=item=>JSON.stringify([item.id,item.nim,item.nama,item.status,item.jenis,item.detail,item.link,item.dospem||'']);
     const allowed=item=>item&&currentUser.role==='admin'&&getSessionToken()&&['pending','resubmitted'].includes(String(item.status).trim().toLowerCase());
     const fileState=()=>window.IPCOSReviewTools?.decisionState()||{available:false,dirty:false,files:[]};
     const inputs=()=>{const panel=el('case-action-panel');return [panel?.dataset.action,[...panel?.querySelectorAll('[name=revision-document]:checked')||[]].map(input=>input.value),el('case-revision-note')?.value.trim()||'',el('case-supervisor')?.value||''];};
