@@ -164,11 +164,24 @@ function releaseCasePreview(request) {
     if (pendingCasePreview===request) pendingCasePreview=null;
 }
 function isPrivateDriveUrl(url) { try { return ['drive.google.com','docs.google.com'].includes(new URL(url).hostname); } catch (_) { return false; } }
+function prepareCasePreview(panel,index,file) {
+    panel.querySelector('.case-preview-context')?.remove();
+    const context=document.createElement('div');context.className='case-preview-context';
+    const title=document.createElement('h4');title.dataset.preserveCase='';title.textContent=documentText(file.label);
+    const actions=document.createElement('div');actions.className='button-row';
+    const source=document.createElement('a');source.className='btn-secondary';source.href=file.url;source.target='_blank';source.rel='noopener noreferrer';source.dataset.documentId='Buka Berkas Asli';source.dataset.documentEn='Open Original File';source.textContent=uxText(source.dataset.documentId,source.dataset.documentEn);
+    const retry=document.createElement('button');retry.type='button';retry.className='btn-secondary';retry.dataset.casePreviewRetry=String(index);retry.dataset.documentId='Coba Lagi';retry.dataset.documentEn='Try Again';retry.textContent=uxText(retry.dataset.documentId,retry.dataset.documentEn);retry.hidden=true;
+    retry.addEventListener('click',()=>previewCaseFile(index));
+    actions.append(source,retry);context.append(title,actions);panel.prepend(context);
+    panel.querySelector('p').setAttribute('role','status');
+}
 function clearCaseBlobUrls(preserveView=false) {
     releaseCasePreview(pendingCasePreview);
     documentRequestVersion++; caseDocumentEpoch++;
     caseBlobUrls.forEach(url=>URL.revokeObjectURL(url)); caseBlobUrls.clear();
     window.IPCOSDocuments?.reset(document.getElementById('case-file-preview'));
+    document.querySelector('#case-file-preview .case-preview-context')?.remove();
+    document.getElementById('case-file-preview')?.setAttribute('aria-busy','false');
     window.IPCOSDocuments?.clearLocal();
     const modal=document.getElementById('modal-case-detail');if(modal){const view=preserveView&&['admin','mhs'].includes(currentUser.role)?(modal.dataset.workspaceView||'documents'):null;modal.classList.remove('has-document-preview','has-document-comparison');delete modal.dataset.workspaceView;if(view){modal.dataset.workspaceView=view;if(currentUser.role==='mhs')modal.classList.add('has-document-preview');}}
 }
@@ -191,7 +204,7 @@ async function accessCaseDocument(index,preview=false,button=null) {
         pendingCasePreview=previewRequest;markCasePreviewBusy(previewRequest,button);
     }
     const panel=document.getElementById('case-file-preview');
-    if(preview) { window.IPCOSDocuments.reset(panel);panel.hidden=false; panel.querySelector('p').textContent=uxText('Memuat berkas melalui sesi IPCOS…','Loading the file through your IPCOS session…'); panel.querySelector('iframe').src='about:blank'; window.IPCOSReviewTools?.previewReady(); }
+    if(preview) { window.IPCOSDocuments.reset(panel);prepareCasePreview(panel,index,file);panel.hidden=false;panel.setAttribute('aria-busy','true');const helper=panel.querySelector('p');helper.dataset.documentId='Memuat berkas melalui sesi IPCOS…';helper.dataset.documentEn='Loading the file through your IPCOS session…';helper.textContent=uxText(helper.dataset.documentId,helper.dataset.documentEn); panel.querySelector('iframe').src='about:blank'; window.IPCOSReviewTools?.previewReady(); }
     if(button && !preview) button.disabled=true;
     try {
         const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'get_document',id,url:file.url}),headers:{'Content-Type':'text/plain;charset=utf-8'}});
@@ -210,8 +223,8 @@ async function accessCaseDocument(index,preview=false,button=null) {
         } else {
             const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
         }
-    } catch(error) { if(epoch===sessionEpoch && contextVersion===caseDocumentEpoch && (!preview || version===documentRequestVersion)) { showToast(error.message || 'Berkas belum dapat dibaca.','error'); if(preview && panel.isConnected) panel.querySelector('p').textContent=uxText('Berkas belum dapat dimuat. Coba lagi atau hubungi admin.','The file could not be loaded. Try again or contact admin.'); } }
-    finally { if(preview)releaseCasePreview(previewRequest); else if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }
+    } catch(error) { if(epoch===sessionEpoch && contextVersion===caseDocumentEpoch && (!preview || version===documentRequestVersion)) { showToast(error.message || 'Berkas belum dapat dibaca.','error'); if(preview && panel.isConnected) {const helper=panel.querySelector('p');helper.dataset.documentId='Berkas belum dapat dimuat di IPCOS. Coba Lagi atau pilih Buka Berkas Asli. Untuk Google Drive, gunakan akun yang memiliki akses.';helper.dataset.documentEn='The file could not be loaded in IPCOS. Try Again or choose Open Original File. For Google Drive, use an account with access.';helper.textContent=uxText(helper.dataset.documentId,helper.dataset.documentEn);panel.querySelector('[data-case-preview-retry]').hidden=false;} } }
+    finally { if(preview){if(epoch===sessionEpoch&&contextVersion===caseDocumentEpoch&&version===documentRequestVersion)panel.setAttribute('aria-busy','false');releaseCasePreview(previewRequest);} else if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-document-index]');if(button)accessCaseDocument(Number(button.dataset.documentIndex),false,button);});
 

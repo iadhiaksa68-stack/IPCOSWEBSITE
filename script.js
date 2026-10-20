@@ -1332,11 +1332,10 @@ function previewCaseFile(index,button=null) {
     const preview = document.getElementById('case-file-preview');
     preview.hidden = false;
     window.IPCOSDocuments?.reset(preview);
-    const iframe = preview.querySelector('iframe');iframe.hidden=false;
-    iframe.src = file.url.includes('drive.google.com') ? file.url.replace(/\/view.*$/, '/preview').replace(/\/edit.*$/, '/preview') : file.url;
-    iframe.title = uxText('Pratinjau: ', 'Preview: ') + documentText(file.label);
+    prepareCasePreview(preview,index,file);
+    preview.setAttribute('aria-busy','false');
     window.IPCOSReviewTools?.previewReady();
-    preview.querySelector('p').textContent = uxText('Jika pratinjau tidak muncul, gunakan Buka Berkas di atas.', 'If the preview does not load, use Open File above.');
+    const helper=preview.querySelector('p');helper.dataset.documentId='Berkas ini berada di situs lain. Pilih Buka Berkas Asli untuk membukanya di tab baru.';helper.dataset.documentEn='This file is hosted on another site. Choose Open Original File to open it in a new tab.';helper.textContent=uxText(helper.dataset.documentId,helper.dataset.documentEn);
 }
 function supervisorOptions() {
     const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
