@@ -243,6 +243,7 @@ async function compareCaseDocuments(label,oldIndex=null,newIndex=null) {
     const versions=comparableCaseFiles(item,label);if(versions.length<2)return;
     const before=versions.find(file=>file.index===oldIndex)||versions.at(-2),after=versions.find(file=>file.index===newIndex)||versions.at(-1);
     if(before.url===after.url){showToast(uxText('Pilih dua versi berkas yang berbeda.','Choose two different file versions.'),'error');return;}
+    if(currentUser.role==='admin'&&window.IPCOSReviewTools?.selectFile(after.index)===false)return;
     clearCaseBlobUrls(true);const epoch=sessionEpoch,id=String(item.id),context=caseDocumentEpoch,request=++documentRequestVersion;
     const panel=document.getElementById('case-file-preview');panel.hidden=false;panel.querySelector('p').textContent=uxText('Bandingkan isi dua versi. Tampilan ini tidak menilai atau menyetujui perubahan secara otomatis.','Compare the two versions. This view does not evaluate or approve changes automatically.');
     const shell=document.createElement('div');shell.className='document-comparison';

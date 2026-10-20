@@ -1305,7 +1305,8 @@ function caseFileListHtml(item) {
     const files = getCaseFiles(item);
     let logs=[]; try { logs=JSON.parse(item.note || '[]'); } catch (_) {}
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
-    const rows=files.map((file,index)=>{const doc=metadata.slice().reverse().find(doc=>doc.url===file.url); return {...file,index,document:doc};});
+    const seen=new Set();
+    const rows=files.flatMap((file,index)=>{if(seen.has(file.url))return [];seen.add(file.url);const doc=metadata.slice().reverse().find(doc=>doc.url===file.url);return [{...file,index,document:doc}];});
     const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
     const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${row.document&&latest.get(row.document.label)===row&&comparableCaseFiles(item,row.document.label).length>1?`<button type="button" class="btn-secondary" data-compare-label="${escapeHtml(row.document.label)}">${uxText('Bandingkan Revisi','Compare Revisions')}</button>`:''}${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div>${studentFileReviewHtml(item,row.url)}</div>`;
     const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
@@ -1318,6 +1319,7 @@ function previewCaseFile(index,button=null) {
     const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
     const file = item && getCaseFiles(item)[index];
     if (!file) return;
+    if(currentUser.role==='admin'&&window.IPCOSReviewTools?.selectFile(index)===false)return;
     if (isPrivateDriveUrl(file.url)) return accessCaseDocument(index,true,button);
     clearCaseBlobUrls(true);
     const preview = document.getElementById('case-file-preview');
@@ -2318,7 +2320,7 @@ function openCaseDetail(id, languageRefresh = false) {
     const detailsHtml = `<details class="case-academic-details" ${isAdmin ? '' : 'open'}><summary>${uxText('Detail Pengajuan','Request Details')}</summary><div class="case-content-block">${localizedDetailHtml(item.detail)}${item.dospem ? `<p><strong>${uxText('Dosen Pembimbing:','Supervisor:')}</strong> ${escapeHtml(item.dospem)}</p>` : ''}</div></details>`;
     const historyHtml = `<details class="case-history"><summary>${uxText('Riwayat Pengajuan','Request History')}</summary><div class="case-timeline">${caseTimelineHtml(item)}</div></details>`;
     const stateHtml = window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`;
-    const fileCount = getCaseFiles(item).length;
+    const fileCount = new Set(getCaseFiles(item).map(file=>file.url)).size;
     content.innerHTML = isAdmin ? `<div class="case-workspace admin-review-workspace">
         <aside class="admin-document-navigation" aria-labelledby="admin-document-title"><div class="admin-pane-heading"><h3 id="admin-document-title">${uxText('Berkas Pengajuan','Request Documents')}</h3><p>${fileCount} ${uxText('berkas',fileCount === 1 ? 'file' : 'files')}</p></div><div class="case-content-block case-documents">${caseFileListHtml(item)}</div></aside>
         <section class="case-document-column admin-document-stage" aria-labelledby="admin-preview-title"><h3 id="admin-preview-title">${uxText('Pratinjau Dokumen','Document Preview')}</h3><div class="admin-preview-placeholder"><h4>${fileCount ? uxText('Pilih berkas untuk diperiksa','Choose a file to review') : uxText('Pengajuan ini belum memiliki berkas','This request has no files')}</h4><p>${fileCount ? uxText('Gunakan Pratinjau pada daftar berkas. Dokumen dan catatan pemeriksaan dapat dibuka berdampingan.','Select Preview in the file list. View the document alongside your review notes.') : uxText('Detail dan riwayat pengajuan tetap dapat diperiksa pada bagian Pemeriksaan.','You can still review the request details and history in Review.')}</p></div>${previewHtml}</section>
@@ -2348,7 +2350,7 @@ function openCaseDetail(id, languageRefresh = false) {
         if (isAdmin) button.setAttribute('aria-pressed', String(content.dataset.activeDocumentIndex === String(index)));
         button.closest('.case-file-row')?.classList.toggle('is-selected', isAdmin && content.dataset.activeDocumentIndex === String(index));
         button.addEventListener('click', () => {
-            if (isAdmin) {
+            if (isAdmin && !activeUpdateIds.has(selectedCaseId)) {
                 content.dataset.activeDocumentIndex = String(index);
                 content.querySelectorAll('[data-preview-index]').forEach(control => {const selected = control === button;control.setAttribute('aria-pressed',String(selected));control.closest('.case-file-row')?.classList.toggle('is-selected',selected);});
             }
