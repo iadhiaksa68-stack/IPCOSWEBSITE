@@ -17,6 +17,10 @@
         if(drag){const previous=drag;drag=null;try{previous.node.releasePointerCapture(previous.id);}catch(_){}}
         modal()?.classList.remove('admin-workspace-dragging');
     }
+    function cancelDrag(){
+        if(!drag)return false;
+        const initial=drag.initial;stopDrag();preference.reviewWidth=initial;remember();apply();return true;
+    }
     function bounds(){
         if(!workspace||!desktop()||modal().classList.contains('admin-decision-review'))return null;
         const width=workspace.clientWidth;if(width<=0)return null;
@@ -83,7 +87,6 @@
         if(event.target.id!=='admin-pane-divider'||busy()||!desktop())return;
         const range=el('admin-review-width'),value=Number(range.value),min=Number(range.min),max=Number(range.max),next={ArrowLeft:value+2,ArrowRight:value-2,Home:min,End:max}[event.key];
         if(next!==undefined){event.preventDefault();setWidth(next);}
-        if(event.key==='Escape'&&drag){event.preventDefault();const initial=drag.initial;stopDrag();setWidth(initial);}
     });
     document.addEventListener('pointerdown',event=>{
         if(event.target.id!=='admin-pane-divider'||event.button!==0||!allowed()||busy()||!desktop())return;
@@ -97,5 +100,5 @@
     window.addEventListener('resize',()=>{if(!desktop())stopDrag();apply();});
     function reset(){stopDrag();observer?.disconnect();observer=null;workspace=null;preference=defaults();epoch=-1;activeId='';listScroll=0;try{sessionStorage.removeItem(key);}catch(_){}el('admin-workspace-tools')?.remove();delete modal()?.dataset.filesCollapsed;}
     window.addEventListener('ipcos:logout',reset);
-    window.IPCOSReviewWorkspace=Object.freeze({opened,refresh,reset});
+    window.IPCOSReviewWorkspace=Object.freeze({opened,refresh,reset,cancelDrag});
 })();

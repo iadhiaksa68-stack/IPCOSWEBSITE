@@ -91,6 +91,9 @@
                 event.stopImmediatePropagation();
             }
             if (event.key !== 'Escape') return;
+            if (window.IPCOSReviewWorkspace?.cancelDrag()) {
+                event.preventDefault(); event.stopImmediatePropagation(); return;
+            }
             if (document.fullscreenElement || modal?.matches('dialog') || modal?.classList.contains('document-expanded')) return;
             if (modal) {
                 event.preventDefault(); event.stopImmediatePropagation();
