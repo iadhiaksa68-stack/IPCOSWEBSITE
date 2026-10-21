@@ -4,7 +4,7 @@
     const t=(id,en)=>uxText(id,en);
     const stamp=item=>JSON.stringify([String(item.id),String(item.status),String(item.detail),String(item.note),String(item.link),String(item.reviewVersion||'')]);
     function read(){
-        try{const value=JSON.parse(sessionStorage.getItem(key)||'{}');if(!value||typeof value!=='object'||Array.isArray(value))return {};for(const id of Object.keys(value)){const entry=value[id];if(!entry||!Number.isFinite(entry.savedAt)||Date.now()-entry.savedAt>ttl||entry.savedAt>Date.now()+60000){delete value[id];continue;}if(entry.review&&(!Array.isArray(entry.review.reviews)||entry.review.reviews.length>20||typeof entry.review.stamp!=='string'||entry.review.reviews.some(review=>!review||typeof review.url!=='string'||typeof review.label!=='string'||typeof review.note!=='string'||review.note.length>2000||!['pending','accepted','revision'].includes(review.status))))delete entry.review;if(entry.action&&(typeof entry.action.stamp!=='string'||!['revision','dospem'].includes(entry.action.action)||typeof entry.action.note!=='string'||!Array.isArray(entry.action.documents)||entry.action.documents.some(label=>typeof label!=='string')||typeof entry.action.supervisor!=='string'))delete entry.action;if(!entry.review&&!entry.action)delete value[id];}return value;}catch(_){return {};}
+        try{const value=JSON.parse(sessionStorage.getItem(key)||'{}');if(!value||typeof value!=='object'||Array.isArray(value))return {};for(const id of Object.keys(value)){const entry=value[id];if(!entry||!Number.isFinite(entry.savedAt)||Date.now()-entry.savedAt>ttl||entry.savedAt>Date.now()+60000){delete value[id];continue;}if(entry.review&&(!Array.isArray(entry.review.reviews)||entry.review.reviews.length>20||typeof entry.review.stamp!=='string'||entry.review.reviews.some(review=>!review||typeof review.url!=='string'||typeof review.label!=='string'||typeof review.note!=='string'||review.note.length>2000||!['pending','accepted','revision'].includes(review.status))))delete entry.review;if(entry.review)entry.review.reviews=entry.review.reviews.map(review=>window.IPCOSPageNotes?.review(review)||{url:review.url,label:review.label,status:review.status,note:review.note});if(entry.action&&(typeof entry.action.stamp!=='string'||!['revision','dospem'].includes(entry.action.action)||typeof entry.action.note!=='string'||!Array.isArray(entry.action.documents)||entry.action.documents.some(label=>typeof label!=='string')||typeof entry.action.supervisor!=='string'))delete entry.action;if(!entry.review&&!entry.action)delete value[id];}return value;}catch(_){return {};}
     }
     function write(entries){
         try{const recent=Object.entries(entries).sort((a,b)=>b[1].savedAt-a[1].savedAt).slice(0,12);let text=JSON.stringify(Object.fromEntries(recent));while(text.length>250000&&recent.length){recent.pop();text=JSON.stringify(Object.fromEntries(recent));}sessionStorage.setItem(key,text);return true;}catch(_){return false;}
@@ -16,7 +16,7 @@
     }
     function forget(id,part){const entries=read(),entry=entries[String(id)];if(!entry)return;if(part){delete entry[part];if(!entry.review&&!entry.action)delete entries[String(id)];}else delete entries[String(id)];write(entries);}
     function rememberReview(item,base,reviews,retry){
-        const saved=remember(item,'review',{stamp:stamp(base),reviews:reviews.map(({url,label,status,note})=>({url,label,status,note})),retry:retry||null});
+        const saved=remember(item,'review',{stamp:stamp(base),reviews:reviews.map(review=>window.IPCOSPageNotes?.review(review)||{url:review.url,label:review.label,status:review.status,note:review.note}),retry:retry||null});
         const status=document.getElementById('admin-review-draft-status');if(status)status.textContent=saved?t('Draf tersimpan di tab ini; belum dikirim ke mahasiswa.','Draft saved in this tab; not sent to the student.'):t('Draf belum dapat disimpan di tab ini. Jangan tutup sebelum menyimpan pemeriksaan.','This tab could not save the draft. Save the review before closing.');
         return saved;
     }
@@ -36,7 +36,7 @@
             (reviewOK?`<button type="button" class="btn-secondary" data-restore-review-draft>${t('Pulihkan Catatan Berkas','Restore File Notes')}</button>`:'')+(actionOK?`<button type="button" class="btn-secondary" data-restore-action-draft>${t('Pulihkan Draf Tindakan','Restore Action Draft')}</button>`:'')+
             `<details><summary>${t('Lihat Isi Draf','View Draft Contents')}</summary><div class="admin-draft-contents"></div></details><button type="button" class="text-link" data-discard-admin-draft>${t('Hapus Draf Tersimpan','Discard Saved Draft')}</button>`;
         const contents=root.querySelector('.admin-draft-contents');
-        for(const review of entry.review?.reviews||[]){const p=document.createElement('p');p.className='preserve-lines';p.textContent=documentText(review.label)+': '+review.note;contents.append(p);}
+        for(const review of entry.review?.reviews||[]){const p=document.createElement('p');p.className='preserve-lines';p.textContent=documentText(review.label)+': '+review.note;const reference=window.IPCOSPageNotes?.normalize(review.pageRef);if(reference)p.textContent+=' · '+t('Halaman ','Page ')+reference.page+' / '+reference.pages;contents.append(p);}
         if(entry.action){const p=document.createElement('p');p.className='preserve-lines';p.textContent=entry.action.note||entry.action.supervisor;contents.append(p);}
         document.getElementById('document-review-tools')?.before(root);
         root.querySelector('[data-restore-review-draft]')?.addEventListener('click',()=>{
@@ -56,7 +56,7 @@
         root.querySelector('[data-discard-admin-draft]').addEventListener('click',()=>{forget(item.id);root.remove();});
     }
     function reviewSaved(item){
-        const entries=read(),entry=entries[String(item.id)];if(entry){delete entry.review;if(entry.action)entry.action.stamp=stamp(item);else delete entries[String(item.id)];write(entries);}document.getElementById('admin-review-draft-status')?.remove();offer(item);
+        const entries=read(),entry=entries[String(item.id)];if(entry){delete entry.review;if(entry.review)entry.review.reviews=entry.review.reviews.map(review=>window.IPCOSPageNotes?.review(review)||{url:review.url,label:review.label,status:review.status,note:review.note});if(entry.action)entry.action.stamp=stamp(item);else delete entries[String(item.id)];write(entries);}document.getElementById('admin-review-draft-status')?.remove();offer(item);
     }
     document.addEventListener('input',event=>{if(event.target.closest('#case-action-panel'))captureAction();});
     document.addEventListener('change',event=>{if(event.target.closest('#case-action-panel'))captureAction();});

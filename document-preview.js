@@ -16,11 +16,13 @@
         if(!key)return;const saved=positions();saved.delete(key);if(value)saved.set(key,value);while(saved.size>60)saved.delete(saved.keys().next().value);
         try{if(saved.size)sessionStorage.setItem(readingKey,JSON.stringify(Object.fromEntries(saved)));else sessionStorage.removeItem(readingKey);}catch(_){/* Keep only the in-memory position for this page. */}
     }
-    async function readingIdentity(context,bytes,token,role){
+    const hex=buffer=>Array.from(new Uint8Array(buffer),byte=>byte.toString(16).padStart(2,'0')).join('');
+    async function fingerprint(bytes){try{return crypto.subtle?hex(await crypto.subtle.digest('SHA-256',bytes)):'';}catch(_){return '';}}
+    async function readingIdentity(context,content,token,role){
         if(!context||!token||!['admin','mhs'].includes(role)||typeof context.documentUrl!=='string'||!context.documentUrl||!String(context.requestId||'')||!crypto.subtle)return '';
-        const hex=buffer=>Array.from(new Uint8Array(buffer),byte=>byte.toString(16).padStart(2,'0')).join('');
-        try{const content=hex(await crypto.subtle.digest('SHA-256',bytes)),identity=JSON.stringify([token,role,String(context.requestId),context.documentUrl,Number(context.version)||0,content]);return hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity)));}catch(_){return '';}
+        try{if(!content)return '';const identity=JSON.stringify([token,role,String(context.requestId),context.documentUrl,Number(context.version)||0,content]);return hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity)));}catch(_){return '';}
     }
+    const changedPosition=panel=>document.dispatchEvent(new CustomEvent('ipcos:pdf-position',{detail:{panel}}));
     function clearReading(){readingPositions=null;try{sessionStorage.removeItem(readingKey);}catch(_){}jobs.forEach(job=>{job.readingId='';job.trackReading=false;});}
     function saveVisibleReadings(){jobs.forEach(job=>job.saveReading?.());}
     window.addEventListener('pagehide',saveVisibleReadings);
@@ -41,7 +43,7 @@
         panel.querySelector('iframe')?.setAttribute('src','about:blank');
         panel.querySelector('iframe')?.setAttribute('hidden','');
         if(document.fullscreenElement===panel)document.exitFullscreen().catch(()=>{});panel.classList.remove('document-expanded');
-        panel.querySelectorAll('.document-renderer,.document-preview-actions,.pdf-preview-toolbar,.pdf-accessible-text,.pdf-search-status,.pdf-reading-resume').forEach(el=>el.remove());
+        panel.querySelectorAll('.document-renderer,.document-preview-actions,.pdf-preview-toolbar,.pdf-accessible-text,.pdf-search-status,.pdf-reading-resume,[data-pdf-reference-status]').forEach(el=>el.remove());changedPosition(panel);
     }
     async function pdfPreview(panel,url,name,context) {
         const epoch=sessionEpoch,token=getSessionToken(),role=currentUser.role,job={cancelled:false,page:1,zoom:1,rotation:0,drawing:false,searching:false,searchId:0,readingId:'',trackReading:false};jobs.set(panel,job);
@@ -51,6 +53,12 @@
         retry.addEventListener('click',()=>{if(live())render(panel,url,'application/pdf',name,context);});panel.querySelector('.document-preview-actions').append(retry);
         const viewer=document.createElement('div');viewer.className='document-renderer pdf-canvas-viewer';viewer.tabIndex=0;viewer.setAttribute('aria-label',t('Dokumen PDF','PDF Document'));
         const canvas=document.createElement('canvas');canvas.setAttribute('role','img');viewer.append(canvas);
+        const referenceStatus=document.createElement('p');referenceStatus.className='field-helper pdf-reference-status';referenceStatus.dataset.pdfReferenceStatus='';referenceStatus.setAttribute('role','status');referenceStatus.hidden=true;
+        const referenceMessage=(id,en)=>{job.referenceMessage=[id,en];referenceStatus.textContent=t(id,en);referenceStatus.hidden=false;};
+        job.capture=()=>{
+            if(!live()||job.drawing||!job.pdf||!job.confirmedReading||canvas.dataset.rendered!=='true'||!context?.requestId||!context.documentUrl||!/^[a-f0-9]{64}$/.test(job.fingerprint||'')||job.confirmedReading.page!==job.page)return null;
+            return {page:job.confirmedReading.page,pages:job.pdf.numPages,fingerprint:job.fingerprint,version:Number(context.version)||0,requestId:String(context.requestId),documentUrl:context.documentUrl};
+        };
         const resume=document.createElement('div');resume.className='pdf-reading-resume';resume.hidden=true;resume.setAttribute('role','group');
         const resumeText=document.createElement('p'),continueReading=document.createElement('button'),startReading=document.createElement('button');
         for(const [button,action]of [[continueReading,'continue'],[startReading,'start']]){button.type='button';button.className='btn-secondary';button.dataset.pdfReadingAction=action;}
@@ -79,7 +87,7 @@
         const nextMatch=document.createElement('button');nextMatch.type='button';nextMatch.className='btn-secondary';nextMatch.textContent=t('Hasil Berikutnya','Next Match');nextMatch.hidden=true;
         const searchStatus=document.createElement('p');searchStatus.className='field-helper pdf-search-status';searchStatus.setAttribute('role','status');searchStatus.hidden=true;
         search.append(query,find,nextMatch);const tools=document.createElement('details');tools.className='pdf-tools';const toolsTitle=document.createElement('summary');toolsTitle.textContent=t('Alat PDF','PDF Tools');const extra=document.createElement('div');extra.className='pdf-extra-tools';extra.append(minus,plus,rotate,jump,search);tools.append(toolsTitle,extra);toolbar.append(previous,position,next,expand,tools);
-        panel.insertBefore(resume,helper);panel.insertBefore(toolbar,helper);panel.insertBefore(viewer,helper);panel.insertBefore(accessible,helper);panel.insertBefore(searchStatus,helper);
+        panel.insertBefore(resume,helper);if(context?.pageRef)panel.insertBefore(referenceStatus,helper);panel.insertBefore(toolbar,helper);panel.insertBefore(viewer,helper);panel.insertBefore(accessible,helper);panel.insertBefore(searchStatus,helper);
         message(helper,'Memuat pembaca PDF lokal…','Loading the local PDF reader…');
         let hits=[],hitIndex=-1;
         const buttons=()=>{previous.disabled=job.drawing||!job.pdf||job.page<=1;next.disabled=job.drawing||!job.pdf||job.page>=job.pdf.numPages;minus.disabled=job.drawing||!job.pdf||job.zoom<=.75;plus.disabled=job.drawing||!job.pdf||job.zoom>=2;rotate.disabled=go.disabled=pageInput.disabled=job.drawing||!job.pdf;find.disabled=!job.pdf||job.searching;nextMatch.disabled=job.drawing||job.searching;continueReading.disabled=startReading.disabled=job.drawing||!job.pdf;};buttons();
@@ -88,7 +96,7 @@
         async function draw(preserveReading=false){
             if(!live()||job.drawing||!job.pdf)return;
             if(viewer.clientWidth<=0||!viewer.getClientRects().length){job.pendingDraw=true;return;}
-            job.pendingDraw=false;job.drawing=true;buttons();
+            job.pendingDraw=false;job.drawing=true;buttons();changedPosition(panel);
             try{
                 const page=await job.pdf.getPage(job.page);if(!live())return;if(viewer.clientWidth<=0||!viewer.getClientRects().length){job.pendingDraw=true;return;}
                 const reading=preserveReading?{top:viewer.scrollTop,left:viewer.scrollLeft,width:canvas.clientWidth,height:canvas.clientHeight}:null;
@@ -101,11 +109,12 @@
                 canvas.dataset.rendered='true';canvas.dataset.page=String(job.page);canvas.dataset.rotation=String(job.rotation);canvas.setAttribute('aria-label',name+' · '+t('Halaman ','Page ')+job.page+' / '+job.pdf.numPages);
                 if(job.restoreReading){restoreScroll(job.restoreReading);job.restoreReading=null;}
                 job.confirmedReading={page:job.page,pages:job.pdf.numPages,zoom:job.zoom,rotation:job.rotation,...scrollReading()};job.saveReading();
+                if(job.referenceTarget===job.page){referenceMessage('Halaman '+job.page+' dibuka dari catatan pemeriksaan.','Page '+job.page+' opened from the review note.');job.referenceTarget=null;viewer.focus({preventScroll:true});viewer.scrollIntoView({block:'nearest',behavior:'instant'});}
                 position.textContent=job.page+' / '+job.pdf.numPages+' · '+Math.round(job.zoom*100)+'%';pageInput.value=String(job.page);
                 message(helper,'PDF diproses di perangkat Anda. Pencarian tersedia untuk PDF yang memiliki teks.','The PDF is processed on your device. Search works with PDFs containing text.');
                 const text=await page.getTextContent();if(live())accessible.textContent=text.items.map(item=>item.str||'').join(' ').slice(0,12000);
             }catch(error){if(live()&&error.name!=='RenderingCancelledException'){retry.hidden=false;message(helper,'Halaman PDF belum dapat ditampilkan. Muat Ulang Pratinjau atau buka berkas di tab baru.','This PDF page could not be displayed. Reload Preview or open the file in a new tab.');}}
-            finally{job.drawing=false;if(live()){buttons();if(job.redraw){const resize=job.resizeRedraw;job.redraw=false;job.resizeRedraw=false;draw(resize);}}}
+            finally{job.drawing=false;if(live()){buttons();changedPosition(panel);if(job.redraw){const resize=job.resizeRedraw;job.redraw=false;job.resizeRedraw=false;draw(resize);}}}
         }
         previous.addEventListener('click',()=>{if(job.page>1&&!job.drawing){beginReading();job.page--;draw();}});next.addEventListener('click',()=>{if(job.pdf&&!job.drawing&&job.page<job.pdf.numPages){beginReading();job.page++;draw();}});
         minus.addEventListener('click',()=>{if(job.drawing)return;beginReading();job.zoom=Math.max(.75,job.zoom-.25);draw();});plus.addEventListener('click',()=>{if(job.drawing)return;beginReading();job.zoom=Math.min(2,job.zoom+.25);draw();});rotate.addEventListener('click',()=>{if(job.drawing)return;beginReading();job.rotation=(job.rotation+90)%360;draw();});
@@ -142,18 +151,22 @@
         job.fullscreenChanged=()=>{if(!live())return;expand.setAttribute('aria-label',document.fullscreenElement===panel||panel.classList.contains('document-expanded')?t('Keluar dari Layar Penuh','Exit Fullscreen'):t('Layar Penuh','Fullscreen'));};document.addEventListener('fullscreenchange',job.fullscreenChanged);
         const closeExpanded=event=>{if(event.key==='Escape'&&panel.classList.contains('document-expanded')){event.stopPropagation();panel.classList.remove('document-expanded');job.fullscreenChanged();}};panel.addEventListener('keydown',closeExpanded);job.closeExpanded=closeExpanded;
         let lastWidth=viewer.clientWidth;job.resizeObserver=new ResizeObserver(()=>{const width=viewer.clientWidth;if(!live()||width<=0||!viewer.getClientRects().length||(width===lastWidth&&width===job.renderedWidth&&!job.pendingDraw))return;lastWidth=width;clearTimeout(job.resizeTimer);job.resizeTimer=setTimeout(()=>{if(!live()||viewer.clientWidth<=0||(viewer.clientWidth===job.renderedWidth&&!job.pendingDraw))return;if(job.drawing){job.redraw=true;job.resizeRedraw=true;}else draw(true);},100);});job.resizeObserver.observe(viewer);
-        job.translate=()=>{resumeLabels();viewer.setAttribute('aria-label',t('Dokumen PDF','PDF Document'));toolsTitle.textContent=t('Alat PDF','PDF Tools');previous.setAttribute('aria-label',t('Halaman Sebelumnya','Previous Page'));next.setAttribute('aria-label',t('Halaman Berikutnya','Next Page'));minus.setAttribute('aria-label',t('Perkecil PDF','Zoom Out'));plus.setAttribute('aria-label',t('Perbesar PDF','Zoom In'));rotate.setAttribute('aria-label',t('Putar Halaman','Rotate Page'));pageInput.setAttribute('aria-label',t('Nomor Halaman','Page Number'));go.textContent=t('Ke Halaman','Go to Page');query.placeholder=t('Cari teks di PDF','Search PDF text');query.setAttribute('aria-label',query.placeholder);find.textContent=t('Cari','Search');nextMatch.textContent=t('Hasil Berikutnya','Next Match');job.fullscreenChanged();};
+        job.translate=()=>{if(job.referenceMessage)referenceStatus.textContent=t(...job.referenceMessage);resumeLabels();viewer.setAttribute('aria-label',t('Dokumen PDF','PDF Document'));toolsTitle.textContent=t('Alat PDF','PDF Tools');previous.setAttribute('aria-label',t('Halaman Sebelumnya','Previous Page'));next.setAttribute('aria-label',t('Halaman Berikutnya','Next Page'));minus.setAttribute('aria-label',t('Perkecil PDF','Zoom Out'));plus.setAttribute('aria-label',t('Perbesar PDF','Zoom In'));rotate.setAttribute('aria-label',t('Putar Halaman','Rotate Page'));pageInput.setAttribute('aria-label',t('Nomor Halaman','Page Number'));go.textContent=t('Ke Halaman','Go to Page');query.placeholder=t('Cari teks di PDF','Search PDF text');query.setAttribute('aria-label',query.placeholder);find.textContent=t('Cari','Search');nextMatch.textContent=t('Hasil Berikutnya','Next Match');job.fullscreenChanged();};
         let libraryRequest;
         try{
             libraryRequest=loadPdfLibrary();const {library,workerSrc}=await libraryRequest;if(!live())return;
             library.GlobalWorkerOptions.workerSrc=workerSrc;
             const bytes=new Uint8Array(await (await fetch(url)).arrayBuffer());if(!live())return;
             const base=new URL('./vendor/pdfjs/',location.href).href;
-            const identity=readingIdentity(context,bytes,token,role);
+            const content=fingerprint(bytes),identity=content.then(value=>readingIdentity(context,value,token,role));
             job.loading=library.getDocument({data:bytes,isEvalSupported:false,enableXfa:false,cMapUrl:base+'cmaps/',cMapPacked:true,standardFontDataUrl:base+'standard_fonts/',wasmUrl:base+'wasm/'});
-            const [pdf,key]=await Promise.all([job.loading.promise,identity]);if(!live())return;job.pdf=pdf;job.readingId=key;
+            const [pdf,key,contentHash]=await Promise.all([job.loading.promise,identity,content]);if(!live())return;job.pdf=pdf;job.readingId=key;job.fingerprint=contentHash;
             const saved=key?positions().get(key):null;
-            if(saved&&saved.pages===pdf.numPages&&validReading(saved)){job.resume=saved;resumeLabels();resume.hidden=false;}else{if(saved)storeReading(key,null);job.trackReading=true;}
+            const target=window.IPCOSPageNotes?.normalize(context?.pageRef),targetMatches=target&&target.fingerprint===contentHash&&target.version===(Number(context?.version)||0)&&target.pages===pdf.numPages&&target.page<=pdf.numPages;
+            if(targetMatches){job.page=target.page;job.referenceTarget=target.page;job.trackReading=true;job.restoreReading={top:0,left:0};}
+            else if(context?.pageRef){referenceMessage('Rujukan halaman tidak sesuai dengan isi atau versi PDF ini. Periksa dokumen sebelum melanjutkan.','The page reference does not match this PDF content or version. Check the document before continuing.');job.trackReading=!saved;}
+            else if(saved&&saved.pages===pdf.numPages&&validReading(saved)){job.resume=saved;resumeLabels();resume.hidden=false;}
+            else{if(saved)storeReading(key,null);job.trackReading=true;}
             pageInput.max=String(job.pdf.numPages);await draw();
         }catch(error){if(!['PasswordException','InvalidPDFException','AbortException'].includes(error.name)&&pdfLibrary===libraryRequest)pdfLibrary=null;if(live()){retry.hidden=false;if(error.name==='PasswordException')message(helper,'PDF memerlukan kata sandi. Buka Pratinjau di Tab Baru untuk membacanya.','This PDF requires a password. Open Preview in New Tab to read it.');else message(helper,'Pembaca PDF belum dapat memuat dokumen. Muat Ulang Pratinjau, buka di tab baru, atau unduh berkas.','The PDF reader could not load this document. Reload Preview, open it in a new tab, or download the file.');}}
     }
@@ -168,6 +181,10 @@
             if(mime!=='application/pdf'){const viewer=document.createElement('img');viewer.className='document-renderer';viewer.src=url;viewer.alt=t('Pratinjau: ','Preview: ')+name;panel.insertBefore(viewer,helper);}actions.append(open);
         }
         actions.append(download);panel.insertBefore(actions,helper);
+        if(context?.pageRef&&mime!=='application/pdf'){
+            const status=document.createElement('p');status.className='field-helper pdf-reference-status';status.dataset.pdfReferenceStatus='';status.setAttribute('role','status');
+            message(status,'Rujukan halaman ini memerlukan PDF yang diperiksa. Isi berkas sekarang bukan PDF.','This page reference requires the reviewed PDF. The current file is not a PDF.');panel.insertBefore(status,helper);
+        }
         message(helper,...(canPreview?['Periksa isi dokumen. Jika penampil kosong, gunakan Buka Pratinjau di Tab Baru atau Unduh Berkas.','Check the document contents. If the viewer is blank, use Open Preview in New Tab or Download File.']:['Format Word atau arsip dibuka melalui aplikasi di perangkat Anda. Pilih Unduh Berkas.','Word documents and archives open in an app on your device. Select Download File.']));
         if(mime==='application/pdf')pdfPreview(panel,url,name,context);
     }
@@ -199,5 +216,5 @@
         render(el.querySelector('.local-preview-content'),url,mime,file.name);el.showModal();
     }
     document.addEventListener('click',event=>{const button=event.target.closest('[data-local-preview]');if(button)previewLocal(button.dataset.localPreview,Number(button.dataset.localPreviewIndex||0)).catch(error=>showToast(error.message,'error'));});
-    window.IPCOSDocuments={render,reset,trustedMime,clearLocal,clearReading,languageChanged:()=>{jobs.forEach(job=>job.translate?.());document.querySelectorAll('[data-document-id]').forEach(node=>{node.textContent=t(node.dataset.documentId,node.dataset.documentEn);if(node.dataset.documentAria)node.setAttribute('aria-label',node.textContent);});}};
+    window.IPCOSDocuments={render,reset,trustedMime,clearLocal,clearReading,currentPage:panel=>jobs.get(panel)?.capture?.()||null,languageChanged:()=>{jobs.forEach(job=>job.translate?.());document.querySelectorAll('[data-document-id]').forEach(node=>{node.textContent=t(node.dataset.documentId,node.dataset.documentEn);if(node.dataset.documentAria)node.setAttribute('aria-label',node.textContent);});}};
 })();

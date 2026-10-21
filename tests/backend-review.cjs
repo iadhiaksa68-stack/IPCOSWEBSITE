@@ -17,6 +17,49 @@ test('Wrong files, duplicates, invalid labels/statuses and missing correction re
     const original=f.rows[1][8];for(const change of [{url:'https://evil.example/private.pdf'},{label:'Injected'},{status:'Accepted'},{status:'revision',note:''},{note:'x'.repeat(2001)}])assert.throws(()=>f.ctx.nextDispatch({...review(),reviews:[{...review().reviews[0],...change}]}));
     assert.throws(()=>f.ctx.nextDispatch({...review(),reviews:[review().reviews[0],review().reviews[0]]}));assert.equal(f.rows[1][8],original);
 });
+const pageReference=(overrides={})=>({page:5,pages:12,fingerprint:'a'.repeat(64),version:1,...overrides});
+const referencedReview=(pageRef=pageReference())=>{const payload=review();payload.reviews[0].pageRef=pageRef;return payload;};
+const plain=value=>JSON.parse(JSON.stringify(value));
+test('PDF page references round-trip to the owning student without changing academic data or reading Drive',()=>{
+    const before=f.rows.map(row=>row.slice()),payload=referencedReview({...pageReference(),extra:'discard this'});
+    const result=f.ctx.nextDispatch(payload);assert.deepEqual(plain(result.reviews[0].pageRef),pageReference());
+    assert.deepEqual(plain(state('student-A').reviews),plain(result.reviews));assert.throws(()=>state('student-B'));
+    assert.deepEqual(JSON.parse(f.rows[1][8]).at(-1).reviews[0].pageRef,pageReference());
+    f.rows[1].forEach((value,i)=>{if(i!==8)assert.equal(value,before[1][i]);});assert.deepEqual(f.rows[2],before[2]);assert.equal(f.state.created.length,0);
+    for(const token of ['admin','student-A'])assert.equal(f.ctx.nextDispatch({action:'get_review_capabilities',token}).notePageReferences,true);
+    assert.throws(()=>f.ctx.nextDispatch({action:'get_review_capabilities',token:''}));
+});
+test('Malformed PDF references, out-of-range pages and mismatched versions fail before any write',()=>{
+    const before=plain(f.rows),invalid=[false,'page 5',[],{},
+        pageReference({page:0}),pageReference({page:1.5}),pageReference({page:'5'}),pageReference({page:13}),pageReference({page:100001,pages:100001}),
+        pageReference({pages:0}),pageReference({pages:12.5}),pageReference({pages:'12'}),pageReference({pages:100001}),
+        pageReference({fingerprint:'a'.repeat(63)}),pageReference({fingerprint:'A'.repeat(64)}),pageReference({fingerprint:'g'.repeat(64)}),pageReference({fingerprint:123}),
+        pageReference({version:0}),pageReference({version:2}),pageReference({version:-1}),pageReference({version:1.5}),pageReference({version:'1'})];
+    for(const pageRef of invalid){assert.throws(()=>f.ctx.nextDispatch(referencedReview(pageRef)),/halaman|Versi/);assert.deepEqual(f.rows,before);assert.equal(f.state.locked,false);}
+});
+test('References use the matched document metadata version and legacy unversioned files use zero',()=>{
+    for(const [index,version] of ['2',0,-1,1.5,'unknown',null].entries()){
+        const logs=JSON.parse(f.rows[1][8]);logs[0].documents[0].version=version;f.rows[1][8]=JSON.stringify(logs);
+        const expected=version==='2'?2:0,payload=referencedReview(pageReference({version:expected}));payload.requestId='reference-version-'+index;
+        assert.equal(f.ctx.nextDispatch(payload).reviews[0].pageRef.version,expected);
+    }
+    f.rows[1][8]=JSON.stringify([{role:'mhs',message:'Legacy submission'}]);
+    assert.equal(f.ctx.nextDispatch(referencedReview(pageReference({version:0}))).reviews[0].pageRef.version,0);
+});
+test('Clearing a reference preserves the review note and unreferenced reviews keep their compatible shape',()=>{
+    f.ctx.nextDispatch(referencedReview());const payload=referencedReview(null);payload.requestId='reference-clear-123';
+    const result=f.ctx.nextDispatch(payload);assert.deepEqual(plain(result.reviews[0]),review().reviews[0]);assert.equal(Object.hasOwn(result.reviews[0],'pageRef'),false);
+    assert.equal(Object.hasOwn(state('student-A').reviews[0],'pageRef'),false);
+    const without=review();without.requestId='reference-unset-123';assert.equal(Object.hasOwn(f.ctx.nextDispatch(without).reviews[0],'pageRef'),false);
+});
+test('Referenced-note retries are idempotent and concurrent or changed references are rejected',()=>{
+    const stale=referencedReview();f.rows[1][5]='Concurrent academic update';assert.throws(()=>f.ctx.nextDispatch(stale),/berubah/);
+    const payload=referencedReview(),before=f.rows[1].slice();f.state.writeThenThrow=true;
+    assert.equal(f.ctx.nextDispatch(payload).status,'success');const count=JSON.parse(f.rows[1][8]).length;
+    assert.deepEqual(plain(f.ctx.nextDispatch(payload).reviews[0].pageRef),pageReference());assert.equal(JSON.parse(f.rows[1][8]).length,count);
+    for(const change of [{page:6},{fingerprint:'b'.repeat(64)},{version:0}])assert.throws(()=>f.ctx.nextDispatch({...payload,reviews:[{...payload.reviews[0],pageRef:pageReference(change)}]}),/berbeda/);
+    f.rows[1].forEach((value,i)=>{if(i!==8)assert.equal(value,before[i]);});assert.equal(f.state.locked,false);
+});
 test('Review versions prevent overwriting concurrent updates and old documents do not inherit reviews',()=>{
     const stale=review();f.rows[1][5]='Changed title';assert.throws(()=>f.ctx.nextDispatch(stale),/berubah/);f.ctx.nextDispatch(review());
     const logs=JSON.parse(f.rows[1][8]);logs.push({documents:[{label:'Form ACC Seminar Proposal',url:'https://drive.google.com/file/d/new/view',fileName:'new.pdf',version:2}]});f.rows[1][6]+='<a href="https://drive.google.com/file/d/new/view">New</a>';f.rows[1][8]=JSON.stringify(logs);

@@ -2,12 +2,15 @@
 (() => {
     const t=(id,en)=>uxText(id,en),el=id=>document.getElementById(id);
     const setText=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
-    let supported=null,capEpoch=-1,capPending=null;
+    let supported=null,noteReferences=false,capEpoch=-1,capPending=null;
     let baseRecord=null,editingId='',draft=[],dirty=false,saving=false,archiveBusy=false,retry=null;
     const invalidNotes=new Set(),invalidResults=new Set();
     const logs=item=>{try{const value=JSON.parse(item.note||'[]');return Array.isArray(value)?value:[];}catch(_){return [];}};
     const archive=item=>logs(item).slice().reverse().find(log=>log.kind==='archive')||null;
     const archived=item=>archive(item)?.archived===true;
+    const pageRef=value=>window.IPCOSPageNotes?.normalize(value)||null;
+    const samePage=(left,right)=>window.IPCOSPageNotes?.equal(left,right)??(!left&&!right);
+    const reviewValue=value=>window.IPCOSPageNotes?.review(value)||{url:value.url,label:value.label,status:value.status,note:value.note};
     function documents(item) {
         const metadata=logs(item).flatMap(log=>Array.isArray(log.documents)?log.documents:[]),latest=new Map();
         metadata.forEach(doc=>{if(!latest.has(doc.label)||Number(doc.version)>Number(latest.get(doc.label).version))latest.set(doc.label,doc);});
@@ -16,7 +19,7 @@
     }
     function reviews(item) {
         const previous=logs(item).slice().reverse().find(log=>['document_review','request_type_change'].includes(log.kind))?.reviews||[];
-        return documents(item).map(file=>({...file,status:previous.find(review=>review.url===file.url)?.status||'pending',note:previous.find(review=>review.url===file.url)?.note||''}));
+        return documents(item).map(file=>{const saved=previous.find(review=>review.url===file.url);return {...file,...reviewValue({...file,status:saved?.status||'pending',note:saved?.note||'',pageRef:saved?.pageRef})};});
     }
     const statusName=status=>status==='accepted'?t('Sudah Sesuai','Meets Requirements'):status==='revision'?t('Perlu Perbaikan','Needs Corrections'):t('Belum Diperiksa','Not Reviewed');
     const missingNoteMessage=()=>t('Isi catatan untuk setiap berkas yang perlu diperbaiki.','Write a note for each file needing corrections.');
@@ -59,6 +62,24 @@
         const file=getCaseFiles(item)[index];return file?draft.findIndex(review=>review.url===file.url):-1;
     }
     function nextPending(index){for(let offset=1;offset<=draft.length;offset++){const next=(index+offset+draft.length)%draft.length;if(next!==index&&draft[next].status==='pending')return next;}return -1;}
+    function currentPageReference(index){
+        const item=currentCase(),panel=el('case-file-preview'),review=draft[index];
+        if(!noteReferences||saving||isPreparingReviewDecision||isPreparingCorrection||activeUpdateIds.size||!item||!editable(item)||editingId!==String(item.id)||activeReviewIndex()!==index||!panel||panel.hidden||panel.getAttribute('aria-busy')==='true'||panel.querySelector('.document-comparison'))return null;
+        const current=window.IPCOSDocuments?.currentPage(panel),reference=pageRef(current);
+        if(!reference||String(current.requestId)!==String(item.id)||current.documentUrl!==review?.url||reference.version!==caseDocumentReadingContext(item,review.url).version)return null;
+        return reference;
+    }
+    function syncPageControls(){
+        const root=el('document-review-tools');if(!root)return;
+        root.querySelectorAll('[data-use-pdf-page]').forEach(button=>{const current=currentPageReference(Number(button.dataset.usePdfPage));button.disabled=!current;setText(button,current?t('Gunakan Halaman ','Use Page ')+current.page:t('Gunakan Halaman Ini','Use This Page'));});
+        root.querySelectorAll('[data-pdf-page-reference]').forEach(node=>{const reference=pageRef(draft[Number(node.dataset.pdfPageReference)]?.pageRef);node.hidden=!reference;setText(node,reference?t('Rujukan: Halaman ','Reference: Page ')+reference.page+' / '+reference.pages+(reference.version?t(' · Versi ',' · Version ')+reference.version:''):'');});
+        root.querySelectorAll('[data-remove-pdf-page]').forEach(button=>{button.hidden=!pageRef(draft[Number(button.dataset.removePdfPage)]?.pageRef);button.disabled=saving||isPreparingReviewDecision||isPreparingCorrection||activeUpdateIds.size>0;});
+    }
+    function pageControls(review,index){
+        if(!noteReferences&&!pageRef(review.pageRef))return '';
+        return `<div class="pdf-note-controls">${noteReferences?`<button type="button" id="document-review-use-page-${index}" class="btn-secondary" data-use-pdf-page="${index}" disabled>${t('Gunakan Halaman Ini','Use This Page')}</button>`:''}<p class="field-helper" data-pdf-page-reference="${index}" role="status" hidden></p>${noteReferences?`<button type="button" id="document-review-remove-page-${index}" class="btn-secondary" data-remove-pdf-page="${index}" hidden>${t('Hapus Rujukan','Remove Reference')}</button>`:''}</div>`;
+    }
+    function markChanged(){dirty=true;retry=null;window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);if(el('document-review-feedback'))el('document-review-feedback').textContent=t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.');syncSelection();}
     function reviewView(focusNote=false){
         el('modal-case-detail').dataset.workspaceView='review';syncToggle();
         if(focusNote){const target=el('document-review-note-'+activeReviewIndex())||el('active-review-title');target?.focus({preventScroll:true});target?.scrollIntoView({block:'center',behavior:'instant'});}
@@ -82,7 +103,7 @@
         document.querySelectorAll('#case-detail-content [data-preview-index]').forEach(button=>{
             const doc=files[Number(button.dataset.previewIndex)],review=draft.find(entry=>entry.url===doc?.url),row=button.closest('.case-file-row');
             if(!row)return;let marker=row.querySelector('.review-file-marker');if(!marker){marker=document.createElement('span');marker.className='review-file-marker';row.firstElementChild?.append(marker);}
-            const stored=review&&baseline.get(review.url),changed=dirty&&review&&(review.status!==stored?.status||review.note!==stored?.note);
+            const stored=review&&baseline.get(review.url),changed=dirty&&review&&(review.status!==stored?.status||review.note!==stored?.note||!samePage(review.pageRef,stored?.pageRef));
             setText(marker,review?statusName(review.status)+(changed?t(' · Draf',' · Draft'):''):t('Versi terdahulu','Historical version'));marker.dataset.state=review?.status||'historical';
             button.disabled=saving||!!button.ipcosPendingPreview;
             row.querySelectorAll('[data-compare-label]').forEach(control=>control.disabled=saving);
@@ -90,6 +111,7 @@
         el('case-file-preview')?.querySelectorAll('[data-compare-side]').forEach(control=>control.disabled=saving);
         const actions=el('case-file-preview')?.querySelector('.case-preview-context .button-row');
         if(actions){let button=actions.querySelector('[data-open-active-review]');if(!button){button=document.createElement('button');button.type='button';button.className='btn-secondary';button.dataset.openActiveReview='';actions.append(button);}button.hidden=active<0;button.disabled=saving;button.textContent=canEdit?t('Catat Hasil Pemeriksaan','Record Review Result'):t('Lihat Hasil Pemeriksaan','View Review Results');}
+        syncPageControls();
     }
     function selectFile(index){
         if(currentUser.role!=='admin')return true;
@@ -113,15 +135,17 @@
         if(currentUser.role==='mhs'){root.textContent='';return;}
         if(supported!==true){root.textContent=currentUser.role==='admin'&&supported===false?t('Pemeriksaan per berkas menunggu aktivasi backend. Tindakan pengajuan tetap tersedia.','Per-document reviews are awaiting backend activation. Existing request actions remain available.'):'';return;}
         if(!draft.length){root.textContent='';return;}
-        const preservedControls=preserve?[...root.querySelectorAll('select,textarea')]:[];
+        const pageFocus=preserve&&document.activeElement?.matches('[data-use-pdf-page],[data-remove-pdf-page]')&&root.contains(document.activeElement)?document.activeElement.id:'';
+        const preservedControls=preserve?[...root.querySelectorAll('select,textarea,[data-use-pdf-page],[data-remove-pdf-page]')]:[];
         root.innerHTML=`<h3>${t('Pemeriksaan Per Berkas','Document Review')}</h3><p id="document-review-progress" class="review-progress" role="status"></p>
             <div id="review-select-file"><p class="field-helper">${t('Pilih berkas untuk membuka dokumen dan catatan yang sesuai.','Choose a file to open its document and matching notes.')}</p><button type="button" class="btn-secondary" data-review-start>${canEdit?t('Mulai Pemeriksaan','Start Review'):t('Lihat Hasil Pemeriksaan','View Review Results')}</button></div>
             <div id="active-review-context" hidden><span id="review-file-position" class="field-helper"></span><h4 id="active-review-title" tabindex="-1"></h4><p id="active-review-filename" data-preserve-case></p></div>
             <p id="review-historical" class="field-helper" hidden>${t('Catatan baru hanya untuk versi terbaru. Pilih berkas terbaru pada daftar untuk melanjutkan.','New notes apply only to the latest version. Choose the latest file in the list to continue.')}</p>`+
-            draft.map((review,index)=>canEdit?`<div class="document-review-item" data-review-item="${index}" hidden><label for="document-review-status-${index}">${t('Hasil Pemeriksaan','Review Result')}</label><select id="document-review-status-${index}" data-review-status="${index}" ${saving?'disabled':''}>${['pending','accepted','revision'].map(status=>`<option value="${status}" ${status===review.status?'selected':''}>${statusName(status)}</option>`).join('')}</select><label for="document-review-note-${index}">${t('Catatan Berkas','File Notes')} · ${escapeHtml(documentText(review.label))}</label><textarea id="document-review-note-${index}" data-review-note="${index}" rows="4" maxlength="2000" ${saving?'disabled':''} placeholder="${t('Wajib jika perlu perbaikan','Required when corrections are needed')}">${escapeHtml(review.note)}</textarea></div>`:`<div class="document-review-result ${review.status==='revision'?'needs-correction':''}" data-review-item="${index}" hidden><strong>${escapeHtml(documentText(review.label))} · ${statusName(review.status)}</strong>${review.note?`<p class="preserve-lines">${escapeHtml(review.note)}</p>`:''}</div>`).join('')+
+            draft.map((review,index)=>canEdit?`<div class="document-review-item" data-review-item="${index}" hidden><label for="document-review-status-${index}">${t('Hasil Pemeriksaan','Review Result')}</label><select id="document-review-status-${index}" data-review-status="${index}" ${saving?'disabled':''}>${['pending','accepted','revision'].map(status=>`<option value="${status}" ${status===review.status?'selected':''}>${statusName(status)}</option>`).join('')}</select><label for="document-review-note-${index}">${t('Catatan Berkas','File Notes')} · ${escapeHtml(documentText(review.label))}</label><textarea id="document-review-note-${index}" data-review-note="${index}" rows="4" maxlength="2000" ${saving?'disabled':''} placeholder="${t('Wajib jika perlu perbaikan','Required when corrections are needed')}">${escapeHtml(review.note)}</textarea>${pageControls(review,index)}</div>`:`<div class="document-review-result ${review.status==='revision'?'needs-correction':''}" data-review-item="${index}" hidden><strong>${escapeHtml(documentText(review.label))} · ${statusName(review.status)}</strong>${review.note?`<p class="preserve-lines">${escapeHtml(review.note)}</p>`:''}${window.IPCOSPageNotes?.link(item,review.url,review.pageRef)||''}</div>`).join('')+
             (canEdit?`<div id="review-save-actions" hidden><p class="field-helper">${t('Menyimpan seluruh hasil yang Anda ubah. Pengajuan tetap menunggu tindakan admin.','Saves all changed review results. The request still awaits an admin action.')}</p><div class="review-file-actions"><button type="button" id="review-save-next" class="btn-primary" data-save-next-review></button><button type="button" class="btn-secondary" data-save-document-review ${saving?'disabled':''}>${saving?t('Menyimpan…','Saving…'):t('Simpan Pemeriksaan','Save Review')}</button></div></div><button type="button" class="text-link" data-reload-document-review>${t('Muat Ulang Pemeriksaan','Reload Review')}</button><p id="admin-review-draft-status" class="field-helper" role="status"></p><p id="document-review-feedback" class="field-helper" role="status">${dirty?t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.'):''}</p>`:'');
-        for(const control of preservedControls){const replacement=document.getElementById(control.id);if(!replacement)continue;if(control.tagName==='SELECT')[...control.options].forEach(option=>option.textContent=statusName(option.value));else control.placeholder=replacement.placeholder;replacement.replaceWith(control);}
+        for(const control of preservedControls){const replacement=document.getElementById(control.id);if(!replacement)continue;if(control.tagName==='SELECT')[...control.options].forEach(option=>option.textContent=statusName(option.value));else if(control.tagName==='TEXTAREA')control.placeholder=replacement.placeholder;else control.textContent=replacement.textContent;replacement.replaceWith(control);}
         if(canEdit)refreshNoteFeedback();syncSelection();
+        const focusedPage=pageFocus&&el(pageFocus);if(focusedPage&&!focusedPage.disabled&&focusedPage.getClientRects().length)focusedPage.focus({preventScroll:true});
     }
     async function saveAndNext(){
         const index=activeReviewIndex(),item=currentCase();if(!item||!editable(item)||saving||index<0)return;
@@ -138,7 +162,7 @@
         if(isOffline)throw new Error(t('Simpan pemeriksaan setelah koneksi kembali.','Save the review when the connection is restored.'));
         invalidNotes.clear();invalidResults.clear();draft.forEach((review,index)=>{if(review.status==='revision'&&!review.note.trim())invalidNotes.add(index);});refreshNoteFeedback();
         if(invalidNotes.size){openReview([...invalidNotes][0],true);throw new Error(missingNoteMessage());}
-        const epoch=sessionEpoch,id=String(item.id),snapshot=JSON.stringify(draft.map(({url,label,status,note})=>({url,label,status,note})));
+        const epoch=sessionEpoch,id=String(item.id),snapshot=JSON.stringify(draft.map(reviewValue));
         saving=true;syncSelection();activeUpdateIds.add(id);window.IPCOSReview?.actionsChanged();
         el('document-review-tools')?.querySelectorAll('input,select,textarea,button').forEach(control=>control.disabled=true);
         try {
@@ -147,7 +171,7 @@
             window.IPCOSAdminDrafts?.rememberReview(item,baseRecord,draft,retry);
             const result=await api(retry.payload,epoch);
             let confirmation;try{confirmation=JSON.parse(result.note).slice().reverse().find(log=>log.kind==='document_review')?.reviews;}catch(_){}
-            if(!Array.isArray(confirmation)||JSON.parse(snapshot).some(review=>!confirmation.some(saved=>saved&&saved.url===review.url&&saved.label===review.label.trim()&&saved.status===review.status&&saved.note===review.note.trim())))throw new Error(t('Konfirmasi pemeriksaan belum lengkap. Catatan tetap tersedia; coba simpan lagi.','The review confirmation is incomplete. Your notes remain available; try saving again.'));
+            if(!Array.isArray(confirmation)||JSON.parse(snapshot).some(review=>!confirmation.some(saved=>saved&&saved.url===review.url&&saved.label===review.label.trim()&&saved.status===review.status&&saved.note===review.note.trim()&&samePage(saved.pageRef,review.pageRef))))throw new Error(t('Konfirmasi pemeriksaan belum lengkap. Catatan tetap tersedia; coba simpan lagi.','The review confirmation is incomplete. Your notes remain available; try saving again.'));
             const stored=updateNote(id,result.note,result.version);if(editingId!==id||selectedCaseId!==id)return false;
             baseRecord={...stored};draft=reviews(baseRecord);dirty=false;retry=null;
             draft.forEach((review,index)=>{const note=el('document-review-note-'+index);if(note&&note.value!==review.note)note.value=review.note;});
@@ -169,7 +193,7 @@
     function decisionState() {
         const item=currentCase(),active=item&&editingId===String(item.id)&&supported===true;
         const baseline=new Map(reviews(active?baseRecord:item||{}).map(review=>[review.url,review]));
-        return {available:supported===true,dirty:!!active&&dirty,files:(active?draft:item?reviews(item):[]).map(review=>({...review,dirty:!!active&&dirty&&(review.status!==baseline.get(review.url)?.status||review.note!==baseline.get(review.url)?.note)}))};
+        return {available:supported===true,dirty:!!active&&dirty,files:(active?draft:item?reviews(item):[]).map(review=>({...review,dirty:!!active&&dirty&&(review.status!==baseline.get(review.url)?.status||review.note!==baseline.get(review.url)?.note||!samePage(review.pageRef,baseline.get(review.url)?.pageRef))}))};
     }
     function validateDecision(action) {
         if(currentUser.role!=='admin'||supported!==true)return;
@@ -230,14 +254,18 @@
     }
     function refresh(){
         renderArchives();if(!['admin','mhs'].includes(currentUser.role)||capEpoch===sessionEpoch||capPending)return;
-        const epoch=sessionEpoch;capPending=api({action:'get_review_capabilities'},epoch).then(result=>{if(epoch!==sessionEpoch)return;supported=result.documentReviewSupported===true&&result.archiveSupported===true;capEpoch=epoch;}).catch(error=>{if(epoch===sessionEpoch&&!error.staleSession){supported=false;capEpoch=epoch;}}).finally(()=>{if(epoch!==sessionEpoch)return;capPending=null;renderArchives();const item=currentCase();if(item&&el('modal-case-detail').style.display==='flex'){renderReviews(item,true);window.IPCOSAdminDrafts?.offer(item);}});
+        const epoch=sessionEpoch;capPending=api({action:'get_review_capabilities'},epoch).then(result=>{if(epoch!==sessionEpoch)return;supported=result.documentReviewSupported===true&&result.archiveSupported===true;noteReferences=supported&&result.notePageReferences===true;capEpoch=epoch;}).catch(error=>{if(epoch===sessionEpoch&&!error.staleSession){supported=false;noteReferences=false;capEpoch=epoch;}}).finally(()=>{if(epoch!==sessionEpoch)return;capPending=null;renderArchives();const item=currentCase();if(item&&el('modal-case-detail').style.display==='flex'){renderReviews(item,true);window.IPCOSAdminDrafts?.offer(item);}});
     }
     document.addEventListener('input',event=>{
         if(event.target.matches('[data-review-status],[data-review-note]')){const index=Number(event.target.dataset.reviewStatus??event.target.dataset.reviewNote),key=event.target.hasAttribute('data-review-status')?'status':'note';if(!saving&&draft[index]){draft[index][key]=event.target.value;dirty=true;retry=null;window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);el('document-review-feedback').textContent=t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.');setFieldError('document-review-status-'+index,'');refreshNoteFeedback();syncSelection();}}
         if(event.target.closest('#admin-archives'))renderArchives();
     });
+    document.addEventListener('ipcos:pdf-position',syncPageControls);
     document.addEventListener('click',event=>{
         const save=event.target.closest('[data-save-document-review]'),toggle=event.target.closest('button[data-workspace-view]'),restore=event.target.closest('[data-restore-request]');
+        const usePage=event.target.closest('[data-use-pdf-page]'),removePage=event.target.closest('[data-remove-pdf-page]');
+        if(usePage){const index=Number(usePage.dataset.usePdfPage),reference=currentPageReference(index);if(reference&&!samePage(reference,draft[index]?.pageRef)){draft[index].pageRef=reference;markChanged();}}
+        if(removePage){const index=Number(removePage.dataset.removePdfPage);if(noteReferences&&!saving&&!isPreparingReviewDecision&&!isPreparingCorrection&&!activeUpdateIds.size&&editable(currentCase())&&editingId===String(currentCase()?.id)&&activeReviewIndex()===index&&draft[index]?.pageRef){delete draft[index].pageRef;markChanged();}}
         if(event.target.closest('[data-review-start]'))openReview(draft.findIndex(review=>review.status==='pending')<0?0:draft.findIndex(review=>review.status==='pending'));
         if(event.target.closest('[data-open-active-review]'))reviewView(true);
         if(event.target.closest('[data-save-next-review]'))saveAndNext().catch(error=>{if(!error.staleSession&&el('document-review-feedback'))el('document-review-feedback').textContent=systemText(error.message);});
@@ -247,8 +275,12 @@
         if(restore)restoreRequest(restore.dataset.restoreRequest);
         if(event.target.closest('#archive-period-button'))archivePeriod();
     });
-    window.addEventListener('ipcos:logout',()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;invalidNotes.clear();invalidResults.clear();el('archive-list')?.replaceChildren();});
-    function historyHtml(log){if(log.kind==='document_review'&&Array.isArray(log.reviews))return log.reviews.map(review=>`<p class="preserve-lines"><strong>${escapeHtml(documentText(review.label))} · ${statusName(review.status)}</strong>${review.note?' · '+escapeHtml(review.note):''}</p>`).join('');return log.kind==='archive'&&log.reason?`<p>${t('Alasan: ','Reason: ')}${escapeHtml(log.reason)}</p>`:'';}
-    function restoreDraft(values,savedRetry){if(currentUser.role!=='admin'||saving||!Array.isArray(values))return;draft=draft.map(file=>{const saved=values.find(value=>value.url===file.url&&value.label===file.label);return saved&&['pending','accepted','revision'].includes(saved.status)?{...file,status:saved.status,note:String(saved.note||'').slice(0,2000)}:file;});dirty=true;retry=savedRetry;draft.forEach((review,index)=>{const note=el('document-review-note-'+index),status=el('document-review-status-'+index);if(note)note.value=review.note;if(status)status.value=review.status;});renderReviews(currentCase(),true);if(activeReviewIndex()<0)openReview(draft.findIndex(review=>review.note||review.status!=='pending')<0?0:draft.findIndex(review=>review.note||review.status!=='pending'),true);window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);}
-    window.IPCOSReviewTools={version,selectFile,discardLocal:()=>{dirty=false;retry=null;editingId='';draft=[];baseRecord=null;invalidNotes.clear();invalidResults.clear();},restoreDraft,supported:()=>supported,decisionState,validateDecision,refresh,historyHtml,opened,previewReady,prepareDecision,beforeDecision,archived,renderArchives,dirty:()=>dirty&&editingId===selectedCaseId,reset:()=>{supported=null;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;invalidNotes.clear();invalidResults.clear();}};
+    window.addEventListener('ipcos:logout',()=>{supported=null;noteReferences=false;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;invalidNotes.clear();invalidResults.clear();el('archive-list')?.replaceChildren();});
+    function historyHtml(log,item=currentCase()){if(log.kind==='document_review'&&Array.isArray(log.reviews))return log.reviews.map(review=>`<p class="preserve-lines"><strong>${escapeHtml(documentText(review.label))} · ${statusName(review.status)}</strong>${review.note?' · '+escapeHtml(review.note):''}</p>${window.IPCOSPageNotes?.link(item,review.url,review.pageRef)||''}`).join('');return log.kind==='archive'&&log.reason?`<p>${t('Alasan: ','Reason: ')}${escapeHtml(log.reason)}</p>`:'';}
+    function restoreDraft(values,savedRetry){
+        if(currentUser.role!=='admin'||saving||!Array.isArray(values))return;
+        draft=draft.map(file=>{const saved=values.find(value=>value.url===file.url&&value.label===file.label);if(!saved||!['pending','accepted','revision'].includes(saved.status))return file;const {pageRef:previous,...kept}=file;return {...kept,...reviewValue({url:file.url,label:file.label,status:saved.status,note:String(saved.note||'').slice(0,2000),pageRef:saved.pageRef})};});
+        dirty=true;retry=savedRetry;draft.forEach((review,index)=>{const note=el('document-review-note-'+index),status=el('document-review-status-'+index);if(note)note.value=review.note;if(status)status.value=review.status;});renderReviews(currentCase(),true);if(activeReviewIndex()<0)openReview(draft.findIndex(review=>review.note||review.status!=='pending')<0?0:draft.findIndex(review=>review.note||review.status!=='pending'),true);window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);
+    }
+    window.IPCOSReviewTools={version,selectFile,discardLocal:()=>{dirty=false;retry=null;editingId='';draft=[];baseRecord=null;invalidNotes.clear();invalidResults.clear();},restoreDraft,supported:()=>supported,decisionState,validateDecision,refresh,historyHtml,opened,previewReady,prepareDecision,beforeDecision,archived,renderArchives,dirty:()=>dirty&&editingId===selectedCaseId,reset:()=>{supported=null;noteReferences=false;capEpoch=-1;capPending=null;baseRecord=null;editingId='';draft=[];dirty=false;saving=false;archiveBusy=false;retry=null;invalidNotes.clear();invalidResults.clear();}};
 })();

@@ -22,7 +22,7 @@
                 const doc=metadata.slice().reverse().find(doc=>doc.url===file.url),version=Number(doc?.version),versioned=Number.isInteger(version)&&version>0&&typeof doc?.label==='string'&&!!doc.label.trim();
                 const review=reviews.find(review=>review.url===file.url),state=['accepted','revision'].includes(review?.status)?review.status:'pending';
                 const hasName=typeof doc?.fileName==='string'&&!!doc.fileName.trim();
-                return{key:keyFor(item.id,file.url),id:String(item.id),url:file.url,service:String(item.jenis||''),label:String(doc?.label||file.label),name:hasName?doc.fileName:file.label,hasName,version:versioned?version:null,state,note:typeof review?.note==='string'?review.note:'',date:item.date,latest:true};
+                return{key:keyFor(item.id,file.url),id:String(item.id),url:file.url,service:String(item.jenis||''),label:String(doc?.label||file.label),name:hasName?doc.fileName:file.label,hasName,version:versioned?version:null,state,note:typeof review?.note==='string'?review.note:'',pageRef:window.IPCOSPageNotes?.normalize(review?.pageRef)||null,date:item.date,latest:true};
             });
             const latest=new Map();for(const row of rows)if(row.version!==null){const previous=latest.get(row.label);if(!previous||row.version>=previous.version)latest.set(row.label,row);}
             for(const row of rows)if(row.version!==null)row.latest=latest.get(row.label)===row;
@@ -32,7 +32,7 @@
     function current(key){return collect().find(row=>row.key===key);}
     function restoreFocus(key,action='preview'){
         if(!authorized()||!el('student-files').classList.contains('active'))return false;
-        const card=[...el('file-center-list').children].find(node=>node.dataset.filesKey===key),target=card?.querySelector(action==='note'?'summary':`[data-files-action="${action==='request'?'request':'preview'}"]`)||el('file-center-search');
+        const card=[...el('file-center-list').children].find(node=>node.dataset.filesKey===key),target=card?.querySelector(action==='note'?'summary':action==='page'?'[data-open-note-page]':`[data-files-action="${action==='request'?'request':'preview'}"]`)||card?.querySelector('[data-files-action="preview"]')||el('file-center-search');
         target?.focus({preventScroll:true});return !!target;
     }
     function closeReader(focus=true){
@@ -42,7 +42,7 @@
         const dialog=el('file-center-reader');if(dialog?.open)dialog.close();
         el('file-center-preview')?.replaceChildren(Object.assign(document.createElement('p'),{className:'field-helper'}));
         el('file-center-reader-title').textContent='';el('file-center-reader-context').textContent='';el('file-center-reader-message').textContent='';el('file-center-reader-retry').hidden=true;
-        if(focus&&previous?.owner===identity())restoreFocus(previous.key);
+        if(focus&&previous?.owner===identity())restoreFocus(previous.key,previous.pageRef?'page':'preview');
     }
     function readerLabels(){
         const row=reader&&current(reader.key);if(!reader||!row)return;
@@ -54,12 +54,13 @@
         const external=el('file-center-preview').querySelector('[data-files-external]');if(external)external.textContent=t('Buka Sumber Berkas','Open File Source');
         window.IPCOSDocuments?.languageChanged();
     }
-    async function open(key,retry=false){
+    async function open(key,retry=false,pageRef=null){
         const row=current(key);if(!row||!el('student-files').classList.contains('active')||caseEditorDirty()||isPreparingCorrection||activeUpdateIds.size)return false;
+        const targetPage=window.IPCOSPageNotes?.normalize(pageRef)||null;
         if(reader?.key===key&&reader.phase==='busy')return false;
-        if(reader?.key===key&&!retry&&el('file-center-reader').open)return true;
+        if(reader?.key===key&&!retry&&!targetPage&&el('file-center-reader').open)return true;
         closeReader(false);const run=++generation,epoch=sessionEpoch;
-        reader={key,owner:identity(),phase:isPrivateDriveUrl(row.url)?'busy':'external',blob:''};
+        reader={key,owner:identity(),phase:isPrivateDriveUrl(row.url)?'busy':'external',blob:'',pageRef:targetPage};
         const dialog=el('file-center-reader');dialog.showModal();readerLabels();el('file-center-reader-close').focus({preventScroll:true});
         if(!isPrivateDriveUrl(row.url)){
             const link=document.createElement('a');link.href=row.url;link.target='_blank';link.rel='noopener noreferrer';link.className='btn-secondary';link.dataset.filesExternal='';el('file-center-preview').prepend(link);readerLabels();return true;
@@ -73,7 +74,7 @@
             const name=String(result.fileName||row.name).replace(/[\\/\x00-\x1f]/g,'_'),mime=window.IPCOSDocuments.trustedMime(bytes,String(result.mimeType||'application/octet-stream'),name);
             if(!live())return false;
             reader.blob=URL.createObjectURL(new Blob([bytes],{type:mime}));reader.phase='ready';reader.resolvedName=name;
-            window.IPCOSDocuments.render(el('file-center-preview'),reader.blob,mime,name,{requestId:row.id,documentUrl:row.url,version:row.version||0});readerLabels();return true;
+            window.IPCOSDocuments.render(el('file-center-preview'),reader.blob,mime,name,{requestId:row.id,documentUrl:row.url,version:row.version||0,pageRef:targetPage});readerLabels();return true;
         }catch(error){if(live()){reader.phase='error';readerLabels();}return false;}
     }
     function visit(key){
@@ -85,7 +86,8 @@
     function card(row){
         const version=row.version===null?t('Versi belum tercatat','Version not recorded'):t('Versi','Version')+' '+row.version+(row.latest?' · '+t('Terbaru','Latest'):' · '+t('Sebelumnya','Previous'));
         const validDate=Number.isFinite(displayDate(row.date).getTime());
-        return `<article class="file-center-card" data-files-key="${safe(row.key)}"><div class="file-center-card-top"><span class="file-center-service">${safe(serviceLabel(row.service)||t('Layanan Lain','Other Service'))}</span><span class="file-center-state" data-state="${row.state}">${safe(statusLabel(row.state))}</span></div><h2>${safe(row.hasName?row.name:documentText(row.label))}</h2>${row.hasName?`<p class="file-center-label">${safe(documentText(row.label))}</p>`:''}<p class="file-center-version">${safe(version)}</p><dl><dt>${t('Pengajuan','Request')}</dt><dd>${safe(row.id)}</dd><dt>${t('Tanggal Pengajuan','Request Date')}</dt><dd>${validDate?safe(formatDate(row.date)):t('Belum tercatat','Not recorded')}</dd></dl>${row.note?`<details class="file-center-note"><summary>${t('Catatan Pemeriksaan','Review Notes')}</summary><p>${safe(row.note)}</p></details>`:''}<div class="file-center-card-actions"><button type="button" class="btn-primary" data-files-action="preview">${t('Lihat Berkas','View File')}</button><button type="button" class="btn-secondary" data-files-action="request">${t('Pengajuan Asal','Original Request')}</button></div></article>`;
+        const reference=window.IPCOSPageNotes?.link({id:row.id},row.url,row.pageRef)||'';
+        return `<article class="file-center-card" data-files-key="${safe(row.key)}"><div class="file-center-card-top"><span class="file-center-service">${safe(serviceLabel(row.service)||t('Layanan Lain','Other Service'))}</span><span class="file-center-state" data-state="${row.state}">${safe(statusLabel(row.state))}</span></div><h2>${safe(row.hasName?row.name:documentText(row.label))}</h2>${row.hasName?`<p class="file-center-label">${safe(documentText(row.label))}</p>`:''}<p class="file-center-version">${safe(version)}</p><dl><dt>${t('Pengajuan','Request')}</dt><dd>${safe(row.id)}</dd><dt>${t('Tanggal Pengajuan','Request Date')}</dt><dd>${validDate?safe(formatDate(row.date)):t('Belum tercatat','Not recorded')}</dd></dl>${row.note||reference?`<details class="file-center-note"><summary>${t('Catatan Pemeriksaan','Review Notes')}</summary>${row.note?`<p>${safe(row.note)}</p>`:''}${reference}</details>`:''}<div class="file-center-card-actions"><button type="button" class="btn-primary" data-files-action="preview">${t('Lihat Berkas','View File')}</button><button type="button" class="btn-secondary" data-files-action="request">${t('Pengajuan Asal','Original Request')}</button></div></article>`;
     }
     function render(){
         if(!authorized()){reset();return;}
@@ -104,7 +106,7 @@
         const needle=normalize(query).split(' ').filter(Boolean),filtered=base.filter(row=>(!service||row.service===service)&&(status==='all'||row.state===status)&&needle.every(word=>normalize([row.name,row.label,documentText(row.label),row.id,row.service,serviceLabel(row.service)].join(' ')).includes(word)));
         set('file-center-count',t(`${filtered.length} berkas ditemukan`,`${filtered.length} files found`));
         const list=el('file-center-list'),html=filtered.slice(0,limit).map(card).join('');
-        if(signature!==html){const active=document.activeElement,key=active?.closest('[data-files-key]')?.dataset.filesKey,action=active?.dataset.filesAction||(active?.matches('summary')?'note':undefined);const opened=new Set([...list.querySelectorAll('details[open]')].map(node=>node.closest('[data-files-key]').dataset.filesKey));list.innerHTML=html;signature=html;for(const node of list.querySelectorAll('details'))if(opened.has(node.closest('[data-files-key]').dataset.filesKey))node.open=true;if(key)restoreFocus(key,action);}
+        if(signature!==html){const active=document.activeElement,key=active?.closest('[data-files-key]')?.dataset.filesKey,action=active?.dataset.filesAction||(active?.matches('[data-open-note-page]')?'page':active?.matches('summary')?'note':undefined);const opened=new Set([...list.querySelectorAll('details[open]')].map(node=>node.closest('[data-files-key]').dataset.filesKey));list.innerHTML=html;signature=html;for(const node of list.querySelectorAll('details'))if(opened.has(node.closest('[data-files-key]').dataset.filesKey))node.open=true;if(key)restoreFocus(key,action);}
         el('file-center-more').hidden=filtered.length<=limit;el('file-center-empty').hidden=!!filtered.length;
         set('file-center-empty-title',all.length?t('Tidak Ada Berkas yang Cocok','No Matching Files'):t('Belum Ada Berkas Terkirim','No Submitted Files Yet'));
         set('file-center-empty-description',all.length?t('Ubah pencarian atau reset filter untuk melihat berkas lainnya.','Change your search or reset the filters to see other files.'):t('Berkas akan muncul setelah terlampir pada pengajuan Anda. Lihat pengajuan untuk memeriksa kelengkapannya.','Files appear after they are attached to your requests. Open your requests to check their completeness.'));
@@ -123,13 +125,17 @@
         const dialog=document.createElement('dialog');dialog.id='file-center-reader';dialog.className='overlay-dialog';dialog.dataset.preserveCase='';dialog.setAttribute('aria-labelledby','file-center-reader-title');
         dialog.innerHTML='<section class="modal-card"><header class="file-center-reader-heading"><div><h2 id="file-center-reader-title"></h2><p id="file-center-reader-context"></p></div><button type="button" class="btn-secondary" id="file-center-reader-close"></button></header><p id="file-center-reader-message" role="status"></p><div id="file-center-preview"><p class="field-helper"></p></div><footer class="file-center-reader-footer"><button type="button" class="btn-secondary" id="file-center-reader-retry" hidden></button><button type="button" class="btn-secondary" id="file-center-reader-request"></button></footer></section>';
         document.body.append(dialog);dialog.addEventListener('cancel',event=>{event.preventDefault();closeReader();});dialog.addEventListener('close',()=>{if(reader&&!dialog.open)closeReader();});
-        el('file-center-reader-close').addEventListener('click',()=>closeReader());el('file-center-reader-request').addEventListener('click',()=>reader&&visit(reader.key));el('file-center-reader-retry').addEventListener('click',()=>reader&&open(reader.key,true));
+        el('file-center-reader-close').addEventListener('click',()=>closeReader());el('file-center-reader-request').addEventListener('click',()=>reader&&visit(reader.key));el('file-center-reader-retry').addEventListener('click',()=>reader&&open(reader.key,true,reader.pageRef));
         el('file-center-search').addEventListener('input',()=>{query=el('file-center-search').value;limit=24;render();});
         el('file-center-service').addEventListener('change',()=>{service=el('file-center-service').value;limit=24;render();});el('file-center-status').addEventListener('change',()=>{status=el('file-center-status').value;limit=24;render();});el('file-center-older').addEventListener('change',()=>{older=el('file-center-older').checked;limit=24;render();});
         el('file-center-reset').addEventListener('click',()=>{query='';service='';status='all';older=false;limit=24;el('file-center-search').value='';render();el('file-center-search').focus();});
         el('file-center-more').addEventListener('click',()=>{const index=limit;limit+=24;render();el('file-center-list').children[index]?.querySelector('button')?.focus();});
         el('file-center-empty-action').addEventListener('click',()=>{if(!authorized())return;if(collect().length)el('file-center-reset').click();else switchTab(null,'student-status');});
-        page.addEventListener('click',event=>{const button=event.target.closest('[data-files-action]'),key=button?.closest('[data-files-key]')?.dataset.filesKey;if(!key)return;if(button.dataset.filesAction==='preview')open(key);else if(button.dataset.filesAction==='request')visit(key);});
+        page.addEventListener('click',event=>{
+            const reference=event.target.closest('[data-open-note-page]');
+            if(reference){event.preventDefault();const key=reference.closest('[data-files-key]')?.dataset.filesKey,row=key&&current(key),target=window.IPCOSPageNotes?.fromButton(reference);if(row&&target&&String(target.id)===row.id&&target.url===row.url)open(key,false,target.pageRef);return;}
+            const button=event.target.closest('[data-files-action]'),key=button?.closest('[data-files-key]')?.dataset.filesKey;if(!key)return;if(button.dataset.filesAction==='preview')open(key);else if(button.dataset.filesAction==='request')visit(key);
+        });
         document.addEventListener('ipcos:logout',reset);window.addEventListener('ipcos:logout',reset);
     }
     window.IPCOSFileCenter=Object.freeze({render,reset,open,visit,restoreFocus,beforeNavigate:()=>closeReader(false)});setup();

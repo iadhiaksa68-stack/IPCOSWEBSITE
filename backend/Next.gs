@@ -130,7 +130,7 @@ function nextDispatch(data) {
   const session=getSession(data.token); if(!session || !['mhs','admin'].includes(session.role)) throw new Error('Sesi tidak valid atau berakhir.');
   if(INTERNATIONAL_ACTIONS.includes(data.action))return internationalDispatch(session,data);
   if(ACADEMIC_ACTIONS.includes(data.action))return academicDispatch(session,data);
-  if(data.action==='get_review_capabilities')return {status:'success',documentReviewSupported:true,archiveSupported:true};
+  if(data.action==='get_review_capabilities')return {status:'success',documentReviewSupported:true,archiveSupported:true,notePageReferences:true};
   if(data.action==='get_form_draft') { nextOwner(session);return {status:'success',draft:nextDraftRead(session.nim)}; }
   if(data.action==='save_form_draft') return nextDraftSave(session,data);
   if(data.action==='get_revision_form') return nextRevisionForm(session,data);
@@ -161,6 +161,13 @@ function nextReviewState(item) {
   const review=last&&Array.isArray(last.reviews)?last.reviews.filter(review=>links.includes(review.url)&&(!latest.has(review.label)||latest.get(review.label).url===review.url)):[];
   return {version:nextRevisionVersion(item),reviews:review,archived:!!(archive&&archive.archived),archive:archive||null};
 }
+function nextReviewPageReference(value,document) {
+  if(value===undefined||value===null)return null;
+  if(typeof value!=='object'||Array.isArray(value)||!Number.isInteger(value.page)||!Number.isInteger(value.pages)||value.page<1||value.pages<1||value.page>100000||value.pages>100000||value.page>value.pages||typeof value.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(value.fingerprint)||!Number.isInteger(value.version)||value.version<0)throw new Error('Rujukan halaman PDF tidak valid. Pilih ulang halaman pada berkas.');
+  const version=Number(document&&document.version),currentVersion=Number.isInteger(version)&&version>0&&typeof (document&&document.label)==='string'&&document.label.trim()?version:0;
+  if(value.version!==currentVersion)throw new Error('Versi berkas rujukan halaman berubah. Pilih ulang halaman pada berkas terbaru.');
+  return {page:value.page,pages:value.pages,fingerprint:value.fingerprint,version:value.version};
+}
 function nextReviewDispatch(session,data) {
   if(data.action==='get_document_review') {const record=nextReviewRow(session,data.id);return Object.assign({status:'success'},nextReviewState(record.item));}
   if(session.role!=='admin')throw new Error('Hanya admin dapat menyimpan pemeriksaan atau mengelola arsip.');
@@ -185,7 +192,9 @@ function nextReviewDispatch(session,data) {
         if(doc&&doc.label!==label)throw new Error('Jenis berkas pemeriksaan tidak cocok.');
         const latest=metadata.filter(doc=>doc.label===label).sort((a,b)=>Number(b.version)-Number(a.version))[0];
         if(latest&&latest.url!==review.url)throw new Error('Periksa versi berkas terbaru.');
-        return {url:review.url,label:label,status:review.status,note:note};
+        const result={url:review.url,label:label,status:review.status,note:note},pageRef=nextReviewPageReference(review.pageRef,doc);
+        if(pageRef)result.pageRef=pageRef;
+        return result;
       });event.message='Pemeriksaan per berkas disimpan.';
     } else {
       if(String(item.status)!=='Accepted')throw new Error('Hanya pengajuan selesai yang dapat diarsipkan atau dipulihkan.');

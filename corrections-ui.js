@@ -5,17 +5,20 @@
     const names={title:['Judul','Title'],oldSupervisor:['Dosen sekarang','Current supervisor'],newSupervisor:['Usulan dosen','Proposed supervisor'],reason:['Alasan','Reason']};
     const snapshot=item=>JSON.stringify([item.id,item.status,item.note,item.link,item.detail]);
     function owned(item){return item&&currentUser.role==='mhs'&&getSessionToken()&&isStudentOwner(item)&&String(item.status).toLowerCase()==='revision';}
-    function notes(item,label){
-        let logs=[];try{logs=JSON.parse(item.note||'[]');}catch(_){}if(!Array.isArray(logs))return '';
+    function fileReview(item,label){
+        let logs=[];try{logs=JSON.parse(item.note||'[]');}catch(_){}if(!Array.isArray(logs))return null;
         const metadata=logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]).filter(doc=>doc.label===label).sort((a,b)=>Number(b.version)-Number(a.version));
         const files=getCaseFiles(item),url=metadata.length?files.find(file=>file.url===metadata[0].url)?.url:files.find(file=>file.label.replace(/^📄\s*/,'')===label)?.url;
-        if(!url)return '';
+        if(!url)return null;
         const reviews=logs.slice().reverse().find(log=>['document_review','request_type_change'].includes(log.kind))?.reviews;
-        return Array.isArray(reviews)?String(reviews.find(review=>review.url===url&&review.status==='revision')?.note||''):'';
+        const review=Array.isArray(reviews)?reviews.find(review=>review.url===url&&review.status==='revision'):null;
+        return review?{url,review}:null;
     }
+    function notes(item,label){return String(fileReview(item,label)?.review.note||'');}
+    function pageLink(item,label){const result=fileReview(item,label);return result?(window.IPCOSPageNotes?.link(item,result.url,result.review.pageRef)||''):'';}
     function instructions(item){
         const rev=getRevisionInstructions(item),interactive=owned(item),labels=[...new Set(rev.files)];
-        return `<section class="revision-instructions correction-instructions"><h3>${t('Yang perlu Anda perbaiki','Corrections requested')}</h3><p class="preserve-lines" data-preserve-case>${escapeHtml(rev.instruction)}</p>${labels.map(label=>`<article class="correction-instruction"><h4>${escapeHtml(systemText(label))}</h4>${notes(item,label)?`<p class="preserve-lines" data-preserve-case>${escapeHtml(notes(item,label))}</p>`:''}${interactive?`<button type="button" class="btn-secondary" data-correction-target="${escapeHtml(label)}" aria-label="${escapeHtml(t('Perbaiki ','Correct ')+systemText(label))}">${t('Perbaiki bagian ini','Correct this item')}</button>`:''}</article>`).join('')}</section>`;
+        return `<section class="revision-instructions correction-instructions"><h3>${t('Yang perlu Anda perbaiki','Corrections requested')}</h3><p class="preserve-lines" data-preserve-case>${escapeHtml(rev.instruction)}</p>${labels.map(label=>`<article class="correction-instruction"><h4>${escapeHtml(systemText(label))}</h4>${notes(item,label)?`<p class="preserve-lines" data-preserve-case>${escapeHtml(notes(item,label))}</p>`:''}${pageLink(item,label)}${interactive?`<button type="button" class="btn-secondary" data-correction-target="${escapeHtml(label)}" aria-label="${escapeHtml(t('Perbaiki ','Correct ')+systemText(label))}">${t('Perbaiki bagian ini','Correct this item')}</button>`:''}</article>`).join('')}</section>`;
     }
     function state(){
         const panel=el('case-action-panel'),item=currentCase();if(!panel||panel.hidden||panel.dataset.action!=='reply'||!owned(item))return null;
@@ -32,8 +35,11 @@
             if(!row){const original=input.closest('label');row=document.createElement('div');row.className='correction-task';original.before(row);row.append(original);const hint=document.createElement('p');hint.className='field-helper preserve-lines';hint.dataset.correctionNote='';hint.dataset.preserveCase='';const link=document.createElement('button');link.type='button';link.className='text-link';link.dataset.correctionTarget=requested;row.append(hint,link);}
             const hint=row.querySelector('[data-correction-note]');hint.id='correction-task-note-'+index;
             const note=notes(item,requested);if(note)input.setAttribute('aria-describedby',hint.id);else input.removeAttribute('aria-describedby');
-            row.querySelector('button').setAttribute('aria-label',t('Perbaiki ','Correct ')+systemText(requested));row.querySelector('[data-correction-note]').textContent=note;row.querySelector('[data-correction-note]').hidden=!note;
-            row.querySelector('button').textContent=t('Perbaiki bagian ini','Correct this item');
+            const target=row.querySelector('[data-correction-target]');target.setAttribute('aria-label',t('Perbaiki ','Correct ')+systemText(requested));row.querySelector('[data-correction-note]').textContent=note;row.querySelector('[data-correction-note]').hidden=!note;
+            target.textContent=t('Perbaiki bagian ini','Correct this item');
+            let reference=row.querySelector('[data-correction-page-reference]');const html=pageLink(item,requested);
+            if(!reference&&html){reference=document.createElement('div');reference.dataset.correctionPageReference='';target.before(reference);}
+            if(reference){if(reference.ipcosPageReferenceHtml!==html){const focused=reference.contains(document.activeElement);reference.innerHTML=html;reference.ipcosPageReferenceHtml=html;if(focused)(reference.querySelector('button')||target).focus({preventScroll:true});}reference.hidden=!html;}
         });
         if(current.data.payload&&el('correction-summary'))renderSummary(current,current.data.payload);
         const feedback=el('case-action-feedback');if(feedback?.dataset.correctionNotice==='review'&&el('correction-summary'))feedback.textContent=t('Periksa ringkasan, lalu pilih Konfirmasi & Kirim Perbaikan.','Review the summary, then select Confirm & Send Corrections.');
@@ -77,7 +83,7 @@
     }
     function busy(value){
         const current=state();if(!current)return;
-        if(value){current.data.locks=[...current.panel.querySelectorAll('textarea,select,[name=correction-complete],[data-correction-target],[data-correction-edit]')].map(node=>[node,node.disabled]);current.data.locks.forEach(([node])=>node.disabled=true);}
+        if(value){current.data.locks=[...current.panel.querySelectorAll('textarea,select,[name=correction-complete],[data-correction-target],[data-correction-edit],[data-open-note-page]')].map(node=>[node,node.disabled]);current.data.locks.forEach(([node])=>node.disabled=true);}
         else {current.data.locks?.forEach(([node,disabled])=>{if(node.isConnected)node.disabled=disabled;});delete current.data.locks;}
     }
     document.addEventListener('click',event=>{

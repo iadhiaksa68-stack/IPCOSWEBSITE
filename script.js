@@ -1302,7 +1302,7 @@ function studentFileReviewHtml(item, url) {
     const review=reviews.find(review=>review.url===url);
     if (!review) return '';
     const label=review.status==='revision' ? uxText('Perlu Perbaikan','Needs Corrections') : review.status==='accepted' ? uxText('Sudah Sesuai','Meets Requirements') : uxText('Belum Diperiksa','Not Reviewed');
-    return `<div class="student-file-review ${review.status==='revision'?'needs-correction':''}"><strong>${label}</strong>${review.note ? `<p class="preserve-lines">${escapeHtml(review.note)}</p>` : ''}</div>`;
+    return `<div class="student-file-review ${review.status==='revision'?'needs-correction':''}"><strong>${label}</strong>${review.note ? `<p class="preserve-lines">${escapeHtml(review.note)}</p>` : ''}${window.IPCOSPageNotes?.link(item,url,review.pageRef)||''}</div>`;
 }
 function caseFileListHtml(item) {
     const files = getCaseFiles(item);
@@ -1318,17 +1318,17 @@ function caseFileListHtml(item) {
     return `<h4>${systemText('Versi terbaru')}</h4>`+current.map(html).join('')+(old.length?`<details class="case-history"><summary>${uxText('Versi sebelumnya dan berkas lama','Previous versions & older files')} (${old.length})</summary>`+old.map(html).join('')+'</details>':'');
 }
 
-function previewCaseFile(index,button=null) {
+function previewCaseFile(index,button=null,pageRef=null) {
     const item = readStoredJSON(sessionStorage, 'ipcos_registrations', []).find(item => String(item.id) === selectedCaseId);
     const file = item && getCaseFiles(item)[index];
     if (!file) return;
     if(currentUser.role==='admin'&&window.IPCOSReviewTools?.selectFile(index)===false)return;
-    if (isPrivateDriveUrl(file.url)) return accessCaseDocument(index,true,button);
+    if (isPrivateDriveUrl(file.url)) return accessCaseDocument(index,true,button,pageRef);
     clearCaseBlobUrls(true);
     const preview = document.getElementById('case-file-preview');
     preview.hidden = false;
     window.IPCOSDocuments?.reset(preview);
-    prepareCasePreview(preview,index,file);
+    prepareCasePreview(preview,index,file,pageRef);
     preview.setAttribute('aria-busy','false');
     window.IPCOSReviewTools?.previewReady();
     const helper=preview.querySelector('p');helper.dataset.documentId='Berkas ini berada di situs lain. Pilih Buka Berkas Asli untuk membukanya di tab baru.';helper.dataset.documentEn='This file is hosted on another site. Choose Open Original File to open it in a new tab.';helper.textContent=uxText(helper.dataset.documentId,helper.dataset.documentEn);
@@ -2290,7 +2290,7 @@ function caseTimelineHtml(item) {
     if (!Array.isArray(logs) || !logs.length) return `<p>${uxText('Belum ada catatan.', 'No notes yet.')}</p>`;
     return logs.map(log => `<div class="case-timeline-item"><strong>${escapeHtml(log.sender === 'Sistem' || !log.sender ? uxText('Sistem','System') : log.sender)}</strong>
         <small>${escapeHtml(formatDateTime(log.time || item.date).replace(/<[^>]*>/g, ' '))}</small>
-        <div class="preserve-lines">${localizedSystemNote(log.message || '')}</div>${window.IPCOSNext?.fieldHistory(log) || ''}${window.IPCOSReviewTools?.historyHtml(log) || ''}</div>`).join('');
+        <div class="preserve-lines">${localizedSystemNote(log.message || '')}</div>${window.IPCOSNext?.fieldHistory(log) || ''}${window.IPCOSReviewTools?.historyHtml(log,item) || ''}</div>`).join('');
 }
 
 function openCaseDetail(id, languageRefresh = false) {

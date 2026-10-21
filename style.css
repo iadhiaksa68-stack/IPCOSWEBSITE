@@ -2050,3 +2050,18 @@ body:has(#modal-case-detail[style*="display: flex"]) .toast-container { top:auto
 
 .case-detail-heading h2 { flex:1; margin:0; }
 .case-detail-heading .case-close { width:auto; flex-shrink:0; }
+
+/* PDF references stay beside their notes, with the same controls in both themes. */
+.pdf-note-controls { display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; min-width:0; margin:10px 0; }
+.pdf-note-controls button,.pdf-note-page-link { display:inline-flex; align-items:center; justify-content:center; min-width:0; width:auto; max-width:100%; min-height:44px; height:auto; margin:0; padding:10px 12px; border:1px solid var(--item-border); border-radius:10px; background:var(--item-bg); color:var(--heading-color); font:inherit; font-size:13px; line-height:1.6; white-space:normal; overflow-wrap:anywhere; text-align:center; box-sizing:border-box; }
+.pdf-note-controls button:disabled { cursor:not-allowed; opacity:.65; }
+.pdf-note-controls button:focus-visible,.pdf-note-page-link:focus-visible { outline:2px solid var(--sidebar-active-text); outline-offset:2px; }
+.pdf-note-controls [data-pdf-page-reference] { flex-basis:100%; order:-1; }
+[data-pdf-page-reference] { margin:8px 0; max-width:100%; color:var(--text-muted); font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+.pdf-note-page-link { margin:8px 0; align-self:flex-start; }
+[data-correction-page-reference] { min-width:0; max-width:100%; margin:6px 0; }
+.pdf-reference-status { max-width:100%; padding:10px 12px; margin:12px 0; border:1px solid var(--item-border); border-inline-start:3px solid var(--umy-maroon); border-radius:10px; background:var(--item-bg); color:var(--heading-color); font-size:13px; line-height:1.7; overflow-wrap:anywhere; box-sizing:border-box; }
+@media(max-width:600px) {
+    .pdf-note-controls button { flex:1 1 150px; }
+    .pdf-note-page-link { width:100%; }
+}

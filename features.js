@@ -171,14 +171,14 @@ function caseDocumentReadingContext(item,url) {
     const version=Number(document?.version);
     return {requestId:String(item.id),documentUrl:url,version:Number.isInteger(version)&&version>0&&typeof document?.label==='string'&&document.label.trim()?version:0};
 }
-function prepareCasePreview(panel,index,file) {
+function prepareCasePreview(panel,index,file,pageRef=null) {
     panel.querySelector('.case-preview-context')?.remove();
     const context=document.createElement('div');context.className='case-preview-context';
     const title=document.createElement('h4');title.dataset.preserveCase='';title.textContent=documentText(file.label);
     const actions=document.createElement('div');actions.className='button-row';
     const source=document.createElement('a');source.className='btn-secondary';source.href=file.url;source.target='_blank';source.rel='noopener noreferrer';source.dataset.documentId='Buka Berkas Asli';source.dataset.documentEn='Open Original File';source.textContent=uxText(source.dataset.documentId,source.dataset.documentEn);
     const retry=document.createElement('button');retry.type='button';retry.className='btn-secondary';retry.dataset.casePreviewRetry=String(index);retry.dataset.documentId='Coba Lagi';retry.dataset.documentEn='Try Again';retry.textContent=uxText(retry.dataset.documentId,retry.dataset.documentEn);retry.hidden=true;
-    retry.addEventListener('click',()=>previewCaseFile(index));
+    retry.addEventListener('click',()=>previewCaseFile(index,null,pageRef));
     actions.append(source,retry);context.append(title,actions);panel.prepend(context);
     panel.querySelector('p').setAttribute('role','status');
 }
@@ -192,12 +192,13 @@ function clearCaseBlobUrls(preserveView=false) {
     window.IPCOSDocuments?.clearLocal();
     const modal=document.getElementById('modal-case-detail');if(modal){const view=preserveView&&['admin','mhs'].includes(currentUser.role)?(modal.dataset.workspaceView||'documents'):null;modal.classList.remove('has-document-preview','has-document-comparison');delete modal.dataset.workspaceView;if(view){modal.dataset.workspaceView=view;if(currentUser.role==='mhs')modal.classList.add('has-document-preview');}}
 }
-async function accessCaseDocument(index,preview=false,button=null) {
+async function accessCaseDocument(index,preview=false,button=null,pageRef=null) {
     const item=currentCase(), file=item && getCaseFiles(item)[index];
     if(!file || !isPrivateDriveUrl(file.url)) return;
+    const targetPage=window.IPCOSPageNotes?.normalize(pageRef)||null,referenceSignature=JSON.stringify(targetPage);
     if(preview) {
         button ||= [...document.querySelectorAll('#case-detail-content [data-preview-index]')].find(control=>Number(control.dataset.previewIndex)===index);
-        if(pendingCasePreview?.epoch===sessionEpoch && pendingCasePreview.id===String(item.id) && pendingCasePreview.url===file.url && pendingCasePreview.context===caseDocumentEpoch) {
+        if(pendingCasePreview?.epoch===sessionEpoch && pendingCasePreview.id===String(item.id) && pendingCasePreview.url===file.url && pendingCasePreview.context===caseDocumentEpoch && pendingCasePreview.referenceSignature===referenceSignature) {
             markCasePreviewBusy(pendingCasePreview,button);
             return pendingCasePreview.promise;
         }
@@ -207,11 +208,11 @@ async function accessCaseDocument(index,preview=false,button=null) {
     let previewRequest=null;
     if(preview) {
         let complete; const promise=new Promise(resolve=>complete=resolve);
-        previewRequest={epoch,id,url:file.url,context:contextVersion,buttons:new Map(),promise,complete};
+        previewRequest={epoch,id,url:file.url,context:contextVersion,referenceSignature,buttons:new Map(),promise,complete};
         pendingCasePreview=previewRequest;markCasePreviewBusy(previewRequest,button);
     }
     const panel=document.getElementById('case-file-preview');
-    if(preview) { window.IPCOSDocuments.reset(panel);prepareCasePreview(panel,index,file);panel.hidden=false;panel.setAttribute('aria-busy','true');const helper=panel.querySelector('p');helper.dataset.documentId='Memuat berkas melalui sesi IPCOS…';helper.dataset.documentEn='Loading the file through your IPCOS session…';helper.textContent=uxText(helper.dataset.documentId,helper.dataset.documentEn); panel.querySelector('iframe').src='about:blank'; window.IPCOSReviewTools?.previewReady(); }
+    if(preview) { window.IPCOSDocuments.reset(panel);prepareCasePreview(panel,index,file,targetPage);panel.hidden=false;panel.setAttribute('aria-busy','true');const helper=panel.querySelector('p');helper.dataset.documentId='Memuat berkas melalui sesi IPCOS…';helper.dataset.documentEn='Loading the file through your IPCOS session…';helper.textContent=uxText(helper.dataset.documentId,helper.dataset.documentEn); panel.querySelector('iframe').src='about:blank'; window.IPCOSReviewTools?.previewReady(); }
     if(button && !preview) button.disabled=true;
     try {
         const response=await apiPost(GAS_URL,{method:'POST',body:JSON.stringify({action:'get_document',id,url:file.url}),headers:{'Content-Type':'text/plain;charset=utf-8'}});
@@ -225,7 +226,7 @@ async function accessCaseDocument(index,preview=false,button=null) {
         const url=URL.createObjectURL(new Blob([bytes],{type:mime})); caseBlobUrls.add(url);
         const name=String(result.fileName || 'dokumen').replace(/[\\/\x00-\x1f]/g,'_');
         if(preview) {
-            window.IPCOSDocuments.render(panel,url,mime,name,caseDocumentReadingContext(item,file.url));
+            window.IPCOSDocuments.render(panel,url,mime,name,{...caseDocumentReadingContext(item,file.url),pageRef:targetPage});
             window.IPCOSReviewTools?.previewReady();
         } else {
             const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
