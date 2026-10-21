@@ -398,6 +398,7 @@ function clearPrivateCache() {
     documentInspections = new WeakMap(); preflightBusy = false;
     resetWorkflowSession();
     clearCaseBlobUrls();
+    window.IPCOSDocuments?.clearReading();
     window.IPCOSReviewTools?.reset();
     window.IPCOSAdminDecision?.reset();
     window.IPCOSReviewWorkspace?.reset();

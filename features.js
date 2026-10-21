@@ -164,6 +164,13 @@ function releaseCasePreview(request) {
     if (pendingCasePreview===request) pendingCasePreview=null;
 }
 function isPrivateDriveUrl(url) { try { return ['drive.google.com','docs.google.com'].includes(new URL(url).hostname); } catch (_) { return false; } }
+function caseDocumentReadingContext(item,url) {
+    let logs=[];try{logs=JSON.parse(item.note||'[]');}catch(_){}
+    const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log?.documents)?log.documents:[]):[];
+    const document=metadata.slice().reverse().find(file=>file?.url===url);
+    const version=Number(document?.version);
+    return {requestId:String(item.id),documentUrl:url,version:Number.isInteger(version)&&version>0&&typeof document?.label==='string'&&document.label.trim()?version:0};
+}
 function prepareCasePreview(panel,index,file) {
     panel.querySelector('.case-preview-context')?.remove();
     const context=document.createElement('div');context.className='case-preview-context';
@@ -218,7 +225,7 @@ async function accessCaseDocument(index,preview=false,button=null) {
         const url=URL.createObjectURL(new Blob([bytes],{type:mime})); caseBlobUrls.add(url);
         const name=String(result.fileName || 'dokumen').replace(/[\\/\x00-\x1f]/g,'_');
         if(preview) {
-            window.IPCOSDocuments.render(panel,url,mime,name);
+            window.IPCOSDocuments.render(panel,url,mime,name,caseDocumentReadingContext(item,file.url));
             window.IPCOSReviewTools?.previewReady();
         } else {
             const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
@@ -268,7 +275,7 @@ async function compareCaseDocuments(label,oldIndex=null,newIndex=null) {
             if(typeof result.base64!=='string'||result.base64.length>13981016)throw new Error(uxText('Ukuran berkas tidak valid.','Invalid file size.'));
             const bytes=Uint8Array.from(atob(result.base64),char=>char.charCodeAt(0));if(!bytes.length)throw new Error(uxText('Berkas kosong.','The file is empty.'));
             const mime=window.IPCOSDocuments.trustedMime(bytes,String(result.mimeType||'application/octet-stream'),result.fileName),url=URL.createObjectURL(new Blob([bytes],{type:mime}));caseBlobUrls.add(url);
-            window.IPCOSDocuments.render(target,url,mime,String(result.fileName||file.fileName).replace(/[\\/\x00-\x1f]/g,'_'));
+            window.IPCOSDocuments.render(target,url,mime,String(result.fileName||file.fileName).replace(/[\\/\x00-\x1f]/g,'_'),caseDocumentReadingContext(item,file.url));
         }catch(error){if(active())target.querySelector('p').textContent=systemText(error.message||uxText('Berkas gagal dimuat. Pilih ulang versi untuk mencoba lagi.','The file failed to load. Select the version again to retry.'));}
     }
 }

@@ -73,7 +73,7 @@
             const name=String(result.fileName||row.name).replace(/[\\/\x00-\x1f]/g,'_'),mime=window.IPCOSDocuments.trustedMime(bytes,String(result.mimeType||'application/octet-stream'),name);
             if(!live())return false;
             reader.blob=URL.createObjectURL(new Blob([bytes],{type:mime}));reader.phase='ready';reader.resolvedName=name;
-            window.IPCOSDocuments.render(el('file-center-preview'),reader.blob,mime,name);readerLabels();return true;
+            window.IPCOSDocuments.render(el('file-center-preview'),reader.blob,mime,name,{requestId:row.id,documentUrl:row.url,version:row.version||0});readerLabels();return true;
         }catch(error){if(live()){reader.phase='error';readerLabels();}return false;}
     }
     function visit(key){
