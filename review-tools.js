@@ -53,7 +53,7 @@
     function updateNote(id,note,reviewVersion) {
         if(typeof note!=='string')throw new Error(t('Konfirmasi penyimpanan tidak lengkap. Segarkan data.','The save confirmation is incomplete. Refresh the data.'));
         const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]),item=records.find(item=>String(item.id)===String(id));if(item){item.note=note;if(typeof reviewVersion==='string'&&/^[a-f0-9]{64}$/.test(reviewVersion))item.reviewVersion=reviewVersion;else delete item.reviewVersion;}
-        sessionStorage.setItem('ipcos_registrations',JSON.stringify(records));return item;
+        sessionStorage.setItem('ipcos_registrations',JSON.stringify(records));window.IPCOSRevisionHistory?.refresh();return item;
     }
     const editable=item=>currentUser.role==='admin'&&['pending','resubmitted'].includes(String(item?.status).trim().toLowerCase())&&!archived(item);
     function activeReviewIndex(){
