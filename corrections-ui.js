@@ -45,6 +45,7 @@
         const feedback=el('case-action-feedback');if(feedback?.dataset.correctionNotice==='review'&&el('correction-summary'))feedback.textContent=t('Periksa ringkasan, lalu pilih Konfirmasi & Kirim Perbaikan.','Review the summary, then select Confirm & Send Corrections.');
         const form=el('case-revision-fields');if(form&&document.activeElement===form)form.querySelector('textarea')?.focus();
         if(!isPreparingCorrection&&!activeUpdateIds.has(selectedCaseId)&&el('btn-case-submit'))el('btn-case-submit').textContent=label();
+        window.IPCOSStudentCorrections?.refresh();
     }
     function invalidate(){
         if(isPreparingCorrection||activeUpdateIds.has(selectedCaseId))return;
@@ -76,6 +77,7 @@
     function target(label){
         const item=currentCase();if(!owned(item)||isPreparingCorrection||activeUpdateIds.has(selectedCaseId))return;
         caseDetailAction('reply');refresh();
+        if(window.IPCOSStudentCorrections?.selectLabel(label))return;
         if(label!=='Isian pengajuan')el('case-action-panel').dataset.correctionTarget=label;
         const field=label==='Isian pengajuan'?el('case-revision-fields')?.querySelector('textarea,input,button'):el('case-reply-files');
         if(field){field.scrollIntoView({block:'center',behavior:'instant'});field.focus();}
@@ -85,6 +87,7 @@
         const current=state();if(!current)return;
         if(value){current.data.locks=[...current.panel.querySelectorAll('textarea,select,[name=correction-complete],[data-correction-target],[data-correction-edit],[data-open-note-page]')].map(node=>[node,node.disabled]);current.data.locks.forEach(([node])=>node.disabled=true);}
         else {current.data.locks?.forEach(([node,disabled])=>{if(node.isConnected)node.disabled=disabled;});delete current.data.locks;}
+        window.IPCOSStudentCorrections?.refresh();
     }
     document.addEventListener('click',event=>{
         const control=event.target.closest('[data-correction-target]');if(control)target(control.dataset.correctionTarget);

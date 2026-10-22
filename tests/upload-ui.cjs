@@ -7,6 +7,8 @@ const origin=process.env.IPCOS_TEST_BASE_URL||'http://127.0.0.1:8766';
 const calls=[],errors=[],checks=[];
 const pass=text=>{checks.push(text);console.log('PASS '+text);};
 const pdf=name=>({name,mimeType:'application/pdf',buffer:previewPdf(name)});
+async function task(page,index){await page.locator('[data-correction-workspace-task="'+index+'"]').click();}
+async function upload(page,index,file){await task(page,index);await page.setInputFiles('[data-correction-workspace-upload]',file);await page.waitForFunction(name=>[...document.getElementById('case-reply-files').files].some(file=>file.name===name)&&!document.querySelector('[data-correction-workspace-upload]').disabled,file.name);}
 const record={id:'upload-revision',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal',status:'Revision',date:new Date().toISOString(),detail:'Judul uji',link:'',note:'[]'};
 (async()=>{
  const browser=await chromium.launch(),context=await browser.newContext({reducedMotion:'reduce',viewport:{width:1365,height:900}});
@@ -61,12 +63,15 @@ const record={id:'upload-revision',nim:'A',nama:'Mahasiswa Uji',jenis:'Proposal'
  await page.evaluate(()=>{isSubmittingRegistration=true;window.IPCOSRegistration.refresh();});
  assert(await page.locator('#file-proposal').isDisabled());assert(await page.locator('#file-proposal-selection [data-upload-action=remove]').isDisabled());
  await page.evaluate(()=>{isSubmittingRegistration=false;window.IPCOSRegistration.refresh();});assert(!await page.locator('#file-proposal').isDisabled());
- await page.evaluate(()=>openCaseDetail('upload-revision'));await page.evaluate(()=>caseDetailAction('reply'));await page.waitForSelector('#case-reply-files');
- await page.setInputFiles('#case-reply-files',[pdf('pertama.pdf'),pdf('kedua.pdf')]);await page.waitForFunction(()=>document.querySelectorAll('#case-reply-files-selection [data-state=ready]').length===2);
- await page.locator('#case-reply-files-selection [data-upload-action=preview]').nth(1).click();await page.waitForFunction(()=>document.querySelector('#local-document-preview canvas')?.dataset.rendered==='true');assert.equal(await page.locator('#local-preview-title').textContent(),'kedua.pdf');await page.locator('[data-close-local-preview]').click();
- await page.locator('#case-reply-files-selection [data-upload-action=remove]').first().click();assert.deepEqual(await page.evaluate(()=>[...document.getElementById('case-reply-files').files].map(file=>file.name)),['kedua.pdf']);
- await page.setInputFiles('#case-reply-files',Array.from({length:6},(_,i)=>pdf('berkas-'+i+'.pdf')));await page.waitForSelector('#case-reply-files-selection .upload-total.field-error');
+ record.jenis='Outline';record.note=JSON.stringify([{role:'admin',message:'Berkas yang perlu diperbaiki:\n- Transkrip\n- Draft Proposal\n\nInstruksi:\nPeriksa kedua berkas.'}]);await page.evaluate(()=>syncDatabase());
+ await page.evaluate(()=>openCaseDetail('upload-revision'));await page.evaluate(()=>caseDetailAction('reply'));await page.waitForSelector('#student-correction-workspace');
+ await upload(page,0,pdf('pertama.pdf'));await upload(page,1,pdf('kedua.pdf'));await page.waitForFunction(()=>document.querySelectorAll('#case-reply-files-selection [data-state=ready]').length===2);
+ await page.locator('[data-correction-workspace-preview-replacement]').click();await page.waitForFunction(()=>document.querySelector('#local-document-preview canvas')?.dataset.rendered==='true');assert.equal(await page.locator('#local-preview-title').textContent(),'kedua.pdf');await page.locator('[data-close-local-preview]').click();
+ await task(page,0);await page.locator('[data-correction-workspace-remove]').click();assert.deepEqual(await page.evaluate(()=>[...document.getElementById('case-reply-files').files].map(file=>file.name)),['kedua.pdf']);assert.equal(await page.locator('#case-reply-files-selection .upload-file-card').count(),1);
+ // Exercise the canonical aggregate validator with a deliberately invalid list;
+ // ordinary users select one replacement per visible correction task.
+ await page.setInputFiles('#case-reply-files',Array.from({length:6},(_,i)=>pdf('berkas-'+i+'.pdf')));await page.waitForSelector('#case-reply-files-selection .upload-total.field-error',{state:'attached'});assert.match(await page.locator('#case-reply-files-selection .upload-total.field-error').textContent(),/6 \/ 5/);
  assert.equal(calls.filter(call=>['create','update','get_document'].includes(call.action)).length,0,'Local previews and inspection must not upload or request private documents');
- assert.deepEqual(errors,[]);pass('Busy controls lock selection; correction previews use the selected index; individual removal preserves other files and total limits remain visible');
+ assert.deepEqual(errors,[]);pass('Busy controls lock selection; targeted correction previews use the correct canonical index; removal preserves other files and aggregate limit violations remain flagged');
  fs.writeFileSync('test-results/upload-ui-results.json',JSON.stringify({checks,errors,layoutModes:16,syntheticAPI:true},null,2));await browser.close();
 })().catch(reportFailure);

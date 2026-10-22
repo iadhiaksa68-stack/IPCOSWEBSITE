@@ -2,6 +2,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const {chromium,reportFailure}=require('./browser.cjs'),{previewPdf}=require('./fixtures.cjs');
 const origin=process.env.IPCOS_TEST_BASE_URL||'http://127.0.0.1:8766',errors=[],calls=[],checks=[];
 const pass=name=>{checks.push(name);console.log('PASS '+name);};
+async function task(page,index){await page.locator('[data-correction-workspace-task="'+index+'"]').click();}
+async function upload(page,index,file){await task(page,index);await page.setInputFiles('[data-correction-workspace-upload]',file);await page.waitForFunction(name=>[...document.getElementById('case-reply-files').files].some(file=>file.name===name)&&!document.querySelector('[data-correction-workspace-upload]').disabled,file.name);}
 const transcript='https://example.com/transcript.pdf',proposal='https://example.com/proposal.pdf';
 const note=JSON.stringify([{kind:'document_review',role:'system',reviews:[{url:transcript,status:'revision',note:'Lengkapi tanda tangan pada halaman terakhir. <img src=x onerror=alert(1)>'},{url:proposal,status:'revision',note:'Sesuaikan judul eCommerce O’Connor dengan formulir.'}]},{role:'admin',message:'Berkas yang perlu diperbaiki:\n- Transkrip\n- Draft Proposal\n- Isian pengajuan\n\nInstruksi:\nPeriksa tanda tangan, judul proposal, dan judul pada formulir.'}]);
 const record={id:'mine',nim:'A',nama:'Mahasiswa Uji',jenis:'Outline',status:'Revision',date:new Date().toISOString(),detail:'<b>Judul:</b> Judul awal eCommerce',note,link:'<a href="'+transcript+'">Transkrip</a><a href="'+proposal+'">Draft Proposal</a>'};
@@ -32,13 +34,13 @@ let fail=true;
  await page.locator('.correction-instruction [data-correction-target="Isian pengajuan"]').click();await page.waitForSelector('#correction-title');await page.fill('#correction-title','Judul baru eCommerce O’Connor');
  assert.equal(await page.evaluate(()=>selectedCaseId),'mine');pass('Instruction cards connect literal admin notes to the requested documents and open the same owned correction editor');
  const a={name:'transkrip-eCommerce.pdf',mimeType:'application/pdf',buffer:previewPdf('Signed transcript')},b={name:'proposal-OConnor.pdf',mimeType:'application/pdf',buffer:previewPdf('Corrected proposal')};
- await page.setInputFiles('#case-reply-files',[a,b]);await page.selectOption('#revision-label-0','Transkrip');await page.selectOption('#revision-label-1','Draft Proposal');
- await page.locator('#case-reply-files-selection [data-upload-action=remove]').first().click();assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');
+ await upload(page,0,a);await upload(page,1,b);assert.equal(await page.inputValue('#revision-label-0'),'Transkrip');assert.equal(await page.inputValue('#revision-label-1'),'Draft Proposal');
+ await task(page,0);await page.locator('[data-correction-workspace-remove]').click();assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');
  await page.evaluate(()=>{window.keptCorrectionFile=document.getElementById('case-reply-files').files[0];});
  await page.evaluate(()=>renderRevisionAssociations());assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');
  await page.evaluate(()=>toggleLanguage());assert.equal(await page.inputValue('#revision-label-0'),'Draft Proposal');assert(await page.evaluate(()=>document.getElementById('case-reply-files').files[0]===window.keptCorrectionFile));assert.equal(await page.locator('#revision-associations [data-revision-filename]').textContent(),'proposal-OConnor.pdf');
- await page.setInputFiles('#case-reply-files',[a,b]);await page.selectOption('#revision-label-0','Transkrip');await page.selectOption('#revision-label-1','Draft Proposal');
- for(const box of await page.locator('[name=correction-complete]').all())await box.check();await page.fill('#case-reply-note','Tanda tangan dan judul eCommerce O’Connor sudah diperbaiki.');
+ await task(page,1);await page.locator('[data-correction-workspace-remove]').click();await upload(page,0,a);await upload(page,1,b);assert.equal(await page.inputValue('#revision-label-0'),'Transkrip');assert.equal(await page.inputValue('#revision-label-1'),'Draft Proposal');
+ for(let index=0;index<3;index++){await task(page,index);await page.locator('[name=correction-complete]').nth(index).check();}await page.fill('#case-reply-note','Tanda tangan dan judul eCommerce O’Connor sudah diperbaiki.');
  pass('Removing one attachment, refreshing associations, and switching language preserve the other exact file and its document label');
  const writes=()=>calls.filter(call=>call.action==='revise_request'||call.action==='update');
  await page.evaluate(()=>{const file=document.getElementById('case-reply-files').files[0],read=file.arrayBuffer.bind(file);documentInspections=new WeakMap();file.arrayBuffer=async()=>{await new Promise(resolve=>window.releaseCorrectionInspection=resolve);file.arrayBuffer=read;return read();};});

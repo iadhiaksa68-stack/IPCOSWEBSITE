@@ -135,12 +135,12 @@ async function layout(page,label) {
     records.push(revision); await page.evaluate(()=>syncDatabase()); await page.waitForFunction(()=>syncPhase === 'success');
     await page.evaluate(()=>openCaseDetail('revision')); assert((await page.locator('#case-detail-content').textContent()).includes('Thesis defense'));
     assert((await page.locator('#case-detail-content').textContent()).includes('Instruksi asli dari admin, jangan diubah.'));
-    await page.evaluate(()=>caseDetailAction('reply')); await page.check('[name="correction-complete"]');
-    await page.setInputFiles('#case-reply-files',{name:'defense-corrected.pdf',mimeType:'application/pdf',buffer:pdf('corrected')}); await page.fill('#case-reply-note','Catatan asli mahasiswa');
+    await page.evaluate(()=>caseDetailAction('reply'));await page.locator('[data-correction-workspace-task="0"]').click();await page.check('[name="correction-complete"]');
+    await page.setInputFiles('[data-correction-workspace-upload]',{name:'defense-corrected.pdf',mimeType:'application/pdf',buffer:pdf('corrected')});await page.waitForFunction(()=>document.getElementById('case-reply-files').files[0]?.name==='defense-corrected.pdf'&&!document.querySelector('[data-correction-workspace-upload]').disabled);await page.fill('#case-reply-note','Catatan asli mahasiswa');
     assert.equal(await page.inputValue('#revision-label-0'),'Berkas Pendadaran');
     await page.evaluate(()=>toggleLanguage()); await page.evaluate(()=>toggleLanguage());
     assert.equal(await page.inputValue('#case-reply-note'),'Catatan asli mahasiswa'); assert.equal(await page.locator('#case-reply-files').evaluate(el=>el.files[0].name),'defense-corrected.pdf');
-    assert(await page.isChecked('[name="correction-complete"]')); assert((await page.locator('#case-action-panel h3').textContent()).includes('Corrections')); assert((await page.locator('#revision-label-0').textContent()).includes('Thesis Defense Documents'));
+    assert(await page.isChecked('[name="correction-complete"]'));assert((await page.locator('#correction-workspace-heading').textContent()).includes('Correct one item'));assert((await page.locator('#revision-label-0').textContent()).includes('Thesis Defense Documents'));
     await page.click('#btn-case-submit'); await page.waitForSelector('#correction-summary');await page.waitForFunction(()=>!isPreparingCorrection);await page.click('#btn-case-submit'); await page.waitForFunction(()=>!activeUpdateIds.size && !isPreparingCorrection);
     const correction = calls.find(call=>call.action === 'update'); assert.equal(correction.files[0].label,'Berkas Pendadaran'); assert.equal(correction.noteText,'Catatan asli mahasiswa');
     await page.evaluate(()=>closeModal('modal-case-detail',true));

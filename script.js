@@ -375,6 +375,7 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    window.IPCOSStudentCorrections?.reset();
     window.IPCOSAdminDrafts?.clear();
     window.IPCOSSop?.reset();
     window.IPCOSNext?.reset();
@@ -492,6 +493,7 @@ function applyDatabaseSnapshot(data) {
             data.registrations = normalizeData(data.registrations);
 
             sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
+            window.IPCOSStudentCorrections?.refresh();
             window.IPCOSAcademic?.apply(data);
             window.IPCOSInternational?.apply(data);
             sessionStorage.setItem('ipcos_announcements', JSON.stringify(data.announcements || []));
@@ -1389,6 +1391,7 @@ function caseDetailAction(action) {
 function cancelCaseAction() {
     if (activeUpdateIds.has(selectedCaseId) || isPreparingCorrection || isPreparingReviewDecision) return;
     if (!confirmLeaveCase()) return;
+    window.IPCOSStudentCorrections?.reset();
     window.IPCOSAdminDecision?.reset();
     window.IPCOSReview?.restoreActions();
     document.getElementById('case-action-panel').dataset.dirty = 'false';
@@ -1407,7 +1410,8 @@ async function submitCaseAction(event) {
     const action = panel.dataset.action;
     const feedback = document.getElementById('case-action-feedback');
     feedback.ipcosNotice=null;delete feedback.dataset.correctionNotice;delete feedback.dataset.decisionNotice;
-    const fail = (message,field=null) => { feedback.textContent = systemText(message); field?.focus(); return false; };
+    const fail = (message,field=null) => { feedback.textContent = systemText(message); if(action==='reply')window.IPCOSStudentCorrections?.revealIssue(field); if(field?.getClientRects().length)field.focus(); return false; };
+    if(action==='reply'&&window.IPCOSStudentCorrections?.preparing())return fail(uxText('Tunggu pemeriksaan format berkas pengganti selesai.','Wait for the replacement file format check to finish.'));
     const status = String(item.status).toLowerCase();
     if (currentUser.role === 'admin' ? !['pending','resubmitted'].includes(status) : currentUser.role !== 'mhs' || status !== 'revision' || action !== 'reply') { fail(uxText('Status berubah. Segarkan pengajuan.', 'The status changed. Refresh the request.')); return; }
     let note = '', newStatus = 'Accepted', files = [], dospem = null, correctionLabels = [], correctedFields=null;

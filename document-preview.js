@@ -109,7 +109,7 @@
                 canvas.dataset.rendered='true';canvas.dataset.page=String(job.page);canvas.dataset.rotation=String(job.rotation);canvas.setAttribute('aria-label',name+' · '+t('Halaman ','Page ')+job.page+' / '+job.pdf.numPages);
                 if(job.restoreReading){restoreScroll(job.restoreReading);job.restoreReading=null;}
                 job.confirmedReading={page:job.page,pages:job.pdf.numPages,zoom:job.zoom,rotation:job.rotation,...scrollReading()};job.saveReading();
-                if(job.referenceTarget===job.page){referenceMessage('Halaman '+job.page+' dibuka dari catatan pemeriksaan.','Page '+job.page+' opened from the review note.');job.referenceTarget=null;viewer.focus({preventScroll:true});viewer.scrollIntoView({block:'nearest',behavior:'instant'});}
+                if(job.referenceTarget===job.page){referenceMessage('Halaman '+job.page+' dibuka dari catatan pemeriksaan.','Page '+job.page+' opened from the review note.');job.referenceTarget=null;if(context?.focusReference!==false){viewer.focus({preventScroll:true});viewer.scrollIntoView({block:'nearest',behavior:'instant'});}}
                 position.textContent=job.page+' / '+job.pdf.numPages+' · '+Math.round(job.zoom*100)+'%';pageInput.value=String(job.page);
                 message(helper,'PDF diproses di perangkat Anda. Pencarian tersedia untuk PDF yang memiliki teks.','The PDF is processed on your device. Search works with PDFs containing text.');
                 const text=await page.getTextContent();if(live())accessible.textContent=text.items.map(item=>item.str||'').join(' ').slice(0,12000);

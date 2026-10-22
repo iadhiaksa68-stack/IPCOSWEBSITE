@@ -183,6 +183,7 @@ function prepareCasePreview(panel,index,file,pageRef=null) {
     panel.querySelector('p').setAttribute('role','status');
 }
 function clearCaseBlobUrls(preserveView=false) {
+    window.IPCOSStudentCorrections?.reset();
     releaseCasePreview(pendingCasePreview);
     documentRequestVersion++; caseDocumentEpoch++;
     caseBlobUrls.forEach(url=>URL.revokeObjectURL(url)); caseBlobUrls.clear();
