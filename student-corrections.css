@@ -27,8 +27,8 @@
 .correction-workspace-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr); align-items:start; gap:20px; min-width:0; }
 .correction-workspace-grid.is-fields-only { grid-template-columns:minmax(0,1fr); }
 .correction-workspace-instructions { margin:0 0 16px; min-width:0; }
-.correction-workspace-instructions summary { min-height:44px; cursor:pointer; line-height:1.7; color:var(--heading-color); padding:8px 0; box-sizing:border-box; }
-.correction-workspace-instructions p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.8; }
+.correction-workspace-instructions summary { min-height:44px; cursor:pointer; line-height:1.7; color:var(--heading-color); padding:8px 12px; box-sizing:border-box; }
+.correction-workspace-instructions p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.8; padding:0 12px 12px; }
 #student-correction-workspace .correction-task > :not(label) { display:none!important; }
 .correction-workspace-document,.correction-workspace-editor { min-width:0; max-width:100%; padding:18px; border:1px solid var(--item-border); border-radius:16px; background:var(--card-bg); box-sizing:border-box; }
 .correction-workspace-document :is(h3,h4),.correction-workspace-editor :is(h3,h4) { color:var(--heading-color); font-size:15px; line-height:1.6; margin:0 0 10px; overflow-wrap:anywhere; }
