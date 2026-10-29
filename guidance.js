@@ -116,7 +116,7 @@
         const home = el('task-home');
         if (!student() || !home || !available || installDismissed() || !matchMedia('(max-width:850px)').matches) return;
         const card = document.createElement('section'); card.id = 'install-app-card'; card.className = 'install-app-card'; card.dataset.preserveCase = '';
-        card.innerHTML = `<img src="/icons/icon-192.png" alt="" width="40" height="40"><div><strong>${t('Pasang IPCOS di HP', 'Install IPCOS on your phone')}</strong><p>${ios() && !installPrompt ? t('Ketuk Bagikan lalu “Tambah ke Layar Utama”.', 'Tap Share, then “Add to Home Screen”.') : t('Buka langsung dari layar utama seperti aplikasi.', 'Open it straight from your home screen like an app.')}</p></div>${installPrompt ? `<button type="button" class="btn-primary" data-install-app>${t('Pasang', 'Install')}</button>` : ''}<button type="button" class="install-app-dismiss" data-install-dismiss aria-label="${t('Tutup', 'Close')}">×</button>`;
+        card.innerHTML = `<img src="/icons/icon-192.png?v=2" alt="" width="40" height="40"><div><strong>${t('Pasang IPCOS di HP', 'Install IPCOS on your phone')}</strong><p>${ios() && !installPrompt ? t('Ketuk Bagikan lalu “Tambah ke Layar Utama”.', 'Tap Share, then “Add to Home Screen”.') : t('Buka langsung dari layar utama seperti aplikasi.', 'Open it straight from your home screen like an app.')}</p></div>${installPrompt ? `<button type="button" class="btn-primary" data-install-app>${t('Pasang', 'Install')}</button>` : ''}<button type="button" class="install-app-dismiss" data-install-dismiss aria-label="${t('Tutup', 'Close')}">×</button>`;
         home.prepend(card);
     }
     document.addEventListener('click', async event => {

@@ -79,6 +79,12 @@ async function login(page, role) {
     await page.waitForFunction(() => window.__installPrompted === true);
     assert.equal(await page.evaluate(() => fetch('/manifest.webmanifest').then(r => r.json()).then(m => [m.short_name, m.display, m.icons.length])).then(JSON.stringify), JSON.stringify(['IPCOS', 'standalone', 3]));
     await page.setViewportSize({width:1365, height:900});
+    const icons = await page.evaluate(async () => {
+        const manifest = await fetch('/manifest.webmanifest').then(r => r.json());
+        const sources = [...manifest.icons.map(icon => [icon.src, Number(icon.sizes.split('x')[0])]), [document.querySelector('link[rel=apple-touch-icon]').getAttribute('href'), 180]];
+        return Promise.all(sources.map(([src, size]) => new Promise(resolve => { const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = c.height = 4; const g = c.getContext('2d'); g.drawImage(img, 0, 0, 4, 4); const corner = g.getImageData(0, 0, 1, 1).data; resolve([src, img.naturalWidth === size && img.naturalHeight === size, corner[3] === 255]); }; img.onerror = () => resolve([src, false, false]); img.src = src; })));
+    });
+    for (const [src, sized, opaque] of icons) { assert(sized, src + ' has its declared size'); assert(opaque, src + ' has no transparent corners'); }
     pass('Phones are offered to install IPCOS as an app, using the web app manifest');
 
     const quick = page.locator('#home-preparation input[data-home-check]');
