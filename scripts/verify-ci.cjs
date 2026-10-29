@@ -6,7 +6,8 @@ function releaseDecision(runs, sha) {
     return run.conclusion === 'success' ? {state:'passed',url:run.html_url} : {state:'failed',reason:run.conclusion || 'unknown'};
 }
 // The full browser job has a 25-minute timeout; also allow time for its queue.
-async function verifyCommit(sha, {fetchRuns, pause, attempts=180} = {}) {
+// Unauthenticated GitHub API calls are limited to 60 per hour, so poll every 45 s (50 calls ≈ 37 min).
+async function verifyCommit(sha, {fetchRuns, pause, attempts=50} = {}) {
     if (!/^[a-f0-9]{40}$/.test(sha || '')) throw new Error('A full Git commit SHA is required. Deploy through the connected Git repository.');
     for (let attempt=0; attempt<attempts; attempt++) {
         const decision = releaseDecision(await fetchRuns(sha), sha);
@@ -28,7 +29,7 @@ if (require.main === module) {
             if (!Array.isArray(body.workflow_runs)) throw new Error('Invalid CI response. Publication blocked.');
             return body.workflow_runs;
         },
-        pause: () => new Promise(resolve=>setTimeout(resolve,10000))
+        pause: () => new Promise(resolve=>setTimeout(resolve,45000))
     }).then(result=>console.log(`PASS Required role tests verified for this exact commit: ${result.url}`))
       .catch(error=>{console.error(error.message);process.exitCode=1;});
 }
