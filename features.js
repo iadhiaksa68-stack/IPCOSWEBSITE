@@ -60,7 +60,7 @@ function caseWaitHtml(item) {
     const days=n=>n+' '+uxText('hari',n===1?'day':'days');
     const status=String(item.status).toLowerCase();
     if (currentUser.role==='admin') return `<p class="request-wait${wait.overdue?' overdue':''}" data-wait-days="${wait.days}"><strong>${wait.days?days(wait.days):uxText('Hari ini','Today')}</strong>${wait.overdue?' · '+uxText('lewat target','past target')+' '+days(wait.target):''}</p>`;
-    const since=wait.days?uxText('Sudah menunggu ','Waiting for ')+days(wait.days):uxText('Masuk hari ini','Received today');
+    const since=status==='revision'?(wait.days?uxText('Revisi diminta ','Corrections requested ')+days(wait.days)+uxText(' lalu',' ago'):uxText('Revisi diminta hari ini','Corrections requested today')):wait.days?uxText('Sudah menunggu ','Waiting for ')+days(wait.days):uxText('Masuk hari ini','Received today');
     const usual=status==='revision'?uxText('disarankan dikirim dalam ','suggested within ')+days(wait.target):uxText('biasanya diproses dalam ','usually processed within ')+days(wait.target);
     return `<p class="request-wait${wait.overdue&&status!=='revision'?' overdue':''}">${since} · ${usual}</p>`;
 }

@@ -74,3 +74,13 @@ body.dark-mode .admin-today-tile.alert strong { color:#ff8a80; }
 .workspace-quick-toggles { display:flex; align-items:center; gap:6px; }
 .workspace-quick-toggles .language-toggle { min-width:44px; min-height:40px; padding:6px 10px; }
 .workspace-quick-toggles .theme-toggle { width:40px; height:40px; border:1px solid var(--surface-border); }
+
+/* Queue table: the selection column takes a fixed slot; the five original columns keep their proportions. */
+#admin-table-main th.bulk-cell { width:48px; }
+#admin-table-main th:nth-child(2) { width:13%; }
+#admin-table-main th:nth-child(3) { width:21%; }
+#admin-table-main th:nth-child(4) { width:17%; }
+#admin-table-main th:nth-child(5) { width:30%; }
+#admin-table-main th:nth-child(6) { width:15%; }
+#admin-table-main .bulk-cell { padding-left:8px; padding-right:4px; }
+.bulk-cell input, .bulk-mobile-check input { min-height:0!important; height:18px; margin:0; }

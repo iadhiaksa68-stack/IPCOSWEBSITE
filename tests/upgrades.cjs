@@ -87,6 +87,7 @@ async function noOverflow(page, label) { assert.equal(await page.evaluate(() => 
     assert.match(await age.textContent(), /9 hari · lewat target 3 hari/);
     assert.equal(await age.evaluate(node => node.classList.contains('overdue')), true);
     assert.match(await admin.locator('#table-admin-reg tr[data-queue-case="NEW-JOURNAL"] .request-wait').textContent(), /Hari ini/);
+    assert.equal(await admin.locator('#admin-table-main').evaluate(table => { const wrap = table.closest('.responsive-table-wrapper'); return wrap.scrollWidth <= wrap.clientWidth + 2; }), true, 'selection column does not push the table sideways');
     pass('Queue rows show how long each request has waited, marked red past target');
 
     for (const id of ['OLD-PROP', 'NEW-JOURNAL', 'OUTLINE', 'NO-FILES']) await admin.locator(`#table-admin-reg input[data-bulk-id="${id}"]`).check();
