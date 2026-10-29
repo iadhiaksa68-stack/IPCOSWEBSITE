@@ -9,6 +9,11 @@ Static academic portal with the existing Google Apps Script backend. Login and t
 - Backend: per-student data can move from Script Properties to the hidden `IPCOS_DataPribadi` sheet, and admin login locks after repeated failures. See backend/INTEGRATION.md.
 - Download names use one ASCII form everywhere.
 
+## Guidance and admin speed-ups (29 October 2026)
+
+- Student: the Registration Center shows all five services as cards with their availability (available, in progress, or why it is closed) before one is chosen; every request shows a progress tracker (submitted → corrections requested → corrections sent → approved); the Home preparation card lists the next three checklist items to tick in place; students without any request see a dismissible three-step guide once.
+- Admin: J/K move through the review queue, A approves, R requests corrections, ? shows the shortcuts; built-in and device-saved queue views apply filters in one click; supervisors are listed by remaining quota with the least-loaded one suggested; queue headers follow the selected language.
+
 ## Academic preparation
 
 - Internship and thesis stages follow the content already editable by admin. Self-checks sync privately across devices through Script Properties, separately from admin decisions. Existing local checks migrate only when the cloud record does not exist.

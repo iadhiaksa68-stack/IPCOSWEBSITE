@@ -61,6 +61,7 @@
     <link rel="stylesheet" href="revision-history.css">
     <link rel="stylesheet" href="correction-drafts.css">
     <link rel="stylesheet" href="upgrades.css">
+    <link rel="stylesheet" href="guidance.css">
 </head>
 
 <body class="transaction-view">
@@ -835,8 +836,8 @@
                             <tr>
                                 <th class="sticky-th bulk-cell"><input type="checkbox" id="bulk-select-page" aria-label="Pilih semua di halaman ini"></th>
                                 <th id="admin-activity-heading" class="sticky-th" aria-sort="descending"><button type="button" class="queue-sort-button" onclick="toggleSortDate()"><span class="lang" data-id="Aktivitas Terakhir" data-en="Latest Activity">Aktivitas Terakhir</span> <span id="admin-sort-icon" aria-hidden="true"></span></button></th>
-                                <th class="sticky-th">Mahasiswa</th>
-                                <th class="sticky-th">Jenis Formulir</th>
+                                <th class="sticky-th lang" data-id="Mahasiswa" data-en="Student">Mahasiswa</th>
+                                <th class="sticky-th lang" data-id="Jenis Formulir" data-en="Request Type">Jenis Formulir</th>
                                 <th class="sticky-th lang" data-id="Status & langkah berikutnya" data-en="Status & next step">Status & langkah berikutnya</th>
                                 <th class="sticky-th"><span class="sr-only lang" data-id="Tindakan" data-en="Actions">Tindakan</span></th>
                             </tr>
@@ -1051,6 +1052,8 @@
     <script src="preparation-ui.js" defer></script>
     <script src="content-studio.js" defer></script>
     <script src="upgrades.js" defer></script>
+    <script src="guidance.js" defer></script>
+    <script src="admin-tools.js" defer></script>
 </body>
 
 </html>

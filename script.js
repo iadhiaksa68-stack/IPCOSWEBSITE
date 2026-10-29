@@ -1345,9 +1345,12 @@ function previewCaseFile(index,button=null,pageRef=null) {
 }
 function supervisorOptions() {
     const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
-    return `<option value="">${uxText('-- Pilih dosen --','-- Select supervisor --')}</option>` + dosens.slice().sort((a,b) => String(a.Nama).localeCompare(String(b.Nama))).map(d => {
+    // Most remaining quota first so the least-loaded supervisor is the obvious choice; full ones stay listed last.
+    const left = d => Math.max(0, Number(d.Maksimal) - Number(d.Terpakai) || 0);
+    const sorted = dosens.slice().sort((a,b) => left(b) - left(a) || String(a.Nama).localeCompare(String(b.Nama)));
+    return `<option value="">${uxText('-- Pilih dosen --','-- Select supervisor --')}</option>` + sorted.map((d, index) => {
         const remaining = Number(d.Maksimal) - Number(d.Terpakai);
-        return `<option value="${escapeHtml(d.Nama)}" ${remaining > 0 ? '' : 'disabled'}>${escapeHtml(d.Nama)} · ${remaining > 0 ? uxText('Sisa kuota: ', 'Available: ') + remaining : uxText('Penuh','Full')}</option>`;
+        return `<option value="${escapeHtml(d.Nama)}" ${remaining > 0 ? '' : 'disabled'}>${escapeHtml(d.Nama)} · ${remaining > 0 ? uxText('Sisa kuota: ', 'Available: ') + remaining + (index === 0 ? uxText(' · Disarankan', ' · Suggested') : '') : uxText('Penuh','Full')}</option>`;
     }).join('');
 }
 function currentCase() {

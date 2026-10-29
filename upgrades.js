@@ -58,13 +58,26 @@
             const done = items.filter(item => checks[item.id] === true).length, percent = items.length ? Math.round(done / items.length * 100) : 0;
             return `<div class="home-preparation-row"><div><strong>${type === 'magang' ? t('Magang', 'Internship') : t('Skripsi', 'Thesis')}</strong><span>${done}/${items.length} ${t('disiapkan', 'prepared')}</span></div><div class="home-preparation-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="width:${percent}%"></i></div><button type="button" class="btn-secondary" data-home-preparation="${type}">${done ? t('Lanjutkan', 'Continue') : t('Mulai', 'Start')}</button></div>`;
         }).join('');
+        // The next few unticked items can be ticked right here; the change goes through the checklist page's own checkbox.
+        const next = ['skripsi', 'magang'].flatMap(type => displayChecklistData(type).flatMap(group => (group.items || []).map(item => ({...item, type}))))
+            .filter(item => checks[item.id] !== true && document.getElementById(String(item.id).replace(/[^a-zA-Z0-9_-]/g, ''))?.matches('input.chk-magang,input.chk-skripsi')).slice(0, 3);
+        const quick = next.length ? `<div class="home-preparation-next"><strong>${t('Berikutnya untuk disiapkan', 'Next to prepare')}</strong>${next.map(item => `<label class="check-row"><input type="checkbox" data-home-check="${escapeHtml(String(item.id).replace(/[^a-zA-Z0-9_-]/g, ''))}"><span>${escapeHtml(item.text || '')}<small>${item.type === 'magang' ? t('Magang', 'Internship') : t('Skripsi', 'Thesis')}</small></span></label>`).join('')}</div>` : '';
         const section = document.createElement('section');
-        section.id = 'home-preparation'; section.className = 'home-preparation';
+        section.id = 'home-preparation'; section.className = 'home-preparation'; section.dataset.preserveCase = '';
         section.setAttribute('aria-labelledby', 'home-preparation-title');
-        section.innerHTML = `<div class="student-section-heading"><h2 id="home-preparation-title">${t('Persiapan Anda', 'Your preparation')}</h2></div><p>${t('Centang persyaratan yang sudah siap sebelum mengirim pengajuan.', 'Tick the requirements you have ready before submitting a request.')}</p>${rows}`;
+        section.innerHTML = `<div class="student-section-heading"><h2 id="home-preparation-title">${t('Persiapan Anda', 'Your preparation')}</h2></div><p>${t('Centang persyaratan yang sudah siap sebelum mengirim pengajuan.', 'Tick the requirements you have ready before submitting a request.')}</p>${rows}${quick}`;
         const anchor = home.querySelector('.student-section-heading');
         anchor ? anchor.before(section) : home.append(section);
     }
+    document.addEventListener('change', event => {
+        const box = event.target.closest('input[data-home-check]');
+        if (!box || currentUser.role !== 'mhs') return;
+        const real = document.getElementById(box.dataset.homeCheck);
+        if (!real?.matches('input.chk-magang,input.chk-skripsi')) { box.checked = false; return; }
+        real.checked = box.checked; real.dispatchEvent(new Event('change', {bubbles:true}));
+        // Let the saved state settle, then show the next item.
+        setTimeout(() => { if (currentUser.role === 'mhs') window.renderTaskHome(); }, 400);
+    });
     document.addEventListener('click', event => {
         const button = event.target.closest('[data-home-preparation]');
         if (button && currentUser.role === 'mhs') window.IPCOSPreparation?.open(button.dataset.homePreparation);
