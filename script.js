@@ -375,6 +375,7 @@ window.onload = function () {
 };
 
 function clearPrivateCache() {
+    window.IPCOSCorrectionDrafts?.clear();
     window.IPCOSStudentCorrections?.reset();
     window.IPCOSAdminDrafts?.clear();
     window.IPCOSSop?.reset();
@@ -2717,6 +2718,7 @@ async function sendUpdateRequest(id, newStatus, noteText, files = [], dospem = n
         const result = await readApiResult(res);
 
         if (result.status === "success") {
+            if(newStatus==='Resubmitted'&&currentUser.role==='mhs')window.IPCOSCorrectionDrafts?.confirmed(id);
             // --- UPDATE LOKAL INSTAN ---
             if (targetIndex !== -1) {
                 records[targetIndex].status = correctedFields && result.recordStatus ? result.recordStatus : newStatus;

@@ -5,8 +5,8 @@ function releaseDecision(runs, sha) {
     if (!run || run.status !== 'completed') return {state:'waiting'};
     return run.conclusion === 'success' ? {state:'passed',url:run.html_url} : {state:'failed',reason:run.conclusion || 'unknown'};
 }
-// The full browser job has a 20-minute timeout; also allow time for its queue.
-async function verifyCommit(sha, {fetchRuns, pause, attempts=150} = {}) {
+// The full browser job has a 25-minute timeout; also allow time for its queue.
+async function verifyCommit(sha, {fetchRuns, pause, attempts=180} = {}) {
     if (!/^[a-f0-9]{40}$/.test(sha || '')) throw new Error('A full Git commit SHA is required. Deploy through the connected Git repository.');
     for (let attempt=0; attempt<attempts; attempt++) {
         const decision = releaseDecision(await fetchRuns(sha), sha);

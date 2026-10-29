@@ -26,7 +26,7 @@
         if(panel){window.IPCOSDocuments?.reset(panel);panel.replaceChildren(Object.assign(document.createElement('p'),{className:'field-helper'}));panel.removeAttribute('aria-busy');}
         if(data.blob){URL.revokeObjectURL(data.blob);data.blob='';}
     }
-    function reset(){if(current){current.closed=true;current.pending.clear();clearReader(current);}current=null;el('modal-case-detail')?.classList.remove('student-correction-workspace');}
+    function reset(){window.IPCOSCorrectionDrafts?.detach();if(current){current.closed=true;current.pending.clear();clearReader(current);}current=null;el('modal-case-detail')?.classList.remove('student-correction-workspace');}
     function feedback(data,value){const node=data.root.querySelector('[data-correction-workspace-preview-status]');set(node,value);node.hidden=!value;}
     async function readSource(data,reference=null){
         if(!live(data))return;clearReader(data);
@@ -126,13 +126,14 @@
     }
     function refresh(){
         const panel=el('case-action-panel'),item=currentCase();if(!visible()||!panel||panel.hidden||panel.dataset.action!=='reply'||!participant(item)){if(current)reset();return;}
-        let data=states.get(panel);if(data?.closed&&data.input===el('case-reply-files'))return;if(!data||data.closed){if(!owned(item))return;if(current)reset();data=mount(panel,item);if(!data)return;current=data;render(data);el('case-detail-content').scrollTop=0;data.root.querySelector('#correction-workspace-heading').focus({preventScroll:true});readSource(data);return;}
+        let data=states.get(panel);if(data?.closed&&data.input===el('case-reply-files'))return;if(!data||data.closed){if(!owned(item))return;if(current)reset();data=mount(panel,item);if(!data)return;current=data;render(data);el('case-detail-content').scrollTop=0;data.root.querySelector('#correction-workspace-heading').focus({preventScroll:true});readSource(data);window.IPCOSCorrectionDrafts?.refresh();return;}
         current=data;render(data);if(stale(data)&&!data.stale){data.stale=true;el('correction-summary')?.remove();el('modal-case-detail').classList.remove('student-corrections-review');clearReader(data);feedback(data,t('Pengajuan berubah. Dokumen sebelumnya telah ditutup; isian Anda tetap tersedia.','The request changed. The previous document was closed; your inputs remain available.'));}else if(!stale(data)&&data.stale){data.stale=false;readSource(data);}
+        window.IPCOSCorrectionDrafts?.refresh();
     }
     function openTask(index,focus=true){
         const data=current;if(!live(data)||locked()||!Number.isInteger(index)||index<0||index>=data.tasks.length)return false;
         data.view='editor';if(data.index!==index){data.index=index;data.root.querySelector('[data-correction-workspace-upload]').value='';render(data);readSource(data);}else render(data);
-        if(focus){const target=data.tasks[index].fields?data.root.querySelector('#correction-workspace-fields textarea')||data.root.querySelector('#correction-workspace-title'):data.root.querySelector('#correction-workspace-title');target.focus({preventScroll:true});target.scrollIntoView({block:'nearest',behavior:'instant'});}return true;
+        if(focus){const target=data.tasks[index].fields?data.root.querySelector('#correction-workspace-fields textarea')||data.root.querySelector('#correction-workspace-title'):data.root.querySelector('#correction-workspace-title');target.focus({preventScroll:true});target.scrollIntoView({block:'nearest',behavior:'instant'});}window.IPCOSCorrectionDrafts?.positionChanged();return true;
     }
     function commit(data,rows){
         if(!live(data)||locked()||stale(data))return false;
@@ -154,7 +155,7 @@
         }catch(error){if(live(data))data.errors.set(label,error.message);}
         finally{if(live(data)&&data.pending.get(label)===job){data.pending.delete(label);render(data);}}
     }
-    function remove(data){if(!live(data)||locked()||stale(data))return;const task=data.tasks[data.index];if(data.pending.has(task.label))return;data.errors.delete(task.label);commit(data,selected(data).filter(row=>row.label!==task.label));data.root.querySelector('[data-correction-workspace-upload]').focus({preventScroll:true});}
+    function remove(data){if(!live(data)||locked()||stale(data))return;const task=data.tasks[data.index];if(data.pending.has(task.label))return;window.IPCOSCorrectionDrafts?.forgetFile(task.label);data.errors.delete(task.label);commit(data,selected(data).filter(row=>row.label!==task.label));data.root.querySelector('[data-correction-workspace-upload]').focus({preventScroll:true});}
     function revealIssue(field){
         if(!live(current)||locked())return false;let index=-1;
         if(field?.matches('[data-correction-field]')||[...current.panel.querySelectorAll('[data-correction-field]')].some(node=>!node.value.trim()))index=current.tasks.findIndex(task=>task.fields);
@@ -164,5 +165,5 @@
     }
     document.addEventListener('change',event=>{const input=event.target;if(input.matches('[data-correction-workspace-upload]')){const data=current,file=input.files[0],label=data?.tasks[data.index]?.label;input.value='';if(data&&label)choose(data,label,file);}else if(current&&input.closest('#case-action-panel'))render(current);});
     window.addEventListener('ipcos:logout',reset);
-    window.IPCOSStudentCorrections=Object.freeze({refresh,openTask,selectLabel:label=>{const index=current?.tasks.findIndex(task=>task.label===label)??-1;return index>=0&&openTask(index);},active:()=>live(current)?current.index:null,preparing:()=>live(current)&&current.pending.size>0,revealIssue,reset});
+    window.IPCOSStudentCorrections=Object.freeze({refresh,openTask,context:()=>live(current)?{id:current.id,label:current.tasks[current.index].label,labels:current.tasks.map(task=>task.label),index:current.index,stale:stale(current)}:null,selectLabel:label=>{const index=current?.tasks.findIndex(task=>task.label===label)??-1;return index>=0&&openTask(index);},active:()=>live(current)?current.index:null,preparing:()=>live(current)&&current.pending.size>0,revealIssue,reset});
 })();

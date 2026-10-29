@@ -1,0 +1,26 @@
+.correction-draft-box { min-width:0; max-width:100%; padding:14px 16px; margin:0 0 18px; border:1px solid var(--item-border); border-radius:14px; background:var(--bg-color); box-sizing:border-box; }
+.correction-draft-box[hidden],.correction-draft-box [hidden] { display:none!important; }
+.correction-draft-box :is(p,h4,strong,span,summary,button) { max-width:100%; min-width:0; overflow-wrap:anywhere; box-sizing:border-box; }
+.correction-draft-box p { margin:0 0 10px; color:var(--text-muted); font-size:12px; line-height:1.8; }
+.correction-draft-box p:last-child { margin-bottom:0; }
+.correction-draft-box h4 { margin:10px 0 6px; color:var(--heading-color); font-size:14px; line-height:1.7; }
+.correction-draft-box #student-correction-draft-status { margin:0; }
+.correction-draft-box #student-correction-draft-status.is-error { color:var(--sidebar-active-text); }
+.correction-draft-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; min-width:0; }
+#modal-case-detail .correction-draft-box button { width:auto; max-width:100%; min-height:44px; height:auto; padding:10px 12px; margin:0; font:inherit; font-size:12px; line-height:1.75; white-space:normal; overflow-wrap:anywhere; box-sizing:border-box; }
+.correction-draft-box details { margin:12px 0 0; background:var(--card-bg); border:1px solid var(--item-border); border-radius:10px; }
+#modal-case-detail .correction-draft-box summary { display:flex; align-items:center; gap:10px; padding:10px 12px; min-height:44px; font-size:12px; line-height:1.8; cursor:pointer; color:var(--heading-color); }
+.correction-draft-box details>div { padding:0 12px 12px; }
+.correction-draft-box .correction-draft-authored { white-space:pre-wrap; color:var(--text-color); }
+.correction-draft-box details strong { display:block; margin:10px 0 4px; font-size:12px; line-height:1.8; color:var(--heading-color); }
+.correction-draft-box [data-correction-draft-reminders] { margin-top:12px; }
+.correction-draft-box ul { list-style:none; padding:0; margin:0; }
+.correction-draft-box [data-correction-draft-file] { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:12px; margin:8px 0 0; border:1px solid var(--item-border); border-radius:10px; background:var(--card-bg); min-width:0; }
+.correction-draft-box [data-correction-draft-file] strong { font-size:12px; line-height:1.8; color:var(--heading-color); }
+.correction-draft-box [data-correction-draft-file] span { font-size:12px; line-height:1.8; color:var(--text-muted); }
+.correction-draft-box button:disabled { opacity:.65; cursor:not-allowed; }
+.correction-draft-box :is(button,summary):focus-visible { outline:2px solid var(--sidebar-active-text); outline-offset:3px; }
+@media(max-width:600px) {
+  .correction-draft-box { padding:12px; margin-bottom:14px; }
+  .correction-draft-actions>button { flex:1 1 180px; }
+}
