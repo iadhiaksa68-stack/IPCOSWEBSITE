@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const assets = require('./assets.cjs');
 const suites = ['transactions', 'regressions', 'workflow', 'private-documents', 'pdf-reading-position', 'pdf-note-pages', 'services', 'journey', 'journey-cloud', 'language-layout', 'sop', 'experience', 'next', 'review-tools', 'review-enhancements', 'review-version', 'academic-international', 'accessibility', 'portal-polish', 'admin-ui', 'follow-file-review', 'admin-decision', 'flexible-workspace', 'student-ui', 'registration-ui', 'student-status', 'journey-ui', 'resources-ui', 'notifications-ui', 'supervisor-ui', 'master-ui', 'calendar-ui', 'references-ui', 'global-search', 'preparation-ui', 'content-studio', 'upload-ui', 'corrections-ui', 'student-corrections-workspace', 'student-correction-drafts', 'revision-history-ui', 'help-ui', 'sop-focus', 'portal-alignment', 'student-files', 'upgrades', 'guidance'];
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.mjs':'text/javascript', '.wasm':'application/wasm', '.txt':'text/plain' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.mjs':'text/javascript', '.wasm':'application/wasm', '.txt':'text/plain', '.webmanifest':'application/manifest+json', '.png':'image/png' };
 // Whitelisted files and mocked API routes make these tests independent of live data.
 const server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';

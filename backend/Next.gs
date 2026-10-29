@@ -1,5 +1,5 @@
 // Optional workflow extensions. No new spreadsheet, column, credential or public file.
-const NEXT_ACTIONS = ['admin_login','get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health','get_review_capabilities','get_document_review','save_document_review','archive_request','restore_request','get_academic_progress','save_academic_progress','change_request_type','get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
+const NEXT_ACTIONS = ['admin_login','change_admin_password','report_funnel','get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health','get_review_capabilities','get_document_review','save_document_review','archive_request','restore_request','get_academic_progress','save_academic_progress','change_request_type','get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
 const NEXT_DRAFT_FIELDS = ['reg-jenis-utama','reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti'];
 function nextHash(value) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(value)).map(b=>('0'+((b+256)%256).toString(16)).slice(-2)).join(''); }
 function nextRequestId(value) { if(typeof value!=='string' || !/^[A-Za-z0-9_-]{8,80}$/.test(value)) throw new Error('ID penyimpanan tidak valid.'); return value; }
@@ -48,14 +48,45 @@ function migratePrivateDataToSheet() {
 }
 function ipcosPropertyBytes() { const all=PropertiesService.getScriptProperties().getProperties(); return Object.keys(all).reduce((sum,key)=>sum+Utilities.newBlob(key+all[key]).getBytes().length,0); }
 // Admin password guessing: five failures lock that username for 15 minutes; fifty in total lock all admin logins.
+// The credential is kept as a salted, iterated SHA-256 hash in Script Properties. Until one exists, the first
+// successful login through the original handleAdminLogin stores it, so the plain-text copy in Kode.gs can go.
+const IPCOS_ADMIN_AUTH='IPCOS_ADMIN_AUTH', IPCOS_ADMIN_ITERATIONS=2000;
+function adminAuthRead() { try { const auth=JSON.parse(PropertiesService.getScriptProperties().getProperty(IPCOS_ADMIN_AUTH)||'null'); return auth&&auth.user&&auth.salt&&auth.hash?auth:null; } catch(_) { return null; } }
+function adminHash(password,salt,iterations) {
+  let digest=nextHash(salt+':'+password);
+  for(let i=1;i<iterations;i++) digest=nextHash(salt+digest+password);
+  return digest;
+}
+function adminAuthWrite(user,password) {
+  const salt=Utilities.getUuid();
+  PropertiesService.getScriptProperties().setProperty(IPCOS_ADMIN_AUTH,JSON.stringify({user:user,salt:salt,iterations:IPCOS_ADMIN_ITERATIONS,hash:adminHash(password,salt,IPCOS_ADMIN_ITERATIONS),updatedAt:new Date().toISOString()}));
+}
+function adminCredentialsValid(user,password) {
+  const auth=adminAuthRead();
+  if(auth) return user===auth.user && adminHash(password,auth.salt,auth.iterations||IPCOS_ADMIN_ITERATIONS)===auth.hash;
+  return handleAdminLogin({username:user,password:password}).status==='success';
+}
 function nextAdminLogin(data) {
-  const cache=CacheService.getScriptCache(), user=String(data.username||'').trim().toLowerCase(), userKey='IPCOS_ADMIN_FAIL_'+nextHash(user), allKey='IPCOS_ADMIN_FAIL_ALL';
+  const cache=CacheService.getScriptCache(), user=String(data.username||'').trim().toLowerCase(), password=String(data.password||'').trim(), userKey='IPCOS_ADMIN_FAIL_'+nextHash(user), allKey='IPCOS_ADMIN_FAIL_ALL';
   const count=key=>Number(cache.get(key)||0);
   if(count(userKey)>=5 || count(allKey)>=50) return {status:'error',message:'Terlalu banyak percobaan login admin. Coba lagi dalam 15 menit.'};
-  const result=handleAdminLogin(data);
-  if(result.status==='success') { cache.remove(userKey); PropertiesService.getScriptProperties().setProperty('IPCOS_ADMIN_LAST_LOGIN',new Date().toISOString()); }
-  else { cache.put(userKey,String(count(userKey)+1),900); cache.put(allKey,String(count(allKey)+1),900); }
-  return result;
+  if(!adminCredentialsValid(user,password)) { cache.put(userKey,String(count(userKey)+1),900); cache.put(allKey,String(count(allKey)+1),900); return {status:'error',message:'Username atau Password Admin salah!'}; }
+  if(!adminAuthRead()) adminAuthWrite(user,password);
+  cache.remove(userKey); PropertiesService.getScriptProperties().setProperty('IPCOS_ADMIN_LAST_LOGIN',new Date().toISOString());
+  return {status:'success',token:issueSession('admin','ADMINISTRATOR','Administrator IPCOS')};
+}
+function nextChangeAdminPassword(session,data) {
+  if(session.role!=='admin') throw new Error('Akses admin diperlukan.');
+  const user=String(data.username||'').trim().toLowerCase(), current=String(data.currentPassword||'').trim(), next=String(data.newPassword||'').trim();
+  const newUser=String(data.newUsername||user).trim().toLowerCase();
+  if(!/^[a-z0-9._-]{3,40}$/.test(newUser)) throw new Error('Username 3–40 karakter: huruf kecil, angka, titik, garis bawah atau tanda hubung.');
+  if(next.length<10 || next.length>200) throw new Error('Password baru minimal 10 karakter.');
+  if(next===current) throw new Error('Password baru harus berbeda dari password lama.');
+  return nextLock(()=>{
+    if(!adminCredentialsValid(user,current)) return {status:'error',message:'Username atau password lama salah.'};
+    adminAuthWrite(newUser,next);
+    return {status:'success',username:newUser};
+  });
 }
 function nextDraftKey(nim) { return 'IPCOS_DRAFT_'+nextHash(String(nim).trim()); }
 function nextDraftRead(nim) {
@@ -169,6 +200,34 @@ function nextHealthReport(session,data) {
     return {status:'success'};
   });
 }
+// Anonymous wizard funnel: how many students reach each step per service. No NIM, title or file is stored;
+// one count per session, service and step. Daily buckets are kept for 30 days.
+const IPCOS_FUNNEL_STEPS=['service','data','files','review','sent'];
+function nextFunnelReport(session,data) {
+  if(session.role!=='mhs') return {status:'success'};
+  const service=String(data.service||''), step=String(data.step||'');
+  if(!IPCOS_TYPES.includes(service) || !IPCOS_FUNNEL_STEPS.includes(step)) throw new Error('Langkah tidak valid.');
+  const cache=CacheService.getScriptCache(), seen='IPCOS_FUNNEL_SEEN_'+nextHash(data.token+'|'+service+'|'+step);
+  if(cache.get(seen)) return {status:'success'};
+  cache.put(seen,'1',21600);
+  return nextLock(()=>{
+    const p=PropertiesService.getScriptProperties(), key='IPCOS_FUNNEL_'+Utilities.formatDate(new Date(),'Asia/Jakarta','yyyy-MM-dd');
+    let day={}; try { day=JSON.parse(p.getProperty(key)||'{}'); } catch(_) {}
+    day[service]=day[service]||{}; day[service][step]=Math.min(100000,(day[service][step]||0)+1);
+    p.setProperty(key,JSON.stringify(day));
+    const cutoff=Date.now()-31*86400000; for(const name of Object.keys(p.getProperties())) if(/^IPCOS_FUNNEL_\d{4}-\d{2}-\d{2}$/.test(name) && Date.parse(name.slice(13))<cutoff) p.deleteProperty(name);
+    return {status:'success'};
+  });
+}
+function nextFunnelRead() {
+  const all=PropertiesService.getScriptProperties().getProperties(), total={}, cutoff=Date.now()-30*86400000;
+  for(const name of Object.keys(all)) {
+    if(!/^IPCOS_FUNNEL_\d{4}-\d{2}-\d{2}$/.test(name) || Date.parse(name.slice(13))<cutoff) continue;
+    let day={}; try { day=JSON.parse(all[name]); } catch(_) { continue; }
+    for(const service of Object.keys(day)) { total[service]=total[service]||{}; for(const step of IPCOS_FUNNEL_STEPS) total[service][step]=(total[service][step]||0)+(Number(day[service][step])||0); }
+  }
+  return total;
+}
 function nextHealthRead(session) {
   if(session.role!=='admin') throw new Error('Akses admin diperlukan.');
   const properties=PropertiesService.getScriptProperties().getProperties(),events=[];
@@ -176,7 +235,7 @@ function nextHealthRead(session) {
     const buckets=JSON.parse(properties[key]);for(const bucket of Object.keys(buckets)) { const parts=bucket.split(':');events.push({day:key.slice(13),code:parts[0],operation:parts[1],role:parts[2],count:buckets[bucket].count,lastSeen:buckets[bucket].lastSeen}); }
   }
   const sheet=ipcosPrivateSheet();
-  return {status:'success',events:events.sort((a,b)=>String(b.lastSeen).localeCompare(String(a.lastSeen))),storage:{propertyBytes:ipcosPropertyBytes(),propertyLimit:500000,privateSheet:!!sheet,privateRows:sheet?Math.max(0,sheet.getLastRow()-1):0}};
+  return {status:'success',events:events.sort((a,b)=>String(b.lastSeen).localeCompare(String(a.lastSeen))),storage:{propertyBytes:ipcosPropertyBytes(),propertyLimit:500000,privateSheet:!!sheet,privateRows:sheet?Math.max(0,sheet.getLastRow()-1):0},funnel:nextFunnelRead(),adminPasswordHashed:!!adminAuthRead()};
 }
 function nextDispatch(data) {
   if(data.action==='admin_login') return nextAdminLogin(data);
@@ -190,6 +249,8 @@ function nextDispatch(data) {
   if(data.action==='revise_request') return nextRevise(session,data);
   if(data.action==='report_health') return nextHealthReport(session,data);
   if(data.action==='get_health') return nextHealthRead(session);
+  if(data.action==='change_admin_password') return nextChangeAdminPassword(session,data);
+  if(data.action==='report_funnel') return nextFunnelReport(session,data);
   if(['get_document_review','save_document_review','archive_request','restore_request'].includes(data.action)) return nextReviewDispatch(session,data);
   throw new Error('Aksi tidak valid.');
 }

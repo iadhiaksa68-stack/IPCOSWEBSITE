@@ -95,5 +95,47 @@
     const originalFilter = window.filterAdminData;
     if (typeof originalFilter === 'function') window.filterAdminData = function () { const result = originalFilter.apply(this, arguments); try { if (!el('queue-saved-views')) renderViews(); } catch (_) {} return result; };
     window.addEventListener('ipcos:logout', () => { naming = false; el('queue-saved-views')?.remove(); el('review-shortcut-help')?.remove(); });
+    /* ---------- Admin password change (Master Data) ---------- */
+    let passwordSaving = false;
+    // Master Data is only reachable by admins, so the card is placed once at load like the template editor.
+    function renderPasswordCard() {
+        let card = el('admin-password-card');
+        const services = el('master-services-section');
+        if (!card) {
+            if (!services) return;
+            card = document.createElement('details'); card.id = 'admin-password-card'; card.className = 'card revision-template-card';
+            card.innerHTML = `<summary>${t('Keamanan login admin', 'Admin login security')}</summary><p>${t('Ganti username dan password admin. Password disimpan dalam bentuk hash, tidak terbaca di kode atau sheet.', 'Change the admin username and password. The password is stored as a hash and cannot be read from the code or sheet.')}</p>
+                <form id="admin-password-form" class="admin-password-form" novalidate autocomplete="off">
+                <label for="admin-pw-user">${t('Username saat ini', 'Current username')}</label><input id="admin-pw-user" autocomplete="username" required>
+                <label for="admin-pw-current">${t('Password saat ini', 'Current password')}</label><input id="admin-pw-current" type="password" autocomplete="current-password" required>
+                <label for="admin-pw-newuser">${t('Username baru (opsional)', 'New username (optional)')}</label><input id="admin-pw-newuser" autocomplete="off">
+                <label for="admin-pw-new">${t('Password baru · minimal 10 karakter', 'New password · at least 10 characters')}</label><input id="admin-pw-new" type="password" autocomplete="new-password" minlength="10" required>
+                <label for="admin-pw-repeat">${t('Ulangi password baru', 'Repeat new password')}</label><input id="admin-pw-repeat" type="password" autocomplete="new-password" required>
+                <button type="submit" class="btn-primary" id="admin-pw-submit">${t('Simpan Password Baru', 'Save New Password')}</button><p id="admin-pw-feedback" class="field-helper" role="status"></p></form>`;
+            services.append(card);
+        }
+    }
+    document.addEventListener('submit', async event => {
+        if (event.target.id !== 'admin-password-form' || !admin()) return;
+        event.preventDefault();
+        if (passwordSaving) return;
+        const feedback = el('admin-pw-feedback'), value = id => el(id).value.trim();
+        const fail = (message, id) => { feedback.textContent = message; feedback.dataset.state = 'error'; if (id) el(id).focus(); };
+        if (!value('admin-pw-user') || !value('admin-pw-current')) return fail(t('Isi username dan password saat ini.', 'Enter the current username and password.'), !value('admin-pw-user') ? 'admin-pw-user' : 'admin-pw-current');
+        if (value('admin-pw-new').length < 10) return fail(t('Password baru minimal 10 karakter.', 'The new password needs at least 10 characters.'), 'admin-pw-new');
+        if (value('admin-pw-new') !== value('admin-pw-repeat')) return fail(t('Ulangan password baru tidak sama.', 'The repeated password does not match.'), 'admin-pw-repeat');
+        const epoch = sessionEpoch; passwordSaving = true; el('admin-pw-submit').disabled = true; feedback.dataset.state = 'busy'; feedback.textContent = t('Menyimpan…', 'Saving…');
+        try {
+            const result = await readApiResult(await apiPost(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'change_admin_password', username:value('admin-pw-user'), currentPassword:value('admin-pw-current'), newUsername:value('admin-pw-newuser') || value('admin-pw-user'), newPassword:value('admin-pw-new')})}));
+            if (epoch !== sessionEpoch) return;
+            if (result.status !== 'success') return fail(systemText(result.message || t('Password belum tersimpan.', 'The password was not saved.')));
+            ['admin-pw-current', 'admin-pw-new', 'admin-pw-repeat', 'admin-pw-newuser'].forEach(id => { el(id).value = ''; });
+            feedback.dataset.state = 'success'; feedback.textContent = t('Password baru tersimpan. Gunakan username ', 'New password saved. Use the username ') + (result.username || '') + t(' saat login berikutnya.', ' next time you log in.');
+        } catch (error) { if (epoch === sessionEpoch && !error.staleSession) fail(t('Password belum tersimpan. Periksa koneksi dan coba lagi.', 'The password was not saved. Check the connection and try again.')); }
+        finally { if (epoch === sessionEpoch) { passwordSaving = false; el('admin-pw-submit').disabled = false; } }
+    });
+    renderPasswordCard(); document.addEventListener('DOMContentLoaded', renderPasswordCard);
+    window.addEventListener('ipcos:logout', () => { passwordSaving = false; el('admin-password-form')?.reset(); const feedback = el('admin-pw-feedback'); if (feedback) feedback.textContent = ''; });
+
     window.IPCOSAdminTools = Object.freeze({applyView, currentView, renderViews});
 })();

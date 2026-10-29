@@ -83,7 +83,52 @@
         if (tab) switchTab(null, tab.dataset.guideTab);
     });
 
+    /* ---------- Anonymous wizard funnel ---------- */
+    // One report per service and step per session; failures are ignored so they never disturb the student.
+    const reported = new Set();
+    function funnelStep(service, step) {
+        if (!student() || !SERVICE_TYPES.includes(service) || !['service', 'data', 'files', 'review', 'sent'].includes(step)) return;
+        const key = sessionEpoch + '|' + service + '|' + step;
+        if (reported.has(key)) return;
+        reported.add(key);
+        apiPost(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'report_funnel', service, step})}).then(response => response.json()).catch(() => {});
+    }
+    window.IPCOSFunnel = Object.freeze({step:funnelStep});
+
+    /* ---------- Install as an app ---------- */
+    // Chrome/Edge/Android offer installation through beforeinstallprompt; iPhone users get a short instruction instead.
+    let installPrompt = null;
+    const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const ios = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const installDismissed = () => { try { return localStorage.getItem('ipcos_install_dismissed') === '1'; } catch (_) { return false; } };
+    window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; renderInstall(); });
+    window.addEventListener('appinstalled', () => { installPrompt = null; renderInstall(); });
+    function renderInstall() {
+        const actions = document.querySelector('#student-header .student-info-actions');
+        let menuButton = el('install-app-button');
+        const available = !installed() && (installPrompt || ios());
+        if (actions && available && !menuButton) {
+            menuButton = document.createElement('button'); menuButton.type = 'button'; menuButton.id = 'install-app-button'; menuButton.className = 'btn-secondary'; menuButton.dataset.installApp = '';
+            actions.prepend(menuButton);
+        }
+        if (menuButton) { menuButton.hidden = !available; menuButton.textContent = t('Pasang Aplikasi', 'Install App'); }
+        el('install-app-card')?.remove();
+        const home = el('task-home');
+        if (!student() || !home || !available || installDismissed() || !matchMedia('(max-width:850px)').matches) return;
+        const card = document.createElement('section'); card.id = 'install-app-card'; card.className = 'install-app-card'; card.dataset.preserveCase = '';
+        card.innerHTML = `<img src="/icons/icon-192.png" alt="" width="40" height="40"><div><strong>${t('Pasang IPCOS di HP', 'Install IPCOS on your phone')}</strong><p>${ios() && !installPrompt ? t('Ketuk Bagikan lalu “Tambah ke Layar Utama”.', 'Tap Share, then “Add to Home Screen”.') : t('Buka langsung dari layar utama seperti aplikasi.', 'Open it straight from your home screen like an app.')}</p></div>${installPrompt ? `<button type="button" class="btn-primary" data-install-app>${t('Pasang', 'Install')}</button>` : ''}<button type="button" class="install-app-dismiss" data-install-dismiss aria-label="${t('Tutup', 'Close')}">×</button>`;
+        home.prepend(card);
+    }
+    document.addEventListener('click', async event => {
+        if (event.target.closest('[data-install-dismiss]')) { try { localStorage.setItem('ipcos_install_dismissed', '1'); } catch (_) {} el('install-app-card')?.remove(); return; }
+        if (!event.target.closest('[data-install-app]')) return;
+        if (!installPrompt) { showToast(t('Di iPhone: ketuk Bagikan lalu “Tambah ke Layar Utama”.', 'On iPhone: tap Share, then “Add to Home Screen”.'), 'success'); return; }
+        const prompt = installPrompt; installPrompt = null;
+        prompt.prompt(); await prompt.userChoice.catch(() => null); renderInstall();
+    });
+    window.addEventListener('ipcos:logout', () => reported.clear());
+
     const originalHome = window.renderTaskHome;
-    if (typeof originalHome === 'function') window.renderTaskHome = function () { const result = originalHome.apply(this, arguments); try { renderGuide(); renderServiceCards(); } catch (_) {} return result; };
-    window.IPCOSGuidance = Object.freeze({caseTimeline, trackerHtml, renderServiceCards});
+    if (typeof originalHome === 'function') window.renderTaskHome = function () { const result = originalHome.apply(this, arguments); try { renderGuide(); renderServiceCards(); renderInstall(); } catch (_) {} return result; };
+    window.IPCOSGuidance = Object.freeze({caseTimeline, trackerHtml, renderServiceCards, renderInstall});
 })();

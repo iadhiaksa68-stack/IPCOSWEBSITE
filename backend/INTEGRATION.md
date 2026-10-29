@@ -84,3 +84,9 @@ Perbarui `Features.gs` dan `Next.gs` dengan sumber lokal. `Kode.gs` tidak beruba
 - **Template instruksi revisi** disimpan sebagai konten `revision_templates` di sheet `KontenWeb` melalui `update_content` yang sudah ada; tidak ada rute baru.
 
 Rollback: kembalikan deployment ke versi sebelumnya. Bila migrasi sudah dijalankan, versi lama tidak membaca sheet `IPCOS_DataPribadi`; salin kembali barisnya ke Script Properties sebelum rollback.
+
+## Password admin dan alur pendaftaran — 29 Oktober 2026 (versi 40)
+
+- `admin_login` memeriksa hash di Script Properties `IPCOS_ADMIN_AUTH` (SHA-256 bergaram, 2000 iterasi). Bila belum ada, login sukses pertama melalui `handleAdminLogin` menyimpannya; setelah itu `handleAdminLogin` tidak dipakai lagi dan password teks di `Kode.gs` dapat dihapus.
+- `change_admin_password` (sesi admin) memvalidasi username/password lama lalu menyimpan hash baru. Password minimal 10 karakter.
+- `report_funnel` (sesi mahasiswa) menghitung langkah wizard per layanan per hari tanpa NIM atau isian; dibatasi satu hitungan per sesi/layanan/langkah dan disimpan 30 hari (`IPCOS_FUNNEL_yyyy-MM-dd`). `get_health` menyertakan `funnel` dan `adminPasswordHashed`.

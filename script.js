@@ -1662,6 +1662,7 @@ async function submitForm(e) {
             window.IPCOSExperience?.feedback(uxText("Pendaftaran & Berkas berhasil dikirim!", "Registration & Files submitted successfully!"), "success");
             setSubmissionStage('form-submit-status','confirmed');
             lastSubmittedCaseId = result.id || '';
+            window.IPCOSFunnel?.step(jenisUjian,'sent');
             sessionStorage.removeItem('ipcos_pending_submission');
             showSubmissionReceipt({ id: lastSubmittedCaseId, date: result.date || dateStr, jenis: jenisUjian, files: filesToUpload });
             setProcessNotice('form-submit-status','form-confirmed');

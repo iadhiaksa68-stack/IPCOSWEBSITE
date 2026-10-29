@@ -31,6 +31,8 @@ async function mock(context) {
             } else if (data.action === 'get_journey') result = {status:'success', journey:{checks:{}, revision:1}};
             else if (data.action === 'save_progress') result = {status:'success', journey:{checks:data.changes || {}, revision:2}};
             else if (data.action === 'get_document_review') result = {status:'success', version:'', reviews:[], archived:false};
+            else if (data.action === 'change_admin_password') result = data.currentPassword === 'lama-benar' ? {status:'success', username:data.newUsername} : {status:'error', message:'Username atau password lama salah.'};
+            else if (data.action === 'get_health') result = {status:'success', events:[], storage:{propertyBytes:724, propertyLimit:500000, privateSheet:true, privateRows:30}, adminPasswordHashed:true, funnel:{Proposal:{service:10, data:8, files:5, review:4, sent:3}}};
             else if (data.action === 'logout') result = {status:'success'};
             else if (await require('./next-mock.cjs')(route, data)) return;
             else result = {status:'success'};
@@ -69,6 +71,16 @@ async function login(page, role) {
     await page.evaluate(() => syncDatabase());
     pass('New students get a 3-step guide on Home that stays dismissed');
 
+    await page.setViewportSize({width:390, height:844});
+    await page.evaluate(() => { const event = new Event('beforeinstallprompt'); event.prompt = () => { window.__installPrompted = true; }; event.userChoice = Promise.resolve({outcome:'accepted'}); window.dispatchEvent(event); });
+    await page.waitForSelector('#install-app-card [data-install-app]');
+    assert.equal(await page.locator('#install-app-button').count(), 1, 'the profile menu also offers installation');
+    await page.locator('#install-app-card [data-install-app]').click();
+    await page.waitForFunction(() => window.__installPrompted === true);
+    assert.equal(await page.evaluate(() => fetch('/manifest.webmanifest').then(r => r.json()).then(m => [m.short_name, m.display, m.icons.length])).then(JSON.stringify), JSON.stringify(['IPCOS', 'standalone', 3]));
+    await page.setViewportSize({width:1365, height:900});
+    pass('Phones are offered to install IPCOS as an app, using the web app manifest');
+
     const quick = page.locator('#home-preparation input[data-home-check]');
     assert.equal(await quick.count(), 3, 'three next items can be ticked on Home');
     const firstId = await quick.first().getAttribute('data-home-check');
@@ -89,6 +101,13 @@ async function login(page, role) {
     assert.equal(await page.inputValue('#reg-jenis-utama'), 'Proposal');
     assert.equal(await page.getAttribute('[data-service-card="Proposal"]', 'aria-pressed'), 'true');
     pass('Service cards show availability before choosing, and a card selects its service');
+    await page.waitForFunction(() => true);
+    const funnelCalls = () => calls.filter(c => c.action === 'report_funnel').map(c => c.service + ':' + c.step);
+    assert(funnelCalls().includes('Proposal:service'), 'choosing a service is counted');
+    await page.evaluate(() => { document.getElementById('reg-jenis-utama').dispatchEvent(new Event('change', {bubbles:true})); window.IPCOSRegistration?.refresh(); });
+    assert.equal(funnelCalls().filter(entry => entry === 'Proposal:service').length, 1, 'each step is reported once per session');
+    assert.equal(calls.filter(c => c.action === 'report_funnel').some(c => JSON.stringify(c).includes('"nim"')), false, 'reports carry no student ID');
+    pass('Wizard steps are reported anonymously, once per service and step');
 
     await page.evaluate(() => switchTab(null, 'student-status'));
     assert.equal(await page.locator('#student-status .case-tracker.compact:visible').first().locator('li').count(), 4, 'list shows a compact tracker');
@@ -152,6 +171,29 @@ async function login(page, role) {
     await admin.evaluate(() => { if (currentLang !== 'en') toggleLanguage(); });
     assert.deepEqual(await admin.locator('#admin-table-main thead th.lang').evaluateAll(nodes => nodes.slice(0, 3).map(node => node.textContent.trim())).then(list => list.filter(Boolean)).then(list => list.includes('Student') && list.includes('Request Type')), true);
     pass('Queue table headers follow the selected language');
+    await admin.evaluate(() => { if (currentLang !== 'id') toggleLanguage(); switchTab(null, 'admin-master'); });
+    await admin.locator('#admin-password-card > summary').click();
+    await admin.fill('#admin-pw-user', 'admin'); await admin.fill('#admin-pw-current', 'lama-salah');
+    await admin.fill('#admin-pw-new', 'pendek'); await admin.fill('#admin-pw-repeat', 'pendek');
+    await admin.locator('#admin-pw-submit').click();
+    assert.match(await admin.locator('#admin-pw-feedback').textContent(), /minimal 10/);
+    await admin.fill('#admin-pw-new', 'password-baru-panjang'); await admin.fill('#admin-pw-repeat', 'password-baru-lain');
+    await admin.locator('#admin-pw-submit').click();
+    assert.match(await admin.locator('#admin-pw-feedback').textContent(), /tidak sama/);
+    await admin.fill('#admin-pw-repeat', 'password-baru-panjang'); await admin.locator('#admin-pw-submit').click();
+    await admin.waitForFunction(() => /lama salah/i.test(document.getElementById('admin-pw-feedback').textContent));
+    await admin.fill('#admin-pw-current', 'lama-benar'); await admin.fill('#admin-pw-newuser', 'prodi'); await admin.locator('#admin-pw-submit').click();
+    await admin.waitForFunction(() => /prodi/.test(document.getElementById('admin-pw-feedback').textContent));
+    assert.equal(await admin.inputValue('#admin-pw-current'), '', 'password fields are cleared after saving');
+    pass('Admins change the login password in Master Data with validation and clear fields afterwards');
+
+    await admin.evaluate(() => switchTab(null, 'admin-data'));
+    await admin.evaluate(() => { document.querySelectorAll('#admin-data details').forEach(node => node.open = true); });
+    await admin.locator('[data-health-refresh]').click();
+    await admin.waitForSelector('.health-funnel table');
+    assert.deepEqual(await admin.locator('.health-funnel tbody td').allTextContents(), ['Ujian Seminar Proposal', '10', '8 80%', '5 50%', '4 40%', '3 30%']);
+    assert.match(await admin.locator('#health-results').textContent(), /tersimpan sebagai hash/);
+    pass('Service Health shows where students stop in the wizard and whether the admin password is hashed');
 
     assert.deepEqual(errors, []);
     await browser.close();

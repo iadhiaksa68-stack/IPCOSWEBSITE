@@ -12,6 +12,8 @@ Static academic portal with the existing Google Apps Script backend. Login and t
 ## Guidance and admin speed-ups (29 October 2026)
 
 - Student: the Registration Center shows all five services as cards with their availability (available, in progress, or why it is closed) before one is chosen; every request shows a progress tracker (submitted → corrections requested → corrections sent → approved); the Home preparation card lists the next three checklist items to tick in place; students without any request see a dismissible three-step guide once.
+- Installable: a web app manifest and icons let phones add IPCOS to the home screen; students on phones see a dismissible install card, and the profile menu offers Install App.
+- Admin login security: the credential is stored as a salted, iterated hash in Script Properties (created on the first successful login), and admins change username/password in Master Data. Service Health shows whether the password is hashed and an anonymous 30-day registration funnel (chose → details → files → review → sent per service).
 - Admin: J/K move through the review queue, A approves, R requests corrections, ? shows the shortcuts; built-in and device-saved queue views apply filters in one click; supervisors are listed by remaining quota with the least-loaded one suggested; queue headers follow the selected language.
 
 ## Academic preparation

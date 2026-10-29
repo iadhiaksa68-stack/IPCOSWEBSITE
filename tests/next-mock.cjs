@@ -6,6 +6,7 @@ module.exports=async function(route,data) {
     else if(data.action==='get_form_draft')result={status:'success',draft:{exists:false,fields:{},revision:0,updatedAt:''}};
     else if(data.action==='save_form_draft')result={status:'success',draft:{exists:Object.keys(data.fields).length>0,fields:data.fields,revision:data.revision+1,updatedAt:new Date().toISOString(),requestId:data.requestId}};
     else if(data.action==='report_health')result={status:'success'};
+    else if(data.action==='report_funnel')result={status:'success'};
     else if(data.action==='get_health')result={status:'success',events:[]};
     else return false;
     await route.fulfill({contentType:'application/json',body:JSON.stringify(result)});return true;

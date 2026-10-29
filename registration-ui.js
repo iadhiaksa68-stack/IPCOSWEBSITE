@@ -34,6 +34,7 @@
             setText(button.querySelector('.registration-step-number'),done&&!current?'✓':String(steps.indexOf(step)+1));
         });
         Object.entries(panels).forEach(([step,id])=>el(id).hidden=step!==activeStep);
+        if(selected)window.IPCOSFunnel?.step(type,review?'review':activeStep);
         el('dynamic-exam-form').hidden=activeStep==='service';
         el('registration-shell').dataset.currentStep=activeStep;
         nav.dataset.currentStep=activeStep;
