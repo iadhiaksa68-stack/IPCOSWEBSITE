@@ -171,7 +171,7 @@
             || (currentUser.role === 'mhs' && !isStudentOwner(item))) return '';
         return `<section class="request-state${options.compact ? ' request-state-compact' : ''}" aria-label="${escape(text('Status dan langkah pengajuan', 'Request status and next step'))}">
             <div class="request-state-heading">${getStatusBadge(item.status)}</div>
-            <p class="request-state-next">${escape(caseNextStep(item))}</p></section>`;
+            <p class="request-state-next">${escape(caseNextStep(item))}</p>${typeof caseWaitHtml === 'function' ? caseWaitHtml(item) : ''}</section>`;
     }
 
     function updateKeyboardState() {

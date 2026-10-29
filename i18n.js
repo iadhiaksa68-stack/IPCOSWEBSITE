@@ -316,7 +316,10 @@ function applyStaticLanguage() {
     loginButton.textContent = currentLang === 'id' ? 'ID' : 'EN';
     loginButton.setAttribute('aria-label',uxText('Bahasa: Indonesia. Ganti ke English','Language: English. Switch to Indonesian'));
     loginButton.title = uxText('Ganti ke English','Switch to Indonesian');
-    document.getElementById('lang-btn').textContent = uxText('English','Bahasa Indonesia');
+    const headerButton = document.getElementById('lang-btn');
+    headerButton.textContent = loginButton.textContent;
+    headerButton.setAttribute('aria-label',loginButton.getAttribute('aria-label'));
+    headerButton.title = loginButton.title;
 }
 
 function localizedDetailHtml(source) {

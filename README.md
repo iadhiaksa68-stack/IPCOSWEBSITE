@@ -2,6 +2,13 @@
 
 Static academic portal with the existing Google Apps Script backend. Login and the academic database schema are unchanged.
 
+## Evaluation follow-ups (29 October 2026)
+
+- Student: requests show how long they have waited against the admin target ("Sudah menunggu X hari · biasanya diproses dalam Y hari"); Home shows internship/thesis preparation until the first approval; before a first request, Academic Journey leads with open preparation and folds the empty stage map; one announcement appears once, in the banner (important ones emphasized), with no second modal; success messages are toasts only and sit at the bottom on phones; language and theme are icons in the top bar.
+- Admin: Home shows received/completed today, 30-day average processing time, requests past target and supervisors near capacity; queue rows show request age, red past target; rows can be selected for bulk approval (only waiting requests that have files and need no supervisor, after an inline confirmation), bulk archive with a reason, or CSV export of the selection; revision instruction examples are editable in Master Data; approving a request with no files needs an extra confirmation; Service Health shows Script Properties usage.
+- Backend: per-student data can move from Script Properties to the hidden `IPCOS_DataPribadi` sheet, and admin login locks after repeated failures. See backend/INTEGRATION.md.
+- Download names use one ASCII form everywhere.
+
 ## Academic preparation
 
 - Internship and thesis stages follow the content already editable by admin. Self-checks sync privately across devices through Script Properties, separately from admin decisions. Existing local checks migrate only when the cloud record does not exist.

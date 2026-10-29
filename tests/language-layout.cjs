@@ -74,7 +74,8 @@ async function layout(page,label) {
     await page.evaluate(()=>switchTab(null,'skripsi'));
     assert((await page.locator('#skripsi-checklist-container').textContent()).includes('Attend at least five proposal supervision sessions'));
     await page.evaluate(()=>switchTab(null,'academic-journey'));
-    await page.locator('#journey-preparation-skripsi summary').click();
+    // Students without requests see preparation already expanded.
+    if (!await page.locator('#journey-preparation-skripsi').evaluate(node => node.open)) await page.locator('#journey-preparation-skripsi summary').click();
     await page.locator('#journey-preparation-skripsi-open').click();
     await page.locator('#skripsi [data-start-service="Proposal"]').click(); assert.equal(await page.inputValue('#reg-jenis-utama'),'Proposal');
     await page.evaluate(()=>{document.getElementById('reg-jenis-utama').value='';toggleExamForm();});

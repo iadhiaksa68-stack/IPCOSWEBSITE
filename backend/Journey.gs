@@ -4,7 +4,7 @@ function journeyPropertyKey(nim) {
   return 'IPCOS_PROGRESS_'+hash;
 }
 function journeyRead(nim) {
-  const raw=PropertiesService.getScriptProperties().getProperty(journeyPropertyKey(nim));
+  const raw=ipcosPrivateProps().getProperty(journeyPropertyKey(nim));
   if (!raw) return {exists:false,checks:{},revision:0,updatedAt:''};
   const saved=JSON.parse(raw);
   if (!saved || !saved.checks || !Number.isInteger(saved.revision)) throw new Error('Catatan persiapan belum dapat dibaca.');
@@ -48,12 +48,12 @@ function journeyDispatch(data) {
     const next={checks:checks,revision:previous.revision+1,updatedAt:new Date().toISOString()};
     const json=JSON.stringify(next);
     if (Utilities.newBlob(json).getBytes().length>8000) throw new Error('Catatan persiapan terlalu besar. Hubungi admin.');
-    PropertiesService.getScriptProperties().setProperty(journeyPropertyKey(nim),json);
+    ipcosPrivateProps().setProperty(journeyPropertyKey(nim),json);
     return {status:'success',journey:Object.assign({exists:true},next)};
   } finally { lock.releaseLock(); }
 }
 function journeyBackup() {
-  const all=PropertiesService.getScriptProperties().getProperties(), result={};
+  const all=ipcosPrivateProps().getProperties(), result={};
   for (const key of Object.keys(all)) if (key.startsWith('IPCOS_PROGRESS_')) result[key]=JSON.parse(all[key]);
   return result;
 }
@@ -68,7 +68,7 @@ function featureCheckSubmissionFiles(files,type) {
 }
 // Owner-only release check: temporary preference data, never academic records.
 function verifyJourneyDeployment() {
-  const key=journeyPropertyKey('__IPCOS_JOURNEY_RELEASE_TEST__'), p=PropertiesService.getScriptProperties(), before=p.getProperty(key);
+  const key=journeyPropertyKey('__IPCOS_JOURNEY_RELEASE_TEST__'), p=ipcosPrivateProps(), before=p.getProperty(key);
   let saved=false;
   try {
     p.setProperty(key,JSON.stringify({checks:{m1:true},revision:1,updatedAt:new Date().toISOString()}));

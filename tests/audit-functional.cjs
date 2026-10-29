@@ -313,7 +313,9 @@ function announcementContext() {
   const node = id => {
     if (!nodes.has(id)) {
       const attributes = new Map();
-      nodes.set(id, {id, tagName: 'DIV', checked: false, style: {display: 'none'}, innerText: '',
+      const classes = new Set();
+      nodes.set(id, {id, tagName: 'DIV', checked: false, style: {display: 'none'}, innerText: '', classes,
+        classList: {toggle: (name, on) => on ? classes.add(name) : classes.delete(name), contains: name => classes.has(name)},
         getAttribute: name => attributes.get(name) || null, setAttribute: (name, value) => attributes.set(name, String(value))});
     }
     return nodes.get(id);
@@ -334,21 +336,19 @@ function announcementContext() {
   return {context, node, values, session, flush: () => {const pending = [...timeouts.values()]; timeouts.clear(); pending.forEach(fn => fn());}};
 }
 
-test('broadcast sync retains the dismissal choice and separates it between student accounts', () => {
+test('an important broadcast appears once, emphasized in the banner, with dismissal separated per student', () => {
   const fixture = announcementContext(), {context, node} = fixture;
   const snapshot = () => ({registrations: [], announcements: [{Id: 'announcement-1', Tipe: 'important', Pesan: 'Important announcement'}]});
   context.applyDatabaseSnapshot(snapshot());
-  node('chk-dont-show-announcement').checked = true;
+  assert.equal(node('modal-important-announcement').style.display, 'none', 'no second modal for the same announcement');
+  assert.equal(node('announcement-banner').style.display, 'flex');
+  assert.equal(node('announcement-banner').classList.contains('announcement-important'), true);
+  context.dismissAnnouncementBanner();
   context.applyDatabaseSnapshot(snapshot());
-  assert.equal(node('chk-dont-show-announcement').checked, true);
-  context.closeAnnouncementModal(); fixture.flush();
-  const keyA = context.announcementDismissalKey('hide', 'announcement-1');
-  assert.equal(fixture.values.get(keyA), 'true');
-  context.applyDatabaseSnapshot(snapshot());
-  assert.equal(node('modal-important-announcement').style.display, 'none');
+  assert.equal(node('announcement-banner').style.display, 'none');
   context.currentUser.nim = 'B'; context.applyDatabaseSnapshot(snapshot());
-  assert.equal(node('modal-important-announcement').style.display, 'flex');
-  assert.notEqual(context.announcementDismissalKey('hide', 'announcement-1'), keyA);
+  assert.equal(node('announcement-banner').style.display, 'flex');
+  assert.equal(node('modal-important-announcement').style.display, 'none');
 });
 
 test('generic announcement dismissal is remembered while logout cleanup does not dismiss it', () => {

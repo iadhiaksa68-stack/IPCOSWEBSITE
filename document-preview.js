@@ -175,7 +175,7 @@
         const helper=panel.querySelector('p');
         const actions=document.createElement('div'); actions.className='document-preview-actions button-row';
         const open=document.createElement('a');open.href=url;open.target='_blank';open.rel='noopener';open.className='btn-secondary';open.dataset.documentId='Buka Pratinjau di Tab Baru';open.dataset.documentEn='Open Preview in New Tab';open.textContent=t(open.dataset.documentId,open.dataset.documentEn);
-        const download=document.createElement('a');download.href=url;download.download=name;download.className='btn-secondary';download.dataset.documentId='Unduh Berkas';download.dataset.documentEn='Download File';download.textContent=t(download.dataset.documentId,download.dataset.documentEn);
+        const download=document.createElement('a');download.href=url;download.download=safeDownloadName(name);download.className='btn-secondary';download.dataset.documentId='Unduh Berkas';download.dataset.documentEn='Download File';download.textContent=t(download.dataset.documentId,download.dataset.documentEn);
         const canPreview=['application/pdf','image/png','image/jpeg'].includes(mime);
         if (canPreview) {
             if(mime!=='application/pdf'){const viewer=document.createElement('img');viewer.className='document-renderer';viewer.src=url;viewer.alt=t('Pratinjau: ','Preview: ')+name;panel.insertBefore(viewer,helper);}actions.append(open);

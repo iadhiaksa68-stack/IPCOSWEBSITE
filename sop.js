@@ -433,7 +433,7 @@
             if (!current(epoch,run)) return;
             if (result.status !== 'success' || !result.base64) throw Error(result.message || t('Lampiran belum dapat diunduh.','Attachment could not be downloaded.'));
             const bytes = Uint8Array.from(atob(result.base64),character=>character.charCodeAt(0)), url = URL.createObjectURL(new Blob([bytes],{type:result.mimeType || 'application/octet-stream'}));
-            blobs.add(url); const anchor = document.createElement('a'); anchor.href = url; anchor.download = result.fileName; document.body.appendChild(anchor); anchor.click(); anchor.remove();
+            blobs.add(url); const anchor = document.createElement('a'); anchor.href = url; anchor.download = safeDownloadName(result.fileName); document.body.appendChild(anchor); anchor.click(); anchor.remove();
             setTimeout(()=>{URL.revokeObjectURL(url);blobs.delete(url);},30000);
         } catch (error) { if (current(epoch,run) && !error.staleSession) showToast(errorText(error),'error'); }
         finally { if (current(epoch,run)) { downloads.delete(key); document.querySelectorAll('[data-sop-action="download"]').forEach(node=>{if(node.dataset.sopType===type&&node.dataset.fileId===fileId&&!node.closest('#modal-sop-editor')){node.disabled=false;node.textContent=t('Unduh','Download');}}); } }

@@ -2,7 +2,7 @@
 (() => {
     const fieldIds=['reg-jenis-utama','reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti'];
     let draft={epoch:-1,loaded:false,revision:0,generation:0,confirmed:0,saving:false,intent:null,request:null,conflict:null,error:false},timer;
-    let revision=null,healthBusy=false,healthError=false,healthEvents=null,interfaceReady=false;const reported=new Map();
+    let revision=null,healthBusy=false,healthError=false,healthEvents=null,healthStorage=null,interfaceReady=false;const reported=new Map();
     const text=(id,en)=>uxText(id,en),owner=()=>currentUser.role==='mhs' && !!getSessionToken();
     const fields=()=>Object.fromEntries(fieldIds.map(id=>[id,document.getElementById(id).value]));
     const requestId=()=>crypto.randomUUID?.().replaceAll('-','') || Date.now().toString(36)+Math.random().toString(36).slice(2);
@@ -187,7 +187,7 @@
         healthBusy=true;healthError=false;container.textContent=text('Memuat ringkasan gangguan…','Loading issue summary…');
         try {
             const result=await call('get_health');if(epoch!==sessionEpoch)return;
-            healthEvents=result.events;renderHealth();
+            healthEvents=result.events;healthStorage=result.storage||null;renderHealth();
         } catch(error){if(epoch===sessionEpoch)healthError=true;}
         finally{if(epoch===sessionEpoch){healthBusy=false;renderHealth();}}
     }
@@ -199,7 +199,8 @@
         if(!healthEvents)return;
         const labels={javascript:['Tampilan','Interface'],network:['Koneksi','Connection'],api_response:['Proses Belum Berhasil','Unsuccessful Operation'],api_timeout:['Waktu Tunggu Habis','Request Timed Out'],module:['Pemuatan Fitur','Feature Loading']};
         const operations={create:['Pengajuan Baru','New Request'],update:['Perubahan Pengajuan','Request Update'],revise_request:['Perbaikan Pengajuan','Request Correction'],get_document:['Berkas Pengajuan','Request Documents'],get_receipt:['Bukti Pengajuan','Request Receipt'],get_data:['Pembaruan Data','Data Refresh'],get_sop:['Panduan SOP','SOP Guide'],save_sop:['Publikasi SOP','SOP Publication'],get_sop_file:['Lampiran SOP','SOP Attachments'],save_form_draft:['Penyimpanan Draf','Draft Saving'],get_form_draft:['Pemulihan Draf','Draft Recovery'],save_progress:['Persiapan Akademik','Academic Preparation'],get_journey:['Perjalanan Akademik','Academic Journey'],module:['Pemuatan Fitur','Feature Loading'],runtime:['Tampilan','Interface']};
-        container.innerHTML=healthEvents.length?`<ul class="health-list">${healthEvents.map(event=>`<li><strong>${text(...(labels[event.code]||labels.api_response))}</strong><span>${text(...(operations[event.operation]||operations.runtime))} · ${event.role==='admin'?text('Admin','Admin'):text('Mahasiswa','Student')} · ${Number(event.count)} ${text('kejadian',Number(event.count)===1?'event':'events')} · ${escapeHtml(formatDate(event.day))}</span></li>`).join('')}</ul>`:`<p>${text('Belum ada gangguan tercatat dalam 7 hari terakhir.','No issues have been recorded in the last 7 days.')}</p>`;
+        const storage=healthStorage&&Number.isFinite(healthStorage.propertyBytes)?`<p class="health-storage${healthStorage.propertyBytes>healthStorage.propertyLimit*.8?' field-error':''}">${text('Penyimpanan Script Properties','Script Properties storage')}: ${Math.round(healthStorage.propertyBytes/1000)} / ${Math.round(healthStorage.propertyLimit/1000)} KB · ${healthStorage.privateSheet?text('Data mahasiswa di sheet tersendiri','Student data in its own sheet')+` (${Number(healthStorage.privateRows)} ${text('baris','rows')})`:text('Data mahasiswa masih di Script Properties','Student data still in Script Properties')}</p>`:'';
+        container.innerHTML=storage+(healthEvents.length?`<ul class="health-list">${healthEvents.map(event=>`<li><strong>${text(...(labels[event.code]||labels.api_response))}</strong><span>${text(...(operations[event.operation]||operations.runtime))} · ${event.role==='admin'?text('Admin','Admin'):text('Mahasiswa','Student')} · ${Number(event.count)} ${text('kejadian',Number(event.count)===1?'event':'events')} · ${escapeHtml(formatDate(event.day))}</span></li>`).join('')}</ul>`:`<p>${text('Belum ada gangguan tercatat dalam 7 hari terakhir.','No issues have been recorded in the last 7 days.')}</p>`);
     }
     function revisionLanguage() {
         const form=document.getElementById('case-revision-fields');if(!form)return;

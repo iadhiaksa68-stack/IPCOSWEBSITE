@@ -39,14 +39,22 @@ const correctionTemplates = {
     format:['Sesuaikan dokumen dengan template pada menu Template & FAQ, lalu unggah versi perbaikannya.','Use the document format from Templates & FAQ, then upload the corrected version.'],
     details:['Periksa kembali isian pengajuan dan samakan dengan informasi pada dokumen pendukung.','Review the request details and match them with the supporting documents.']
 };
+// Admin-managed examples (KontenWeb "revision_templates") replace the built-in four once saved.
+function revisionTemplates() {
+    let saved=contentCacheFallback.get('revision_templates');
+    if(!saved){try{saved=localStorage.getItem('ipcos_content_revision_templates');}catch(_){}}
+    try{const list=JSON.parse(saved||'null');if(Array.isArray(list)&&list.length&&list.every(item=>item&&typeof item.label==='string'&&typeof item.text==='string'))return list.map((item,index)=>({key:'custom-'+index,label:item.label,text:item.text,custom:true}));}catch(_){}
+    const labels={certified:['Dokumen belum disahkan','Document not certified'],readable:['Dokumen kurang jelas atau lengkap','Document unclear or incomplete'],format:['Format dokumen','Document format'],details:['Isian perlu disesuaikan','Request details need correcting']};
+    return Object.entries(correctionTemplates).map(([key,text])=>({key,label:uxText(...labels[key]),text:uxText(...text)}));
+}
 function revisionTemplateHtml() {
-    return `<label for="revision-template">${uxText('Gunakan contoh instruksi (opsional)','Use an instruction example (optional)')}</label><select id="revision-template" onchange="insertRevisionTemplate(this)"><option value="">${uxText('Pilih contoh…','Choose an example…')}</option><option value="certified">${uxText('Dokumen belum disahkan','Document not certified')}</option><option value="readable">${uxText('Dokumen kurang jelas atau lengkap','Document unclear or incomplete')}</option><option value="format">${uxText('Format dokumen','Document format')}</option><option value="details">${uxText('Isian perlu disesuaikan','Request details need correcting')}</option></select><p class="field-helper">${uxText('Contoh ditambahkan ke catatan. Edit agar sesuai pengajuan; pilih berkas secara terpisah.','The example is added to the note. Edit it to fit this request; select documents separately.')}</p>`;
+    return `<label for="revision-template">${uxText('Gunakan contoh instruksi (opsional)','Use an instruction example (optional)')}</label><select id="revision-template" onchange="insertRevisionTemplate(this)"><option value="">${uxText('Pilih contoh…','Choose an example…')}</option>${revisionTemplates().map(item=>`<option value="${escapeHtml(item.key)}"${item.custom?' data-preserve-case':''}>${escapeHtml(item.label)}</option>`).join('')}</select><p class="field-helper">${uxText('Contoh ditambahkan ke catatan. Edit agar sesuai pengajuan; pilih berkas secara terpisah.','The example is added to the note. Edit it to fit this request; select documents separately.')}</p>`;
 }
 function insertRevisionTemplate(select) {
-    const text=correctionTemplates[select.value];
+    const text=revisionTemplates().find(item=>item.key===select.value)?.text;
     if (!text) return;
     const note=document.getElementById('case-revision-note');
-    note.value=[note.value.trim(),text[currentLang==='id'?0:1]].filter(Boolean).join('\n\n');
+    note.value=[note.value.trim(),text].filter(Boolean).join('\n\n');
     document.getElementById('case-action-panel').dataset.dirty='true';
     select.value=''; note.focus();
 }

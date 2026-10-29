@@ -53,6 +53,17 @@ function caseWaiting(item) {
     const target=Number(serviceSetting(item.jenis)[status==='revision'?'studentDays':'adminDays']);
     return {days,target,overdue:days>=target,role:status==='revision'?'mahasiswa':'admin'};
 }
+// "When?" answered inline: wait so far against the admin-configured target.
+function caseWaitHtml(item) {
+    const wait=caseWaiting(item);
+    if (!wait) return '';
+    const days=n=>n+' '+uxText('hari',n===1?'day':'days');
+    const status=String(item.status).toLowerCase();
+    if (currentUser.role==='admin') return `<p class="request-wait${wait.overdue?' overdue':''}" data-wait-days="${wait.days}"><strong>${wait.days?days(wait.days):uxText('Hari ini','Today')}</strong>${wait.overdue?' · '+uxText('lewat target','past target')+' '+days(wait.target):''}</p>`;
+    const since=wait.days?uxText('Sudah menunggu ','Waiting for ')+days(wait.days):uxText('Masuk hari ini','Received today');
+    const usual=status==='revision'?uxText('disarankan dikirim dalam ','suggested within ')+days(wait.target):uxText('biasanya diproses dalam ','usually processed within ')+days(wait.target);
+    return `<p class="request-wait${wait.overdue&&status!=='revision'?' overdue':''}">${since} · ${usual}</p>`;
+}
 function caseDocumentOptions(item) { return registrationSpecs(item.jenis).map(([,label])=>label); }
 const revisionAssociations=new WeakMap();
 function renderRevisionAssociations() {
@@ -137,7 +148,7 @@ async function downloadReceipt(id,button) {
         const bytes=Uint8Array.from(atob(result.base64),c=>c.charCodeAt(0));
         if(new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-') throw new Error('Bukti PDF belum valid. Coba lagi.');
         const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
-        const link=document.createElement('a'); link.href=url; link.download=String(result.fileName || 'IPCOS.pdf').replace(/[^a-zA-Z0-9_.-]/g,'_'); document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),10000);
+        const link=document.createElement('a'); link.href=url; link.download=safeDownloadName(result.fileName,'IPCOS.pdf'); document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),10000);
     } catch(error) { if(epoch===sessionEpoch) showToast(error.message || 'Bukti belum dapat diunduh.','error'); }
     finally { if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }
 }
@@ -230,7 +241,7 @@ async function accessCaseDocument(index,preview=false,button=null,pageRef=null) 
             window.IPCOSDocuments.render(panel,url,mime,name,{...caseDocumentReadingContext(item,file.url),pageRef:targetPage});
             window.IPCOSReviewTools?.previewReady();
         } else {
-            const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
+            const link=document.createElement('a');link.href=url;link.download=safeDownloadName(name);document.body.appendChild(link);link.click();link.remove();
         }
     } catch(error) { if(epoch===sessionEpoch && contextVersion===caseDocumentEpoch && (!preview || version===documentRequestVersion)) { showToast(error.message || 'Berkas belum dapat dibaca.','error'); if(preview && panel.isConnected) {const helper=panel.querySelector('p');helper.dataset.documentId='Berkas belum dapat dimuat di IPCOS. Coba Lagi atau pilih Buka Berkas Asli. Untuk Google Drive, gunakan akun yang memiliki akses.';helper.dataset.documentEn='The file could not be loaded in IPCOS. Try Again or choose Open Original File. For Google Drive, use an account with access.';helper.textContent=uxText(helper.dataset.documentId,helper.dataset.documentEn);panel.querySelector('[data-case-preview-retry]').hidden=false;} } }
     finally { if(preview){if(epoch===sessionEpoch&&contextVersion===caseDocumentEpoch&&version===documentRequestVersion)panel.setAttribute('aria-busy','false');releaseCasePreview(previewRequest);} else if(epoch===sessionEpoch && button?.isConnected) button.disabled=false; }

@@ -1,14 +1,65 @@
 // Optional workflow extensions. No new spreadsheet, column, credential or public file.
-const NEXT_ACTIONS = ['get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health','get_review_capabilities','get_document_review','save_document_review','archive_request','restore_request','get_academic_progress','save_academic_progress','change_request_type','get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
+const NEXT_ACTIONS = ['admin_login','get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health','get_review_capabilities','get_document_review','save_document_review','archive_request','restore_request','get_academic_progress','save_academic_progress','change_request_type','get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
 const NEXT_DRAFT_FIELDS = ['reg-jenis-utama','reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti'];
 function nextHash(value) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(value)).map(b=>('0'+((b+256)%256).toString(16)).slice(-2)).join(''); }
 function nextRequestId(value) { if(typeof value!=='string' || !/^[A-Za-z0-9_-]{8,80}$/.test(value)) throw new Error('ID penyimpanan tidak valid.'); return value; }
 function nextOwner(session) { if(session.role!=='mhs' || !auditStudent(String(session.nim))) throw new Error('Hanya mahasiswa aktif pemilik dapat mengubah pengajuan atau draf.'); }
 function nextLock(fn) { const lock=LockService.getScriptLock(); if(!lock.tryLock(10000)) throw new Error('Penyimpanan sedang diproses. Coba kembali.'); try { return fn(); } finally { lock.releaseLock(); } }
 function nextText(value,max) { if(typeof value!=='string' || value.length>max || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value)) throw new Error('Isian tidak valid atau terlalu panjang.'); return value.trim(); }
+// Per-student records (drafts, preparation, academic stage, internationalization) outgrow the shared 500 KB
+// Script Properties quota, so they move to a hidden sheet with one row per key. Until the owner runs
+// migratePrivateDataToSheet() the sheet does not exist and Script Properties keep working as before.
+const IPCOS_PRIVATE_SHEET='IPCOS_DataPribadi', IPCOS_PRIVATE_PREFIXES=['IPCOS_PROGRESS_','IPCOS_DRAFT_','IPCOS_ACADEMIC_','IPCOS_INTL_'];
+function ipcosPrivateKey(key) { return IPCOS_PRIVATE_PREFIXES.some(prefix=>String(key).startsWith(prefix)); }
+function ipcosPrivateSheet() {
+  const sheet=SpreadsheetApp.openById(SHEET_ID).getSheetByName(IPCOS_PRIVATE_SHEET);
+  if(!sheet || typeof sheet.getLastRow!=='function') return null;
+  const header=sheet.getRange(1,1,1,3).getValues()[0].map(String);
+  return header[0]==='key' && header[1]==='value' && header[2]==='updatedAt' ? sheet : null;
+}
+function ipcosPrivateProps() {
+  const props=PropertiesService.getScriptProperties(), sheet=ipcosPrivateSheet();
+  if(!sheet) return props;
+  const last=sheet.getLastRow(), map=new Map();
+  (last>1?sheet.getRange(2,1,last-1,2).getValues():[]).forEach((row,i)=>{ if(String(row[0])) map.set(String(row[0]),{row:i+2,value:String(row[1])}); });
+  const write=(key,value)=>{
+    const hit=map.get(key), now=new Date().toISOString();
+    if(hit) { sheet.getRange(hit.row,2,1,2).setValues([[value,now]]); hit.value=value; }
+    else { const row=sheet.getLastRow()+1; sheet.getRange(row,1,1,3).setValues([[key,value,now]]); map.set(key,{row:row,value:value}); }
+  };
+  return {
+    getProperty(key) { if(!ipcosPrivateKey(key)) return props.getProperty(key); const hit=map.get(key); return hit ? (hit.value===''?null:hit.value) : props.getProperty(key); },
+    setProperty(key,value) { if(!ipcosPrivateKey(key)) { props.setProperty(key,value); return this; } write(key,String(value)); if(props.getProperty(key)!==null) props.deleteProperty(key); return this; },
+    deleteProperty(key) { if(!ipcosPrivateKey(key)) { props.deleteProperty(key); return this; } if(map.has(key)) write(key,''); props.deleteProperty(key); return this; },
+    getProperties() { const all=props.getProperties(); for(const [key,hit] of map) { if(hit.value==='') delete all[key]; else all[key]=hit.value; } return all; }
+  };
+}
+// Owner-run, idempotent: creates the hidden sheet and moves every per-student property into it.
+function migratePrivateDataToSheet() {
+  return nextLock(()=>{
+    const ss=SpreadsheetApp.openById(SHEET_ID);let sheet=ss.getSheetByName(IPCOS_PRIVATE_SHEET);
+    if(!sheet) { sheet=ss.insertSheet(IPCOS_PRIVATE_SHEET); sheet.getRange('A:C').setNumberFormat('@'); sheet.getRange(1,1,1,3).setValues([['key','value','updatedAt']]); sheet.setFrozenRows(1); sheet.hideSheet(); }
+    const props=PropertiesService.getScriptProperties(), all=props.getProperties(), store=ipcosPrivateProps();
+    const keys=Object.keys(all).filter(ipcosPrivateKey);
+    for(const key of keys) store.setProperty(key,all[key]);
+    const result={moved:keys.length,remainingPropertyBytes:ipcosPropertyBytes()};
+    console.log(JSON.stringify(result)); return result;
+  });
+}
+function ipcosPropertyBytes() { const all=PropertiesService.getScriptProperties().getProperties(); return Object.keys(all).reduce((sum,key)=>sum+Utilities.newBlob(key+all[key]).getBytes().length,0); }
+// Admin password guessing: five failures lock that username for 15 minutes; fifty in total lock all admin logins.
+function nextAdminLogin(data) {
+  const cache=CacheService.getScriptCache(), user=String(data.username||'').trim().toLowerCase(), userKey='IPCOS_ADMIN_FAIL_'+nextHash(user), allKey='IPCOS_ADMIN_FAIL_ALL';
+  const count=key=>Number(cache.get(key)||0);
+  if(count(userKey)>=5 || count(allKey)>=50) return {status:'error',message:'Terlalu banyak percobaan login admin. Coba lagi dalam 15 menit.'};
+  const result=handleAdminLogin(data);
+  if(result.status==='success') { cache.remove(userKey); PropertiesService.getScriptProperties().setProperty('IPCOS_ADMIN_LAST_LOGIN',new Date().toISOString()); }
+  else { cache.put(userKey,String(count(userKey)+1),900); cache.put(allKey,String(count(allKey)+1),900); }
+  return result;
+}
 function nextDraftKey(nim) { return 'IPCOS_DRAFT_'+nextHash(String(nim).trim()); }
 function nextDraftRead(nim) {
-  const raw=PropertiesService.getScriptProperties().getProperty(nextDraftKey(nim));
+  const raw=ipcosPrivateProps().getProperty(nextDraftKey(nim));
   if(!raw) return {exists:false,fields:{},revision:0,updatedAt:''};
   const saved=JSON.parse(raw);
   if(!saved || !Number.isInteger(saved.revision) || saved.revision<0 || !saved.fields || typeof saved.fields!=='object' || Array.isArray(saved.fields) || !Number.isFinite(Date.parse(saved.updatedAt)) || Object.keys(saved.fields).some(key=>!NEXT_DRAFT_FIELDS.includes(key) || typeof saved.fields[key]!=='string' || saved.fields[key].length>(key==='reg-alasan-ganti'?2000:500)) || (saved.fields['reg-jenis-utama'] && !IPCOS_TYPES.includes(saved.fields['reg-jenis-utama']))) throw new Error('Draf cloud belum dapat dibaca.');
@@ -29,8 +80,8 @@ function nextDraftSave(session,data) {
     if(previous.revision!==data.revision) return {status:'conflict',draft:previous,message:'Draf berubah di perangkat lain. Pilih draf yang ingin dilanjutkan.'};
     const next={fields:normalized,revision:previous.revision+1,updatedAt:new Date().toISOString(),requestId:requestId};
     const json=JSON.stringify(next); if(Utilities.newBlob(json).getBytes().length>8000) throw new Error('Draf terlalu besar.');
-    PropertiesService.getScriptProperties().setProperty(nextDraftKey(session.nim),json);
-    const p=PropertiesService.getScriptProperties(),key=nextDraftKey(session.nim);let pruned=0;
+    ipcosPrivateProps().setProperty(nextDraftKey(session.nim),json);
+    const p=ipcosPrivateProps(),key=nextDraftKey(session.nim);let pruned=0;
     for(const name of Object.keys(p.getProperties())) if(name!==key && /^IPCOS_DRAFT_[a-f0-9]{64}$/.test(name) && pruned<20) { try {const old=JSON.parse(p.getProperty(name));if(Number.isFinite(Date.parse(old.updatedAt))&&Date.now()-Date.parse(old.updatedAt)>14*86400000){p.deleteProperty(name);pruned++;}}catch(_){} }
     return {status:'success',draft:Object.assign({exists:Object.keys(normalized).length>0},next)};
   });
@@ -124,9 +175,11 @@ function nextHealthRead(session) {
   for(const key of Object.keys(properties)) if(/^IPCOS_HEALTH_\d{4}-\d{2}-\d{2}$/.test(key) && Date.parse(key.slice(13))>=Date.now()-7*86400000) {
     const buckets=JSON.parse(properties[key]);for(const bucket of Object.keys(buckets)) { const parts=bucket.split(':');events.push({day:key.slice(13),code:parts[0],operation:parts[1],role:parts[2],count:buckets[bucket].count,lastSeen:buckets[bucket].lastSeen}); }
   }
-  return {status:'success',events:events.sort((a,b)=>String(b.lastSeen).localeCompare(String(a.lastSeen)))};
+  const sheet=ipcosPrivateSheet();
+  return {status:'success',events:events.sort((a,b)=>String(b.lastSeen).localeCompare(String(a.lastSeen))),storage:{propertyBytes:ipcosPropertyBytes(),propertyLimit:500000,privateSheet:!!sheet,privateRows:sheet?Math.max(0,sheet.getLastRow()-1):0}};
 }
 function nextDispatch(data) {
+  if(data.action==='admin_login') return nextAdminLogin(data);
   const session=getSession(data.token); if(!session || !['mhs','admin'].includes(session.role)) throw new Error('Sesi tidak valid atau berakhir.');
   if(INTERNATIONAL_ACTIONS.includes(data.action))return internationalDispatch(session,data);
   if(ACADEMIC_ACTIONS.includes(data.action))return academicDispatch(session,data);
@@ -212,7 +265,7 @@ function nextReviewDispatch(session,data) {
 }
 function verifyNextDeployment() {
   let denied=0;for(const action of NEXT_ACTIONS) try { nextDispatch({action:action,token:''}); } catch(_) { denied++; }
-  const p=PropertiesService.getScriptProperties(),key=nextDraftKey('__IPCOS_NEXT_RELEASE_TEST__'),before=p.getProperty(key);
+  const p=ipcosPrivateProps(),key=nextDraftKey('__IPCOS_NEXT_RELEASE_TEST__'),before=p.getProperty(key);
   let roundTrip=false;try {p.setProperty(key,JSON.stringify({fields:{'reg-jenis-utama':'Outline'},revision:1,updatedAt:new Date().toISOString()}));roundTrip=nextDraftRead('__IPCOS_NEXT_RELEASE_TEST__').fields['reg-jenis-utama']==='Outline';} finally {if(before===null || before===undefined)p.deleteProperty(key);else p.setProperty(key,before);}
   const checks={anonymousActionsDenied:denied===NEXT_ACTIONS.length,draftRoundTrip:roundTrip,htmlEscaped:auditHtml('<script>')==='&lt;script&gt;',sha256Available:nextHash('release').length===64};
   console.log(JSON.stringify(checks));if(Object.values(checks).some(value=>value!==true))throw new Error('Pemeriksaan rilis belum lulus.');
@@ -223,7 +276,7 @@ function verifyNextDeployment() {
 const ACADEMIC_ACTIONS=['get_academic_progress','save_academic_progress','change_request_type'];
 function academicKey(nim){return 'IPCOS_ACADEMIC_'+nextHash(String(nim).trim());}
 function academicRead(nim,properties){
-  const raw=properties?properties[academicKey(nim)]:PropertiesService.getScriptProperties().getProperty(academicKey(nim));
+  const raw=properties?properties[academicKey(nim)]:ipcosPrivateProps().getProperty(academicKey(nim));
   if(!raw)return {exists:false,level:0,revision:0,updatedAt:'',events:[]};
   const value=JSON.parse(raw);
   if(!value||!Number.isInteger(value.level)||value.level<0||value.level>3||!Number.isInteger(value.revision)||value.revision<1||!Array.isArray(value.events))throw new Error('Status akademik belum dapat dibaca. Hubungi admin.');
@@ -244,7 +297,7 @@ function academicSnapshot(session){
   const students=getSheetData(SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_MAHASISWA)),academicByNim={};
   const nims=new Set(students.map(row=>String(row.NIM??row.nim??'').trim()).filter(Boolean));
   featureRegistrations().forEach(row=>nims.add(String(row.nim??row.NIM??'').trim()));
-  const properties=PropertiesService.getScriptProperties().getProperties();for(const nim of nims){try{const value=academicRead(nim,properties);academicByNim[nim]={exists:value.exists,level:value.level,revision:value.revision,updatedAt:value.updatedAt};}catch(_){academicByNim[nim]={unavailable:true};}}
+  const properties=ipcosPrivateProps().getProperties();for(const nim of nims){try{const value=academicRead(nim,properties);academicByNim[nim]={exists:value.exists,level:value.level,revision:value.revision,updatedAt:value.updatedAt};}catch(_){academicByNim[nim]={unavailable:true};}}
   return {academicSupported:true,academicByNim:academicByNim};
 }
 function academicCheckCreate(data){
@@ -266,7 +319,7 @@ function academicSave(session,data){
     const time=new Date().toISOString(),event={from:previous.exists?previous.level:null,to:level,reason:reason,actor:String(session.nama||'Admin'),time:time,requestId:requestId,signature:signature};
     const next={level:level,revision:previous.revision+1,updatedAt:time,events:previous.events.concat(event)},json=JSON.stringify(next);
     if(Utilities.newBlob(json).getBytes().length>8000)throw new Error('Riwayat status akademik terlalu panjang. Hubungi pengelola.');
-    const props=PropertiesService.getScriptProperties(),key=academicKey(nim);
+    const props=ipcosPrivateProps(),key=academicKey(nim);
     try{props.setProperty(key,json);}catch(error){let confirmed;try{confirmed=academicRead(nim).events.some(item=>item.requestId===requestId&&item.signature===signature);}catch(_){}if(!confirmed)throw error;}
     return {status:'success',academic:Object.assign({exists:true},next)};
   });
@@ -305,11 +358,11 @@ function academicDispatch(session,data){
 
 // Internationalization records and summaries are restricted to administrators.
 const INTERNATIONAL_ACTIONS=['get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
-function intlMeta(){const raw=PropertiesService.getScriptProperties().getProperty('IPCOS_INTL_META');return raw?JSON.parse(raw):{exists:false,revision:0,parts:0,generation:'',updatedAt:''};}
-function intlSource(){const meta=intlMeta(),props=PropertiesService.getScriptProperties(),rows=[];for(let i=0;i<meta.parts;i++){const raw=props.getProperty('IPCOS_INTL_ROWS_'+meta.generation+'_'+i);if(!raw)throw new Error('Data internasionalisasi belum lengkap. Coba muat ulang.');const part=JSON.parse(raw);if(!Array.isArray(part))throw new Error('Data internasionalisasi tidak valid.');rows.push(...part);}return {meta:meta,rows:rows};}
+function intlMeta(){const raw=ipcosPrivateProps().getProperty('IPCOS_INTL_META');return raw?JSON.parse(raw):{exists:false,revision:0,parts:0,generation:'',updatedAt:''};}
+function intlSource(){const meta=intlMeta(),props=ipcosPrivateProps(),rows=[];for(let i=0;i<meta.parts;i++){const raw=props.getProperty('IPCOS_INTL_ROWS_'+meta.generation+'_'+i);if(!raw)throw new Error('Data internasionalisasi belum lengkap. Coba muat ulang.');const part=JSON.parse(raw);if(!Array.isArray(part))throw new Error('Data internasionalisasi tidak valid.');rows.push(...part);}return {meta:meta,rows:rows};}
 function intlOverrideKey(nim){return 'IPCOS_INTL_EDIT_'+nextHash(String(nim));}
 function intlRows(){
- const source=intlSource(),map=new Map(source.rows.map(row=>[row.nim,Object.assign({},row)])),props=PropertiesService.getScriptProperties().getProperties();
+ const source=intlSource(),map=new Map(source.rows.map(row=>[row.nim,Object.assign({},row)])),props=ipcosPrivateProps().getProperties();
  for(const key of Object.keys(props))if(key.startsWith('IPCOS_INTL_ROSTER_'))for(const row of intlNormalizeRows(JSON.parse(props[key])))if(!map.has(row.nim))map.set(row.nim,Object.assign({},row));
  const sheet=SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_MAHASISWA),students=sheet?getSheetData(sheet):[];
  for(const student of students){const nim=String(student.NIM??student.nim??'').trim(),year=Number(nim.slice(0,4)),name=String(student.Nama??student.nama??'').trim();if(year>=2024&&year<=2100&&nim&&name&&!map.has(nim))map.set(nim,{nim:nim,nama:name,angkatan:year,kelas:'',keterangan:'',status:''});}
@@ -350,7 +403,7 @@ function intlParseExcel(data){
 function intlImportRows(session,data,rows){
  if(session.role!=='admin')throw new Error('Hanya admin dapat mengimpor data.');rows=intlNormalizeRows(rows);const requestId=nextRequestId(data.requestId),signature=nextHash(JSON.stringify(rows));
  return nextLock(()=>{const previous=intlMeta();if(previous.requestId===requestId){if(previous.signature!==signature)throw new Error('ID impor sudah dipakai untuk data berbeda.');return intlResponse(session);}if(data.revision!==previous.revision)throw new Error('Data sumber berubah. Muat ulang sebelum impor.');
-  const props=PropertiesService.getScriptProperties(),generation=requestId,parts=[],created=[];let batch=[];for(const row of rows){if(Utilities.newBlob(JSON.stringify(batch.concat(row))).getBytes().length>7000){parts.push(JSON.stringify(batch));batch=[];}batch.push(row);}if(batch.length)parts.push(JSON.stringify(batch));
+  const props=ipcosPrivateProps(),generation=requestId,parts=[],created=[];let batch=[];for(const row of rows){if(Utilities.newBlob(JSON.stringify(batch.concat(row))).getBytes().length>7000){parts.push(JSON.stringify(batch));batch=[];}batch.push(row);}if(batch.length)parts.push(JSON.stringify(batch));
   const existing=Object.values(props.getProperties()).reduce((sum,value)=>sum+Utilities.newBlob(String(value)).getBytes().length,0);if(existing+parts.reduce((sum,p)=>sum+Utilities.newBlob(p).getBytes().length,0)>450000)throw new Error('Penyimpanan hampir penuh. Hubungi pengelola sebelum impor.');
   const sourceUrl=String(data.sourceUrl||previous.sourceUrl||'');if(sourceUrl&&!/^https:\/\/umyac-my\.sharepoint\.com\//.test(sourceUrl))throw new Error('Alamat sumber SharePoint tidak valid.');
   const meta={exists:true,revision:previous.revision+1,generation:generation,parts:parts.length,fileName:nextText(data.fileName||'Data Internasionalisasi.xlsx',255),sourceUrl:sourceUrl,updatedAt:new Date().toISOString(),requestId:requestId,signature:signature};let confirmed=false;
@@ -360,7 +413,7 @@ function intlImportRows(session,data,rows){
  });
 }
 function intlSave(session,data){
- if(session.role!=='admin')throw new Error('Hanya admin dapat mengubah data internasionalisasi.');const nim=nextText(data.nim||'',30),requestId=nextRequestId(data.requestId);return nextLock(()=>{const all=intlRows(),base=all.rows.find(row=>row.nim===nim);if(!base)throw new Error('Mahasiswa tidak ditemukan.');const props=PropertiesService.getScriptProperties(),key=intlOverrideKey(nim),oldRaw=props.getProperty(key),old=oldRaw?JSON.parse(oldRaw):{revision:0,events:[]};
+ if(session.role!=='admin')throw new Error('Hanya admin dapat mengubah data internasionalisasi.');const nim=nextText(data.nim||'',30),requestId=nextRequestId(data.requestId);return nextLock(()=>{const all=intlRows(),base=all.rows.find(row=>row.nim===nim);if(!base)throw new Error('Mahasiswa tidak ditemukan.');const props=ipcosPrivateProps(),key=intlOverrideKey(nim),oldRaw=props.getProperty(key),old=oldRaw?JSON.parse(oldRaw):{revision:0,events:[]};
  const fields={kelas:nextText(data.kelas||'',10),keterangan:nextText(data.keterangan||'',1500),status:nextText(data.recordStatus||'',100)};if(!['','I','J'].includes(fields.kelas))throw new Error('Kelas tidak valid.');const signature=nextHash(JSON.stringify([nim,fields,data.reset===true]));const replay=old.events.find(event=>event.requestId===requestId);if(replay){if(replay.signature!==signature)throw new Error('ID simpan sudah dipakai untuk perubahan berbeda.');return intlResponse(session);}if(data.revision!==old.revision||data.sourceRevision!==all.meta.revision)throw new Error('Data berubah di sesi lain. Muat ulang sebelum menyimpan.');
  const time=new Date().toISOString(),event={requestId:requestId,signature:signature,time:time,actor:String(session.nama||'Admin'),reset:data.reset===true,before:{kelas:base.kelas,keterangan:base.keterangan,status:base.status},after:fields};const saved={record:Object.assign({},base,fields),active:data.reset!==true,revision:old.revision+1,updatedAt:time,events:old.events.concat(event)};const json=JSON.stringify(saved);if(Utilities.newBlob(json).getBytes().length>8000)throw new Error('Riwayat perubahan terlalu panjang. Hubungi pengelola.');try{props.setProperty(key,json);}catch(error){const confirmed=props.getProperty(key);if(!confirmed||!JSON.parse(confirmed).events.some(item=>item.requestId===requestId&&item.signature===signature))throw error;}return intlResponse(session);
  });
@@ -371,4 +424,4 @@ function internationalDispatch(session,data){
  if(data.action==='save_international_record')return intlSave(session,data);
  const rows=intlParseExcel(data);if(data.action==='preview_international_excel')return {status:'success',rows:rows,summary:intlSummary(rows),signature:nextHash(JSON.stringify(rows))};return intlImportRows(session,data,rows);
 }
-function academicPrivateBackup(){const props=PropertiesService.getScriptProperties().getProperties(),result={};for(const key of Object.keys(props))if(key.startsWith('IPCOS_ACADEMIC_')||key.startsWith('IPCOS_INTL_'))result[key]=props[key];return result;}
+function academicPrivateBackup(){const props=ipcosPrivateProps().getProperties(),result={};for(const key of Object.keys(props))if(key.startsWith('IPCOS_ACADEMIC_')||key.startsWith('IPCOS_INTL_'))result[key]=props[key];return result;}

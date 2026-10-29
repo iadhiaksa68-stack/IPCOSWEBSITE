@@ -73,3 +73,14 @@ Frontend memeriksa kapabilitas terlebih dahulu. Jika backend lama masih aktif, k
 `SessionData.gs` berisi salinan fungsi `getDataForSession` dari `Kode.gs` yang aktif, tanpa kredensial. Ganti fungsi itu saja di tempat yang sama; jangan menambahkan file/fungsi duplikat. Baris baru menghitung `r.reviewVersion = nextRevisionVersion(r)` sebelum `r.detail` dirapikan untuk tampilan. Terbitkan versi baru deployment lama, lalu deploy frontend yang sudah lulus tes.
 
 Frontend menggunakan token tersebut untuk review dan arsip serta menyimpan versi baru dari respons simpan. Validasi versi server tidak dihapus atau dilonggarkan. Struktur database, login, endpoint dan izin tetap.
+
+## Tindak lanjut evaluasi — 29 Oktober 2026
+
+Perbarui `Features.gs` dan `Next.gs` dengan sumber lokal. `Kode.gs` tidak berubah dan tetap tidak disimpan di repo karena berisi kredensial admin.
+
+- **Data per-mahasiswa keluar dari Script Properties.** Draf (`IPCOS_DRAFT_`), persiapan (`IPCOS_PROGRESS_`), tahap akademik (`IPCOS_ACADEMIC_`) dan data internasionalisasi (`IPCOS_INTL_`) dibaca/ditulis lewat `ipcosPrivateProps()`. Selama sheet `IPCOS_DataPribadi` belum ada, perilakunya sama persis dengan sebelumnya. Pemilik menjalankan `migratePrivateDataToSheet()` sekali dari editor: fungsi ini membuat sheet tersembunyi (kolom `key`, `value`, `updatedAt`, format teks), memindahkan semua kunci tersebut, lalu menghapusnya dari Script Properties. Aman dijalankan ulang. Kunci lama yang tertinggal tetap terbaca dan pindah saat ditulis berikutnya. Konfigurasi layanan, cadangan, folder SOP dan kesehatan layanan tetap di Script Properties.
+- **Pemantauan kuota.** `get_health` menyertakan `storage` (ukuran Script Properties terhadap batas 500 KB dan jumlah baris sheet pribadi); ditampilkan di Kesehatan Layanan admin.
+- **Batas percobaan login admin.** `admin_login` kini masuk `NEXT_ACTIONS` dan diproses `nextAdminLogin` sebelum `handleAdminLogin`: 5 kegagalan per username mengunci 15 menit, 50 kegagalan total mengunci semua login admin 15 menit. Login sukses mencatat `IPCOS_ADMIN_LAST_LOGIN`. Login mahasiswa (NIM saja) tidak berubah, sesuai desain.
+- **Template instruksi revisi** disimpan sebagai konten `revision_templates` di sheet `KontenWeb` melalui `update_content` yang sudah ada; tidak ada rute baru.
+
+Rollback: kembalikan deployment ke versi sebelumnya. Bila migrasi sudah dijalankan, versi lama tidak membaca sheet `IPCOS_DataPribadi`; salin kembali barisnya ke Script Properties sebelum rollback.

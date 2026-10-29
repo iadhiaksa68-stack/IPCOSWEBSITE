@@ -122,6 +122,10 @@
         const profile = document.createElement('details'); profile.id = 'workspace-profile'; profile.className = 'workspace-profile'; profile.hidden = true;
         profile.innerHTML = '<summary><span id="profile-initials" class="profile-initials" aria-hidden="true"></span><span id="profile-summary-name"></span><span class="profile-chevron" aria-hidden="true"></span></summary>';
         utilities.appendChild(profile); profile.appendChild(header);
+        // Language and theme stay one tap away in the top bar rather than inside the profile menu.
+        const quick = document.createElement('div'); quick.className = 'workspace-quick-toggles';
+        ['lang-btn','header-theme-toggle'].forEach(id => { const button = document.getElementById(id); if (button) quick.appendChild(button); });
+        utilities.insertBefore(quick, profile);
         const bottom = document.createElement('nav'); bottom.id = 'student-bottom-nav'; bottom.hidden = true;
         const items = [['dashboard','home','Beranda','Home'],['student-status','requests','Pengajuan','Requests'],['sop-magang','sop','SOP','SOP'],['menu','menu','Menu','Menu']];
         bottom.innerHTML = items.map(([target,name,id,en]) => '<button type="button" data-bottom-target="'+target+'">'+icon(name)+'<span data-label-id="'+id+'" data-label-en="'+en+'">'+text(id,en)+'</span></button>').join('');
@@ -234,6 +238,9 @@
         const translated=systemText(message);
         if (scope.id === 'modal-case-detail' && translated && document.getElementById('case-action-feedback')?.textContent.includes(translated)) return true;
         let box = scope.querySelector(':scope .operation-feedback');
+        // Page-level success is already announced by the toast; keep inline boxes for running work and errors.
+        const transient = type === 'success' && scope.classList.contains('tab-content');
+        if (transient && !box) return false;
         if (!box) {
             box = document.createElement('p'); box.className = 'operation-feedback'; box.setAttribute('role','status'); box.setAttribute('aria-live','polite');
             const destination = scope.id === 'modal-case-detail' ? document.getElementById('case-detail-content') : scope.querySelector('.modal-card') || scope;
@@ -241,7 +248,9 @@
         }
         box.textContent = translated; box.dataset.state = type; box.hidden = false;
         bindLanguageBlock(box);
-        return true;
+        clearTimeout(box._ipcosHide);
+        if (transient) box._ipcosHide = setTimeout(() => { if (box.dataset.state === 'success') box.hidden = true; }, 4000);
+        return !transient;
     }
     function finishOperation() { if (operation?.epoch === sessionEpoch) { const box = operation.scope.querySelector('.operation-feedback[data-state="busy"]'); if (box) box.hidden = true; } }
     function reset() {

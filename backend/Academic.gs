@@ -2,7 +2,7 @@
 const ACADEMIC_ACTIONS=['get_academic_progress','save_academic_progress','change_request_type'];
 function academicKey(nim){return 'IPCOS_ACADEMIC_'+nextHash(String(nim).trim());}
 function academicRead(nim,properties){
-  const raw=properties?properties[academicKey(nim)]:PropertiesService.getScriptProperties().getProperty(academicKey(nim));
+  const raw=properties?properties[academicKey(nim)]:ipcosPrivateProps().getProperty(academicKey(nim));
   if(!raw)return {exists:false,level:0,revision:0,updatedAt:'',events:[]};
   const value=JSON.parse(raw);
   if(!value||!Number.isInteger(value.level)||value.level<0||value.level>3||!Number.isInteger(value.revision)||value.revision<1||!Array.isArray(value.events))throw new Error('Status akademik belum dapat dibaca. Hubungi admin.');
@@ -23,7 +23,7 @@ function academicSnapshot(session){
   const students=getSheetData(SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_MAHASISWA)),academicByNim={};
   const nims=new Set(students.map(row=>String(row.NIM??row.nim??'').trim()).filter(Boolean));
   featureRegistrations().forEach(row=>nims.add(String(row.nim??row.NIM??'').trim()));
-  const properties=PropertiesService.getScriptProperties().getProperties();for(const nim of nims){try{const value=academicRead(nim,properties);academicByNim[nim]={exists:value.exists,level:value.level,revision:value.revision,updatedAt:value.updatedAt};}catch(_){academicByNim[nim]={unavailable:true};}}
+  const properties=ipcosPrivateProps().getProperties();for(const nim of nims){try{const value=academicRead(nim,properties);academicByNim[nim]={exists:value.exists,level:value.level,revision:value.revision,updatedAt:value.updatedAt};}catch(_){academicByNim[nim]={unavailable:true};}}
   return {academicSupported:true,academicByNim:academicByNim};
 }
 function academicCheckCreate(data){
@@ -45,7 +45,7 @@ function academicSave(session,data){
     const time=new Date().toISOString(),event={from:previous.exists?previous.level:null,to:level,reason:reason,actor:String(session.nama||'Admin'),time:time,requestId:requestId,signature:signature};
     const next={level:level,revision:previous.revision+1,updatedAt:time,events:previous.events.concat(event)},json=JSON.stringify(next);
     if(Utilities.newBlob(json).getBytes().length>8000)throw new Error('Riwayat status akademik terlalu panjang. Hubungi pengelola.');
-    const props=PropertiesService.getScriptProperties(),key=academicKey(nim);
+    const props=ipcosPrivateProps(),key=academicKey(nim);
     try{props.setProperty(key,json);}catch(error){let confirmed;try{confirmed=academicRead(nim).events.some(item=>item.requestId===requestId&&item.signature===signature);}catch(_){}if(!confirmed)throw error;}
     return {status:'success',academic:Object.assign({exists:true},next)};
   });

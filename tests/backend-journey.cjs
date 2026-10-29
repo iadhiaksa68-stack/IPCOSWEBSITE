@@ -7,7 +7,7 @@ beforeEach(()=>{
         Utilities:{DigestAlgorithm:{SHA_256:'sha256'},computeDigest:(algorithm,value)=>[...crypto.createHash(algorithm).update(value).digest()],newBlob:value=>({getBytes:()=>Buffer.from(value)})},
         LockService:{getScriptLock:()=>({tryLock:()=>{locked=lockAllowed;return lockAllowed},releaseLock:()=>{locked=false}})},
         getSession:()=>session,auditStudent:nim=>active && ['A','B'].includes(nim)?{NIM:nim}:null,featureRegistrations:()=>[{nim:'A'}],getDataForSession:()=>({contents})};
-    vm.createContext(ctx);vm.runInContext(fs.readFileSync('document-checks.js','utf8')+'\n'+fs.readFileSync('backend/Journey.gs','utf8'),ctx);
+    ctx.ipcosPrivateProps=()=>ctx.PropertiesService.getScriptProperties();vm.createContext(ctx);vm.runInContext(fs.readFileSync('document-checks.js','utf8')+'\n'+fs.readFileSync('backend/Journey.gs','utf8'),ctx);
 });
 test('The deployable Features module contains the exact tested journey and document helpers',()=>{
     const deployed=fs.readFileSync('backend/Features.gs','utf8');

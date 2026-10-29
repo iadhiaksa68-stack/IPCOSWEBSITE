@@ -149,13 +149,13 @@
       window.IPCOSInternational.open();
   });
   window.addEventListener("ipcos:logout", () => internationalPlaceholder.reset());
-  window.exportAdminDataCSV = async () => {
+  window.exportAdminDataCSV = async (selection = null) => {
     if (currentUser.role !== "admin") return;
     const epoch = sessionEpoch;
     try {
       await load("admin-export.js");
       if (epoch === sessionEpoch && currentUser.role === "admin")
-        return window.IPCOSAdminExport.download();
+        return window.IPCOSAdminExport.download(selection);
     } catch (error) {
       if (epoch === sessionEpoch) showToast(error.message, "error");
     }

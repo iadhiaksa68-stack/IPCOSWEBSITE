@@ -38,6 +38,11 @@ function sanitizeRichHtml(value) {
 // ==========================================
 // 1. SISTEM NOTIFIKASI TOAST & FORMAT TANGGAL
 // ==========================================
+// Browsers disagree on non-ASCII download names; use one ASCII form everywhere.
+function safeDownloadName(name, fallback = 'dokumen') {
+    const clean = String(name || '').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[\u2018\u2019\u201c\u201d'"`]/g,'').replace(/[^A-Za-z0-9 _.()-]+/g,'_').replace(/_+/g,'_').replace(/^[ ._]+|[ _]+$/g,'').slice(0,180);
+    return clean || fallback;
+}
 function showToast(message, type = 'success') {
     const overlay=[...document.querySelectorAll('.overlay,.overlay-dialog')].reverse().find(el=>el.id!=='welcome-modal'&&getComputedStyle(el).display!=='none');
     if(overlay?.id==='modal-edit-content'&&window.IPCOSContentStudio)return;
@@ -531,12 +536,13 @@ function applyDatabaseSnapshot(data) {
                         const banner = document.getElementById('announcement-banner');
                         banner.setAttribute('data-current-ann-id', annId);
                         banner.style.display = sessionStorage.getItem(announcementDismissalKey('banner', annId)) ? 'none' : 'flex';
+                        banner.classList.toggle('announcement-important', annType === 'important');
                     }
 
                     const isHiddenPermanently = localStorage.getItem(announcementDismissalKey('hide', annId));
                     const isHiddenSession = sessionStorage.getItem(announcementDismissalKey('seen', annId));
 
-                    if (annType === 'important' && !isHiddenPermanently && !isHiddenSession) {
+                    if (annType === 'important' && !bannerText && !isHiddenPermanently && !isHiddenSession) {
                         document.getElementById('important-announcement-text').innerText = latest.Pesan || latest.message;
                         const modal = document.getElementById('modal-important-announcement');
                         if (modal && !(modal.style.display === 'flex' && modal.getAttribute('data-current-ann-id') === String(annId))) {
@@ -1369,6 +1375,7 @@ function caseDetailAction(action) {
         html = `<h3>${uxText('Tunjuk Dosen & Setujui', 'Assign Supervisor & Approve')}</h3><label for="case-supervisor">${uxText('Dosen pembimbing', 'Supervisor')}</label><select id="case-supervisor">${supervisorOptions()}</select><p>${uxText('Dosen terpilih akan dicatat saat pengajuan disetujui.','The selected supervisor will be recorded when this request is approved.')}</p>`;
     } else if (action === 'accept') {
         html = `<h3>${uxText('Setujui Pengajuan', 'Approve Request')}</h3><p>${uxText('Pastikan seluruh berkas sudah diperiksa. Persetujuan akan terlihat oleh mahasiswa.', 'Confirm all documents have been reviewed. The student will see your approval.')}</p>`;
+        if (!getCaseFiles(item).length) html += `<p class="field-error">${uxText('Pengajuan ini tidak memiliki berkas sama sekali.','This request has no files at all.')}</p><label class="check-row"><input type="checkbox" id="case-accept-no-files"> ${uxText('Saya tetap menyetujui tanpa berkas.','I still approve without files.')}</label>`;
     } else if (action === 'reply') {
         const rev = getRevisionInstructions(item);
         html = `<h3>${uxText('Kirim perbaikan Anda', 'Send Your Corrections')}</h3>${rev.files.length ? `<fieldset class="revision-file-options"><legend>${uxText('Konfirmasi yang sudah Anda perbaiki', 'Confirm Your Corrections')}</legend>${rev.files.map(label => `<label class="check-row"><input type="checkbox" name="correction-complete"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}</fieldset>` : ''}
@@ -1428,7 +1435,11 @@ async function submitCaseAction(event) {
         dospem = document.getElementById('case-supervisor').value;
         if (!dospem) return fail(uxText('Pilih dosen pembimbing yang masih memiliki kuota.', 'Choose a supervisor with available capacity.'),document.getElementById('case-supervisor'));
         note = `Pengajuan disetujui. Dosen Pembimbing: ${dospem}. Silakan hubungi dosen untuk tahapan bimbingan berikutnya.`;
-    } else if (action === 'accept') note = 'Berkas telah disetujui dan terverifikasi.';
+    } else if (action === 'accept') {
+        const noFiles = document.getElementById('case-accept-no-files');
+        if (noFiles && !noFiles.checked) return fail(uxText('Pengajuan tanpa berkas perlu konfirmasi tambahan.','A request without files needs extra confirmation.'),noFiles);
+        note = 'Berkas telah disetujui dan terverifikasi.';
+    }
     else if (action === 'reply') {
         const input = document.getElementById('case-reply-files');
         const chosen = [...input.files];
@@ -2515,7 +2526,7 @@ function setAdminQueueFilter(value) {
 }
 
 function adminQueueCard(item) {
-    return `<article class="case-mobile-card queue-request-card" data-queue-case="${escapeHtml(item.id)}"><div class="queue-row-identity"><div><strong>${escapeHtml(item.nama)}</strong><span>${escapeHtml(item.nim)}</span></div><time>${escapeHtml(formatDate(getCaseEventTime(item)))}</time></div><p class="queue-request-service">${escapeHtml(systemText(item.jenis))}</p>${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}<button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${uxText('Periksa Pengajuan','Review Request')} <span aria-hidden="true">→</span></button></article>`;
+    return `<article class="case-mobile-card queue-request-card" data-queue-case="${escapeHtml(item.id)}"><label class="bulk-mobile-check"><input type="checkbox" data-bulk-id="${escapeHtml(item.id)}"> ${uxText('Pilih','Select')}</label><div class="queue-row-identity"><div><strong>${escapeHtml(item.nama)}</strong><span>${escapeHtml(item.nim)}</span></div><time>${escapeHtml(formatDate(getCaseEventTime(item)))}</time></div><p class="queue-request-service">${escapeHtml(systemText(item.jenis))}</p>${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}<button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${uxText('Periksa Pengajuan','Review Request')} <span aria-hidden="true">→</span></button></article>`;
 }
 
 function renderAdminTable() {
@@ -2524,7 +2535,7 @@ function renderAdminTable() {
 
     if (adminFilteredData.length === 0) {
         currentAdminPage = 1;
-        tbody.innerHTML = `<tr><td colspan="5" class="queue-empty" style="text-align:center; padding: 30px;">
+        tbody.innerHTML = `<tr><td colspan="6" class="queue-empty" style="text-align:center; padding: 30px;">
             <span class="lang" data-id="Tidak ada data yang sesuai pencarian." data-en="No matching data found.">${currentLang === 'id' ? 'Tidak ada data yang sesuai pencarian.' : 'No matching data found.'}</span>
         </td></tr>`;
         document.getElementById('admin-page-info').innerText = systemText('Halaman 1 / 1');
@@ -2532,6 +2543,7 @@ function renderAdminTable() {
         document.getElementById('admin-btn-next').disabled = true;
         const mobileList = document.getElementById('admin-mobile-list');
         if (mobileList) mobileList.innerHTML = `<div class="case-mobile-card">${uxText('Tidak ada pengajuan yang sesuai.', 'No matching requests.')}</div>`;
+        window.IPCOSUpgrades?.renderBar();
         return;
     }
 
@@ -2551,6 +2563,7 @@ function renderAdminTable() {
 
     paginatedItems.forEach(item => {
         tbody.innerHTML += `<tr data-queue-case="${escapeHtml(item.id)}">
+            <td class="bulk-cell"><input type="checkbox" data-bulk-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(uxText('Pilih pengajuan ','Select request from ')+item.nama)}"></td>
             <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
             <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
             <td><strong>${escapeHtml(systemText(item.jenis))}</strong></td>
@@ -2559,6 +2572,7 @@ function renderAdminTable() {
         </tr>`;
     });
     applyDynamicLanguage();
+    window.IPCOSUpgrades?.renderBar();
 }
 
 function changeAdminPage(direction) {
@@ -2818,12 +2832,13 @@ function closeModal(modalId, force = false) {
     }
 }
 function syncThemeControl() {
-    const button = document.getElementById('login-theme-toggle');
-    if (!button) return;
     const dark = document.body.classList.contains('dark-mode');
-    button.setAttribute('aria-pressed', String(dark));
-    button.setAttribute('aria-label', uxText('Mode gelap','Dark mode'));
-    button.title = dark ? uxText('Ganti ke mode terang','Switch to light mode') : uxText('Ganti ke mode gelap','Switch to dark mode');
+    for (const button of [document.getElementById('login-theme-toggle'), document.getElementById('header-theme-toggle')]) {
+        if (!button) continue;
+        button.setAttribute('aria-pressed', String(dark));
+        button.setAttribute('aria-label', uxText('Mode gelap','Dark mode'));
+        button.title = dark ? uxText('Ganti ke mode terang','Switch to light mode') : uxText('Ganti ke mode gelap','Switch to dark mode');
+    }
 }
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');

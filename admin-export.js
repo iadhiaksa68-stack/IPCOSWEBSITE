@@ -1,9 +1,9 @@
 // Lazy, admin-only CSV generation. Exports the complete result, not just one page.
-window.IPCOSAdminExport={download() {
+window.IPCOSAdminExport={download(selection=null) {
     if(currentUser.role!=='admin'||!getSessionToken())return;
-    const filtered=document.getElementById('admin-export-scope').value!=='all';
-    if(filtered)filterAdminData();
-    const records=filtered?adminFilteredData:readStoredJSON(sessionStorage,'ipcos_registrations',[]);
+    const filtered=Array.isArray(selection)||document.getElementById('admin-export-scope').value!=='all';
+    if(filtered&&!Array.isArray(selection))filterAdminData();
+    const records=Array.isArray(selection)?selection:filtered?adminFilteredData:readStoredJSON(sessionStorage,'ipcos_registrations',[]);
     if(!records.length){showToast(uxText('Tidak ada pengajuan dalam pilihan ini.','There are no requests in this selection.'),'error');return;}
     const cell=value=>{let valueText=String(value??'');if(/^[\s\u0000-\u001f]*[=+@-]/.test(valueText))valueText="'"+valueText;return '"'+valueText.replaceAll('"','""')+'"';};
     const headings=currentLang==='id'?['ID','Tanggal Dikirim','NIM','Nama','Jenis','Status','Menunggu (Hari)','Target Internal (Hari)','Lewat Target (Hari)','Aktivitas Terakhir']:['ID','Submitted At','Student ID','Name','Service','Status','Waiting (Days)','Internal Target (Days)','Overdue (Days)','Latest Activity'];
