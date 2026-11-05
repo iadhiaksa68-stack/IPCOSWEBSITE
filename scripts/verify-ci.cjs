@@ -18,16 +18,22 @@ async function verifyCommit(sha, {fetchRuns, pause, attempts=50} = {}) {
     }
     throw new Error('Required tests have not passed for this commit. Publication blocked.');
 }
-module.exports = {releaseDecision,verifyCommit};
+// Vercel build machines share an IP, so GitHub may rate-limit the gate. That is not a verdict: keep waiting.
+// An empty result never passes, so the gate still blocks publication if GitHub stays unavailable.
+async function readRuns(response) {
+    if (response.status === 403 || response.status === 429) { console.log(`GitHub rate limit (${response.status}); retrying.`); return []; }
+    if (!response.ok) throw new Error(`Cannot verify required tests (GitHub ${response.status}). Publication blocked.`);
+    const body = await response.json();
+    if (!Array.isArray(body.workflow_runs)) throw new Error('Invalid CI response. Publication blocked.');
+    return body.workflow_runs;
+}
+module.exports = {releaseDecision,verifyCommit,readRuns};
 if (require.main === module) {
     verifyCommit(process.env.VERCEL_GIT_COMMIT_SHA, {
         fetchRuns: async sha => {
             const url = `https://api.github.com/repos/${REPOSITORY}/actions/workflows/release-checks.yml/runs?head_sha=${sha}&per_page=10`;
             const response = await fetch(url,{headers:{Accept:'application/vnd.github+json','User-Agent':'IPCOS-release-gate'},signal:AbortSignal.timeout(15000)});
-            if (!response.ok) throw new Error(`Cannot verify required tests (GitHub ${response.status}). Publication blocked.`);
-            const body = await response.json();
-            if (!Array.isArray(body.workflow_runs)) throw new Error('Invalid CI response. Publication blocked.');
-            return body.workflow_runs;
+            return readRuns(response);
         },
         pause: () => new Promise(resolve=>setTimeout(resolve,45000))
     }).then(result=>console.log(`PASS Required role tests verified for this exact commit: ${result.url}`))

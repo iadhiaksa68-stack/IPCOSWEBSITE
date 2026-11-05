@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {releaseDecision,verifyCommit}=require('../scripts/verify-ci.cjs');
+const {releaseDecision,verifyCommit,readRuns}=require('../scripts/verify-ci.cjs');
 const sha='a'.repeat(40);
 const good={head_sha:sha,path:'.github/workflows/release-checks.yml',head_repository:{full_name:'iadhiaksa68-stack/IPCOSWEBSITE'},status:'completed',conclusion:'success',html_url:'https://github.com/iadhiaksa68-stack/IPCOSWEBSITE/actions/runs/1'};
 test('accepts successful role tests for the exact source commit',()=>assert.equal(releaseDecision([good],sha).state,'passed'));
@@ -11,3 +11,10 @@ test('queued latest rerun takes precedence over older success',()=>assert.equal(
 test('waits until the correct commit finishes successfully',async()=>{let calls=0;const result=await verifyCommit(sha,{fetchRuns:async()=>++calls===1?[{...good,status:'in_progress'}]:[good],pause:async()=>{},attempts:2});assert.equal(calls,2);assert.equal(result.state,'passed');});
 test('missing success and invalid commit fail closed',async()=>{await assert.rejects(verifyCommit(sha,{fetchRuns:async()=>[],pause:async()=>{},attempts:1}),/blocked/);await assert.rejects(verifyCommit('main'),/SHA/);});
 test('network failure cannot bypass the gate',async()=>assert.rejects(verifyCommit(sha,{fetchRuns:async()=>{throw Error('Network failed');}}),/Network failed/));
+test('a GitHub rate limit waits and retries, and still blocks if it never clears',async()=>{
+    const limited={status:403,ok:false},fine={status:200,ok:true,json:async()=>({workflow_runs:[good]})};
+    let calls=0;const result=await verifyCommit(sha,{fetchRuns:async()=>readRuns(++calls===1?limited:fine),pause:async()=>{},attempts:2});
+    assert.equal(calls,2);assert.equal(result.state,'passed');
+    await assert.rejects(verifyCommit(sha,{fetchRuns:async()=>readRuns(limited),pause:async()=>{},attempts:2}),/blocked/);
+    await assert.rejects(readRuns({status:500,ok:false}),/GitHub 500/);
+});
