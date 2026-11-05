@@ -41,7 +41,7 @@ async function login(browser,role='mhs',nim='A') {
     return page;
 }
 async function layout(page,label) {
-    const result=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth+1,clipped:[...document.querySelectorAll('h1,h2,h3,h4,label,button,summary')].filter(el=>el.getClientRects().length&&el.clientWidth&&!el.closest('table,.sop-format-toolbar')).filter(el=>el.scrollWidth>el.clientWidth+3).map(el=>({id:el.id,text:el.textContent.trim().slice(0,90)}))}));
+    const result=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth+1,clipped:[...document.querySelectorAll('h1,h2,h3,h4,label,button,summary')].filter(el=>el.getClientRects().length&&el.clientWidth&&!el.closest('table,.sop-format-toolbar,.sr-only')).filter(el=>el.scrollWidth>el.clientWidth+3).map(el=>({id:el.id,text:el.textContent.trim().slice(0,90)}))}));
     assert.equal(result.overflow,false,label+' overflow');assert.deepEqual(result.clipped,[],label+' clipped labels');
 }
 (async()=>{

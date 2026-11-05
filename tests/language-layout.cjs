@@ -35,7 +35,7 @@ async function mock(context) {
 async function layout(page,label) {
     const result = await page.evaluate(()=>({
         overflow:document.documentElement.scrollWidth>innerWidth+1,
-        clipped:[...document.querySelectorAll('h1,h2,h3,h4,p,label,button,summary,.nav-item,.user-subtext')].filter(el=>el.getClientRects().length && el.clientWidth>0 && !el.closest('table')).filter(el=>el.scrollWidth>el.clientWidth+3).map(el=>({id:el.id,tag:el.tagName,text:el.textContent.trim().slice(0,90),width:el.clientWidth,scroll:el.scrollWidth}))
+        clipped:[...document.querySelectorAll('h1,h2,h3,h4,p,label,button,summary,.nav-item,.user-subtext')].filter(el=>el.getClientRects().length && el.clientWidth>0 && !el.closest('table') && !el.classList.contains('sr-only')).filter(el=>el.scrollWidth>el.clientWidth+3).map(el=>({id:el.id,tag:el.tagName,text:el.textContent.trim().slice(0,90),width:el.clientWidth,scroll:el.scrollWidth}))
     }));
     assert.equal(result.overflow,false,label+' page overflow'); assert.deepEqual(result.clipped,[],label+' clipped text');
 }

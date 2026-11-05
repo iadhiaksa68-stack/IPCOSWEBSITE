@@ -1,5 +1,5 @@
 // Optional workflow extensions. No new spreadsheet, column, credential or public file.
-const NEXT_ACTIONS = ['admin_login','change_admin_password','report_funnel','get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health','get_review_capabilities','get_document_review','save_document_review','archive_request','restore_request','get_academic_progress','save_academic_progress','change_request_type','get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
+const NEXT_ACTIONS = ['delete_all_registrations','admin_login','change_admin_password','report_funnel','get_form_draft','save_form_draft','get_revision_form','revise_request','report_health','get_health','get_review_capabilities','get_document_review','save_document_review','archive_request','restore_request','get_academic_progress','save_academic_progress','change_request_type','get_internationalization','preview_international_excel','import_international_excel','save_international_record'];
 const NEXT_DRAFT_FIELDS = ['reg-jenis-utama','reg-judul','reg-dosen-lama','reg-dosen-baru','reg-alasan-ganti'];
 function nextHash(value) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(value)).map(b=>('0'+((b+256)%256).toString(16)).slice(-2)).join(''); }
 function nextRequestId(value) { if(typeof value!=='string' || !/^[A-Za-z0-9_-]{8,80}$/.test(value)) throw new Error('ID penyimpanan tidak valid.'); return value; }
@@ -238,6 +238,8 @@ function nextHealthRead(session) {
   return {status:'success',events:events.sort((a,b)=>String(b.lastSeen).localeCompare(String(a.lastSeen))),storage:{propertyBytes:ipcosPropertyBytes(),propertyLimit:500000,privateSheet:!!sheet,privateRows:sheet?Math.max(0,sheet.getLastRow()-1):0},funnel:nextFunnelRead(),adminPasswordHashed:!!adminAuthRead()};
 }
 function nextDispatch(data) {
+  // No screen uses this; one call would erase every request, so the route in Kode.gs is closed here.
+  if(data.action==='delete_all_registrations') return {status:'error',message:'Penghapusan seluruh pengajuan dinonaktifkan.'};
   if(data.action==='admin_login') return nextAdminLogin(data);
   const session=getSession(data.token); if(!session || !['mhs','admin'].includes(session.role)) throw new Error('Sesi tidak valid atau berakhir.');
   if(INTERNATIONAL_ACTIONS.includes(data.action))return internationalDispatch(session,data);

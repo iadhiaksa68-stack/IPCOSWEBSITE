@@ -102,3 +102,10 @@ test('the wizard funnel counts each step once per session and reports 30 days to
     assert.deepEqual([funnel.service,funnel.data,funnel.files,funnel.sent],[2,2,0,1]);
     assert.equal(Object.keys(properties).filter(key=>key.startsWith('IPCOS_FUNNEL_')).every(key=>!JSON.stringify(properties[key]).includes('mhs')),true,'no session or student identity is stored');
 });
+
+test('erasing every request is closed, even for an admin session',()=>{
+    const {ctx}=setup();
+    ctx.getSession=()=>({role:'admin'});ctx.handleDeleteAllRegistrations=()=>{throw Error('must not run');};
+    assert.equal(ctx.nextDispatch({action:'delete_all_registrations',token:'admin-token'}).status,'error');
+    assert.equal(vm.runInContext("NEXT_ACTIONS.includes('delete_all_registrations')",ctx),true,'doPost routes it here before Kode.gs');
+});

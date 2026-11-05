@@ -103,7 +103,10 @@ async function login(page, role) {
     assert.equal(cards.find(card => card[0] === 'Pendadaran')[1], 'blocked', 'a closed service shows why before it is chosen');
     assert.match(cards.find(card => card[0] === 'Pendadaran')[2], /ditutup/);
     assert.equal(cards.find(card => card[0] === 'Proposal')[1], 'open');
-    await page.locator('[data-service-card="Proposal"]').click();
+    assert.equal(await page.locator('#reg-jenis-utama').evaluate(node => node.getBoundingClientRect().width <= 1), true, 'the old dropdown no longer duplicates the cards');
+    assert.equal(await page.locator('label[for="reg-jenis-utama"]').evaluate(node => node.getBoundingClientRect().width <= 1), true);
+    await page.locator('[data-service-card="Proposal"]').focus(); await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.serviceCard), 'Proposal', 'keyboard focus stays on the chosen card');
     assert.equal(await page.inputValue('#reg-jenis-utama'), 'Proposal');
     assert.equal(await page.getAttribute('[data-service-card="Proposal"]', 'aria-pressed'), 'true');
     pass('Service cards show availability before choosing, and a card selects its service');
@@ -120,7 +123,8 @@ async function login(page, role) {
     await page.locator('#student-status [data-case-id="JOURNAL"]:visible').first().click();
     await page.waitForSelector('#case-detail-content .case-tracker:not(.compact)');
     const steps = await page.locator('#case-detail-content .case-tracker:not(.compact) li span').allTextContents();
-    assert.deepEqual(steps, ['Dikirim', 'Revisi diminta', 'Perbaikan Anda', 'Disetujui']);
+    assert.deepEqual(steps, ['Dikirim', 'Revisi diminta', 'Perbaikan Anda', 'Selesai']);
+    assert.equal(await page.locator('#case-detail-content .student-request-progress').count(), 0, 'the detail shows one tracker, not two');
     pass('Requests show a progress tracker: submitted, corrections requested, your corrections, approved');
 
     await page.evaluate(() => closeModal('modal-case-detail', true));

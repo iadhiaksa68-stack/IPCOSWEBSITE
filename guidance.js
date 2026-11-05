@@ -19,17 +19,21 @@
             (label || select).before(box);
         }
         box.hidden = false;
+        select.classList.add('sr-only'); select.tabIndex = -1; document.querySelector('label[for="reg-jenis-utama"]')?.classList.add('sr-only');
+        const refocus = box.contains(document.activeElement) ? document.activeElement.dataset.serviceCard : '';
         box.innerHTML = [...select.options].filter(option => option.value).map(option => {
             const type = option.value, active = activeSameType(type), reason = serviceAvailability(type);
             const kind = active ? 'active' : reason ? 'blocked' : 'open';
             const note = active ? t('Sedang berjalan · lanjutkan pengajuan ini', 'In progress · continue this request') : reason || t('Tersedia', 'Available');
             return `<button type="button" class="service-card ${kind}" data-service-card="${escapeHtml(type)}" data-preserve-case aria-pressed="${select.value === type}"><strong>${escapeHtml(option.textContent.trim())}</strong><span>${escapeHtml(note)}</span></button>`;
         }).join('');
+        if (refocus) box.querySelector(`[data-service-card="${CSS.escape(refocus)}"]`)?.focus({preventScroll:true});
     }
     document.addEventListener('click', event => {
         const card = event.target.closest('[data-service-card]');
         if (!card || !student()) return;
         const select = el('reg-jenis-utama');
+        if (select.disabled) return;
         if (select.value !== card.dataset.serviceCard) { select.value = card.dataset.serviceCard; select.dispatchEvent(new Event('change', {bubbles:true})); }
         renderServiceCards();
     });
@@ -46,17 +50,17 @@
             else if (log.status === 'Accepted') accepted = log.time;
         }
         const status = state(item);
-        if (['pending', 'resubmitted'].includes(status)) steps.push({label:t('Diperiksa admin', 'Admin review'), current:true});
+        if (['pending', 'resubmitted'].includes(status)) steps.push({label:t('Pemeriksaan admin', 'Admin review'), current:true});
         if (status === 'revision') steps.push({label:currentUser.role === 'admin' ? t('Perbaikan mahasiswa', 'Student corrections') : t('Perbaikan Anda', 'Your corrections'), current:true, tone:'revision'});
-        steps.push({label:t('Disetujui', 'Approved'), time:accepted, done:status === 'accepted'});
+        steps.push({label:t('Selesai', 'Completed'), time:accepted, done:status === 'accepted', current:status === 'accepted'});
         return steps;
     }
     function trackerHtml(item, compact = false) {
         const steps = caseTimeline(item);
         const when = time => { const date = displayDate(time); return Number.isFinite(date.getTime()) ? formatDate(time) : ''; };
-        const summary = steps.map(step => step.label + (step.time && step.done ? ' ' + when(step.time) : step.current ? ' (' + t('sekarang', 'now') + ')' : '')).join(' → ');
+        const summary = steps.map(step => step.label + (step.time && step.done ? ' ' + when(step.time) : step.current && !step.done ? ' (' + t('sekarang', 'now') + ')' : '')).join(' → ');
         if (compact) return `<ol class="case-tracker compact" aria-label="${escapeHtml(t('Tahapan: ', 'Progress: ') + summary)}">${steps.map(step => `<li class="${step.done ? 'done' : step.current ? 'current' : ''}${step.tone ? ' ' + step.tone : ''}" title="${escapeHtml(step.label)}"></li>`).join('')}</ol>`;
-        return `<ol class="case-tracker" aria-label="${escapeHtml(t('Tahapan pengajuan', 'Request progress'))}">${steps.map(step => `<li class="${step.done ? 'done' : step.current ? 'current' : ''}${step.tone ? ' ' + step.tone : ''}"><span>${escapeHtml(step.label)}</span><small>${step.time && step.done ? escapeHtml(when(step.time)) : step.current ? t('Sekarang', 'Now') : ''}</small></li>`).join('')}</ol>`;
+        return `<ol class="case-tracker" aria-label="${escapeHtml(t('Tahapan pengajuan', 'Request progress'))}">${steps.map(step => `<li class="${step.done ? 'done' : step.current ? 'current' : ''}${step.tone ? ' ' + step.tone : ''}"${step.current ? ' aria-current="step"' : ''}><span>${escapeHtml(step.label)}</span><small>${step.time && step.done ? escapeHtml(when(step.time)) : step.current && !step.done ? t('Sekarang', 'Now') : ''}</small></li>`).join('')}</ol>`;
     }
     window.caseTrackerHtml = trackerHtml;
 

@@ -36,7 +36,7 @@ async function layout(page,label,width){
   const header=h.closest('header,.page-intro,.student-requests-heading,.supervisor-heading,.resources-heading,.agenda-heading,.notification-heading,.help-heading,.journey-heading,.preparation-heading,.reference-header,.sop-heading');
   return{overflow:document.documentElement.scrollWidth>innerWidth+2,title:{size:parseFloat(style.fontSize),line:parseFloat(style.lineHeight),letter:style.letterSpacing},
    faintHeadings:[...root.querySelectorAll('h1,h2,h3,h4')].filter(visible).filter(n=>contrast(n)<4.5).map(n=>({text:n.textContent.slice(0,70),contrast:contrast(n)})),
-   clipped:[...root.querySelectorAll('h1,h2,h3,p,label,button,summary')].filter(n=>visible(n)&&n.clientWidth&&!n.closest('table')&&n.scrollWidth>n.clientWidth+3).map(n=>n.textContent.trim().slice(0,90)),
+   clipped:[...root.querySelectorAll('h1,h2,h3,p,label,button,summary')].filter(n=>visible(n)&&n.clientWidth&&!n.closest('table,.sr-only')&&n.scrollWidth>n.clientWidth+3).map(n=>n.textContent.trim().slice(0,90)),
    fields:[...root.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]),select,textarea')].filter(visible).map(n=>({id:n.id,font:parseFloat(getComputedStyle(n).fontSize)})),
    actions:[...root.querySelectorAll('.btn-primary,.btn-secondary')].filter(visible).map(n=>({id:n.id,box:box(n)})),
    titleBox:box(h),headerActions:header?[...header.querySelectorAll('button')].filter(visible).map(box):[]};
