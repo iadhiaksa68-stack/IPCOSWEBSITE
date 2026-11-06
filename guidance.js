@@ -36,6 +36,8 @@
         if (select.disabled) return;
         if (select.value !== card.dataset.serviceCard) { select.value = card.dataset.serviceCard; select.dispatchEvent(new Event('change', {bubbles:true})); }
         renderServiceCards();
+        // An available service needs no second tap; blocked or in-progress cards stay on this step to show why.
+        if (card.classList.contains('open') && window.IPCOSRegistration?.current() === 'service') window.IPCOSRegistration.navigate('data');
     });
     const originalRefresh = window.refreshServiceAvailability;
     if (typeof originalRefresh === 'function') window.refreshServiceAvailability = function () { const result = originalRefresh.apply(this, arguments); try { renderServiceCards(); } catch (_) {} return result; };

@@ -12,7 +12,7 @@ function serviceAvailability(type) {
     const setting = serviceSetting(type);
     const today = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     const academicReason=window.IPCOSAcademic?.reason(type);if(academicReason)return academicReason;
-    if (!setting.enabled) return uxText('Layanan sedang ditutup oleh admin.', 'This service is currently closed by admin.');
+    if (!setting.enabled) return setting.open && today < setting.open ? `${uxText('Ditutup sementara. Dibuka kembali','Temporarily closed. Reopens')} ${formatDate(setting.open)} (WIB, UTC+7).` : uxText('Layanan sedang ditutup oleh admin.', 'This service is currently closed by admin.');
     if (setting.open && today < setting.open) return `${uxText('Pendaftaran dibuka','Registration opens')} ${formatDate(setting.open)} (WIB, UTC+7).`;
     if (setting.close && today > setting.close) return `${uxText('Periode pendaftaran berakhir','Registration closed on')} ${formatDate(setting.close)} (WIB, UTC+7).`;
     return '';

@@ -16,7 +16,7 @@ const records = [
     {id:'Q2', date:day(1), nim:'222', nama:'Antrean Dua', jenis:'Outline', detail:'<b>Judul:</b> 2', link:link('q2', 'T')+'<br>'+link('q3', 'D'), status:'Pending', note:'[]'},
     {id:'Q3', date:day(3), nim:'333', nama:'Antrean Tiga', jenis:'Skripsi Jurnal', detail:'<b>Judul:</b> 3', link:link('q4', 'L')+'<br>'+link('q5', 'D'), status:'Resubmitted', note:'[]'}
 ];
-const services = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'].map(type => ({type, enabled:type !== 'Pendadaran', open:'', close:'', adminDays:3, studentDays:7}));
+const services = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'].map(type => ({type, enabled:type !== 'Pendadaran', open:type === 'Pendadaran' ? '2099-01-15' : '', close:'', adminDays:3, studentDays:7}));
 async function mock(context) {
     await context.route('**/*', async route => {
         const url = route.request().url();
@@ -64,6 +64,7 @@ async function login(page, role) {
 
     await page.waitForSelector('#student-first-guide');
     assert.equal(await page.locator('#student-first-guide li').count(), 3);
+    assert.equal(await page.locator('#task-home .student-overview, #task-home .student-empty, #task-home .student-shortcuts').count(), 0, 'a new student sees no zero counters, empty list or duplicate links');
     await page.locator('#student-first-guide [data-guide-done]').click();
     assert.equal(await page.locator('#student-first-guide').count(), 0);
     await page.evaluate(() => renderTaskHome());
@@ -101,12 +102,17 @@ async function login(page, role) {
     assert.equal(cards.length, 5);
     assert.deepEqual(cards.find(card => card[0] === 'Skripsi Jurnal').slice(0, 2), ['Skripsi Jurnal', 'active'], 'a running request is marked as in progress');
     assert.equal(cards.find(card => card[0] === 'Pendadaran')[1], 'blocked', 'a closed service shows why before it is chosen');
-    assert.match(cards.find(card => card[0] === 'Pendadaran')[2], /ditutup/);
+    assert.match(cards.find(card => card[0] === 'Pendadaran')[2], /ditutup.*dibuka kembali/i, 'a closed service says when it reopens');
     assert.equal(cards.find(card => card[0] === 'Proposal')[1], 'open');
     assert.equal(await page.locator('#reg-jenis-utama').evaluate(node => node.getBoundingClientRect().width <= 1), true, 'the old dropdown no longer duplicates the cards');
     assert.equal(await page.locator('label[for="reg-jenis-utama"]').evaluate(node => node.getBoundingClientRect().width <= 1), true);
+    assert.equal(await page.locator('#registration-companion').isVisible(), false, 'no side panel before a service is chosen');
+    await page.locator('[data-service-card="Pendadaran"]').click();
+    assert.equal(await page.evaluate(() => window.IPCOSRegistration.current()), 'service', 'a closed service stays on the choice step');
     await page.locator('[data-service-card="Proposal"]').focus(); await page.keyboard.press('Enter');
-    assert.equal(await page.evaluate(() => document.activeElement.dataset.serviceCard), 'Proposal', 'keyboard focus stays on the chosen card');
+    assert.equal(await page.evaluate(() => window.IPCOSRegistration.current()), 'data', 'an available service opens the details step');
+    assert.equal(await page.evaluate(() => document.activeElement.closest('#registration-data-step') !== null), true, 'focus moves to the first detail field');
+    assert.equal(await page.locator('#registration-companion').isVisible(), true, 'the checklist panel appears once a service is chosen');
     assert.equal(await page.inputValue('#reg-jenis-utama'), 'Proposal');
     assert.equal(await page.getAttribute('[data-service-card="Proposal"]', 'aria-pressed'), 'true');
     pass('Service cards show availability before choosing, and a card selects its service');
@@ -123,6 +129,8 @@ async function login(page, role) {
     await page.locator('#student-status [data-case-id="JOURNAL"]:visible').first().click();
     await page.waitForSelector('#case-detail-content .case-tracker:not(.compact)');
     const steps = await page.locator('#case-detail-content .case-tracker:not(.compact) li span').allTextContents();
+    assert.equal(await page.locator('#case-detail-content .student-no-action').count(), 0, 'no filler message in the action column');
+    assert.equal((await page.locator('#case-detail-content').textContent()).includes('penanda versi'), false, 'students do not see the version-label note');
     assert.deepEqual(steps, ['Dikirim', 'Revisi diminta', 'Perbaikan Anda', 'Selesai']);
     assert.equal(await page.locator('#case-detail-content .student-request-progress').count(), 0, 'the detail shows one tracker, not two');
     pass('Requests show a progress tracker: submitted, corrections requested, your corrections, approved');
