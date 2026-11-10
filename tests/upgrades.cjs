@@ -117,7 +117,7 @@ async function noOverflow(page, label) { assert.equal(await page.evaluate(() => 
     assert.equal(await admin.locator('#table-admin-reg tr[data-queue-case="OLD-PROP"]').count(), 0, 'archived requests leave the queue');
     pass('Bulk archive asks for a reason and removes archived requests from the queue');
 
-    await admin.evaluate(() => switchTab(null, 'admin-master'));
+    await admin.evaluate(() => { switchTab(null, 'admin-master'); window.IPCOSMaster.show('services'); });
     await admin.locator('#revision-template-management > summary').click();
     await admin.waitForSelector('#rt-label-0');
     assert.equal(await admin.locator('#revision-template-editor .revision-template-row').count(), 4, 'editor starts from the four built-in examples');

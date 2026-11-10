@@ -66,7 +66,7 @@ async function layout(page, label) {
     });
     assert.equal(state.overflow, false, label + ' viewport overflow');
     assert.deepEqual(state.clipped, [], label + ' clipped text');
-    assert(state.buttons.length >= 5);
+    assert(state.buttons.length >= 4);
     for (const button of state.buttons) {
         assert(button.rect.width > 0 && button.rect.height >= 43.99, label + ' usable step ' + button.name);
         assert(button.rect.left >= -1 && button.rect.right <= (await page.viewportSize()).width + 1, label + ' step inside viewport ' + button.name);

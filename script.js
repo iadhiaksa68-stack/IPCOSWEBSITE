@@ -1274,7 +1274,7 @@ function renderStudentHome(home, records) {
     const description = focus ? caseNextStep(focus) : action.kind==='draft' ? uxText('Lanjutkan isian yang tersimpan, lalu periksa kembali sebelum mengirim.','Continue your saved details, then review them before submitting.') : uxText('Pilih layanan akademik dan siapkan berkas sebelum mengirim pengajuan.','Choose an academic service and prepare your files before submitting a request.');
     home.classList.add('student-dashboard');
     home.innerHTML = `<section class="student-next-step" aria-labelledby="student-next-title"><div class="student-next-copy"><span class="student-eyebrow">${uxText('LANGKAH BERIKUTNYA','YOUR NEXT STEP')}</span><h2 id="student-next-title">${heading}</h2>${focus ? `<p class="student-focus-service">${escapeHtml(systemText(focus.jenis))}</p>` : ''}<p>${escapeHtml(description)}</p><button type="button" class="btn-primary" data-student-home-action onclick="continueStudentHome()">${action.label}<span aria-hidden="true"> →</span></button></div><div class="student-next-context">${focus ? studentProgressHtml(focus) : `<strong>${uxText('Satu tempat untuk progres Anda','One place for your progress')}</strong><p>${uxText('Pengajuan, berkas, dan catatan admin tetap terhubung.','Your requests, files, and admin notes stay connected.')}</p>`}</div></section>${records.length ? `
-    <dl class="student-overview" aria-label="${uxText('Ringkasan pengajuan','Request overview')}">${[[revisions,uxText('Perlu perbaikan','Needs corrections')],[waiting,uxText('Dalam pemeriksaan','Under review')],[completed,uxText('Selesai diverifikasi','Verified')]].map(([count,label])=>`<div><dt>${label}</dt><dd>${count}</dd></div>`).join('')}</dl>
+    ${records.length<3?'':`<dl class="student-overview" aria-label="${uxText('Ringkasan pengajuan','Request overview')}">${[[revisions,uxText('Perlu perbaikan','Needs corrections')],[waiting,uxText('Dalam pemeriksaan','Under review')],[completed,uxText('Selesai diverifikasi','Verified')]].map(([count,label])=>`<div><dt>${label}</dt><dd>${count}</dd></div>`).join('')}</dl>`}
     <div class="student-section-heading"><h2>${uxText('Pengajuan Anda','Your requests')}</h2><button type="button" class="task-history" onclick="switchTab(null,'student-status')">${uxText('Lihat Semua','View All')} (${records.length})</button></div>
     <div class="task-home-list">${sorted.length ? sorted.slice(0,3).map(item=>`<article class="task-card student-request-card"><div><p class="student-request-date">${escapeHtml(formatDate(getCaseEventTime(item)))}</p><h3>${escapeHtml(systemText(item.jenis))}</h3>${studentRequestTitle(item) ? `<p class="student-request-title">${escapeHtml(studentRequestTitle(item))}</p>` : ''}${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)}</div><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${state(item)==='revision' ? uxText('Lihat Perbaikan','View Corrections') : state(item)==='accepted' ? uxText('Lihat Hasil','View Result') : uxText('Detail Pengajuan','Request Details')}</button></article>`).join('') : `<div class="student-empty"><h3>${uxText('Belum ada pengajuan','No requests yet')}</h3><p>${uxText('Pengajuan yang Anda kirim akan tampil di sini, bersama status dan tindak lanjutnya.','Your submitted requests will appear here with their status and next steps.')}</p></div>`}</div>` : ''}`;
 }
@@ -1464,6 +1464,7 @@ async function submitCaseAction(event) {
             if(window.IPCOSAdminDecision&&!window.IPCOSAdminDecision.review(decision))return;
         } catch(error) { return fail(error.message); }
     }
+    const stageOffer = currentUser.role==='admin' && newStatus==='Accepted' ? window.IPCOSAdminDecision?.stageOffer?.() || null : null;
     const button = document.getElementById('btn-case-submit');
     button.disabled = true; button.textContent = uxText('Sedang menyimpan...', 'Saving...');
     feedback.textContent = uxText('Tunggu sampai ada konfirmasi.','Wait for confirmation.');
@@ -1500,6 +1501,12 @@ async function submitCaseAction(event) {
         setSubmissionStage('case-action-feedback',success?'confirmed':'uncertain');
         if (success) panel.dataset.dirty='false';
         if(success&&currentUser.role==='admin')window.IPCOSAdminDrafts?.forget(item.id);
+        if(success&&stageOffer){
+            const recorded=await window.IPCOSAcademic.complete(item,stageOffer);
+            if(requestEpoch!==sessionEpoch)return;
+            showToast(recorded?uxText('Tahap akademik ikut dicatat: ','Academic stage also recorded: ')+stageOffer.label:uxText('Pengajuan disetujui, tetapi tahap belum tercatat. Catat lewat Kelola Tahap Akademik.','The request was approved, but the stage was not recorded. Record it in Manage Academic Stage.'),recorded?'success':'error');
+            window.IPCOSMaster?.render();
+        }
         if (success && selectedCaseId === String(item.id) && document.getElementById('modal-case-detail').style.display !== 'none') openCaseDetail(item.id);
         else if (!success && document.getElementById('case-action-feedback')) setProcessNotice('case-action-feedback','case-uncertain');
     } catch (error) { if (requestEpoch !== sessionEpoch) return; setSubmissionStage('case-action-feedback','error'); setProcessNotice('case-action-feedback','case-error',error.message); }
@@ -2413,6 +2420,11 @@ function openCaseDetail(id, languageRefresh = false) {
     savedPaneScroll.forEach(({name,top}) => {const pane = content.querySelector('.' + name);if (pane) pane.scrollTop = top;});
     window.IPCOSRevisionHistory?.opened(item,savedRevisionHistory);
     window.IPCOSReviewWorkspace?.opened();
+    // Reviewers start on the first file instead of an empty preview pane.
+    if (!languageRefresh && isAdmin && ['pending','resubmitted'].includes(String(item.status).toLowerCase()) && !content.dataset.activeDocumentIndex && window.matchMedia('(min-width:1101px)').matches) {
+        const first = content.querySelector('[data-preview-index]');
+        if (first && !first.disabled) { first.click(); modal.querySelector('.case-close').focus({preventScroll:true}); }
+    }
     return true;
 }
 

@@ -28,7 +28,9 @@ async function mock(context) {
                 const nim = String(data.token).startsWith('student-') ? String(data.token).slice(8) : '';
                 result = {status:'success', registrations:structuredClone(nim ? records.filter(r => r.nim === nim) : records), students:[], announcements:[], contents:[], services,
                     dosens:[{Nama:'Dr. Alfa', Terpakai:4, Maksimal:5}, {Nama:'Dr. Beta', Terpakai:1, Maksimal:5}, {Nama:'Dr. Gamma', Terpakai:5, Maksimal:5}]};
+                if (!nim) Object.assign(result, {academicSupported:true, academicByNim:{'222':{exists:false, level:0, revision:0, updatedAt:''}}});
             } else if (data.action === 'get_journey') result = {status:'success', journey:{checks:{}, revision:1}};
+            else if (data.action === 'save_academic_progress') result = {status:'success', academic:{exists:true, level:data.level, revision:data.revision + 1, updatedAt:new Date().toISOString(), events:[]}};
             else if (data.action === 'save_progress') result = {status:'success', journey:{checks:data.changes || {}, revision:2}};
             else if (data.action === 'get_document_review') result = {status:'success', version:'', reviews:[], archived:false};
             else if (data.action === 'change_admin_password') result = data.currentPassword === 'lama-benar' ? {status:'success', username:data.newUsername} : {status:'error', message:'Username atau password lama salah.'};
@@ -60,6 +62,7 @@ async function login(page, role) {
     page.on('pageerror', error => errors.push(error.message)); page.on('dialog', dialog => dialog.accept());
     await login(page, 'mhs');
     assert.equal(await page.locator('#student-first-guide').count(), 0, 'students with requests are not interrupted by the guide');
+    assert.equal(await page.locator('#task-home .student-overview').count(), 0, 'counters stay hidden until there are enough requests to summarise');
     await page.evaluate(() => { sessionStorage.setItem('ipcos_registrations', '[]'); renderTaskHome(); });
 
     await page.waitForSelector('#student-first-guide');
@@ -107,6 +110,7 @@ async function login(page, role) {
     assert.equal(await page.locator('#reg-jenis-utama').evaluate(node => node.getBoundingClientRect().width <= 1), true, 'the old dropdown no longer duplicates the cards');
     assert.equal(await page.locator('label[for="reg-jenis-utama"]').evaluate(node => node.getBoundingClientRect().width <= 1), true);
     assert.equal(await page.locator('#registration-companion').isVisible(), false, 'no side panel before a service is chosen');
+    assert.equal(await page.locator('#registration-service-next').isVisible(), false, 'no greyed-out Continue button before a service is chosen');
     await page.locator('[data-service-card="Pendadaran"]').click();
     assert.equal(await page.evaluate(() => window.IPCOSRegistration.current()), 'service', 'a closed service stays on the choice step');
     await page.locator('[data-service-card="Proposal"]').focus(); await page.keyboard.press('Enter');
@@ -124,6 +128,20 @@ async function login(page, role) {
     assert.equal(calls.filter(c => c.action === 'report_funnel').some(c => JSON.stringify(c).includes('"nim"')), false, 'reports carry no student ID');
     pass('Wizard steps are reported anonymously, once per service and step');
 
+    await page.fill('#reg-judul', 'Judul uji'); await page.evaluate(() => window.IPCOSRegistration.navigate('files'));
+    await page.waitForFunction(() => window.IPCOSRegistration.current() === 'files');
+    const choose = page.locator('#registration-document-step .upload-choose:visible').first();
+    assert.equal((await choose.textContent()).trim(), 'Pilih Berkas', 'the file button is in the portal language');
+    assert.equal(await choose.evaluate(node => document.getElementById(node.dataset.uploadInput).getBoundingClientRect().width <= 1), true, 'the browser file control with English text is not shown');
+    const chooser = page.waitForEvent('filechooser'); await choose.click(); await (await chooser).setFiles([]);
+    await page.setViewportSize({width:390, height:844});
+    assert.match(await page.locator('#registration-readiness-jump').textContent(), /^Persyaratan: \d\/\d siap/i, 'phones show requirement progress above the form');
+    await page.locator('#registration-readiness-jump').click();
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'readiness-heading');
+    await page.setViewportSize({width:1365, height:900});
+    assert.equal(await page.locator('#registration-readiness-jump').isVisible(), false, 'wide screens already show the checklist beside the form');
+    pass('File fields use an Indonesian button, and phones show requirement progress at the top');
+
     await page.evaluate(() => switchTab(null, 'student-status'));
     assert.equal(await page.locator('#student-status .case-tracker.compact:visible').first().locator('li').count(), 4, 'list shows a compact tracker');
     await page.locator('#student-status [data-case-id="JOURNAL"]:visible').first().click();
@@ -133,9 +151,17 @@ async function login(page, role) {
     assert.equal((await page.locator('#case-detail-content').textContent()).includes('penanda versi'), false, 'students do not see the version-label note');
     assert.deepEqual(steps, ['Dikirim', 'Revisi diminta', 'Perbaikan Anda', 'Selesai']);
     assert.equal(await page.locator('#case-detail-content .student-request-progress').count(), 0, 'the detail shows one tracker, not two');
+    await page.setViewportSize({width:390, height:844});
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('#case-detail-content .case-tracker:not(.compact) li')).minWidth === '0px');
+    assert.equal(await page.locator('#case-detail-content .case-tracker:not(.compact)').evaluate(node => { const box = node.getBoundingClientRect(); return node.scrollWidth <= node.clientWidth + 1 && [...node.children].every(step => step.getBoundingClientRect().right <= box.right + 1 && step.scrollWidth <= step.clientWidth + 1); }), true, 'all four steps fit a phone screen');
+    await page.setViewportSize({width:1365, height:900});
     pass('Requests show a progress tracker: submitted, corrections requested, your corrections, approved');
 
     await page.evaluate(() => closeModal('modal-case-detail', true));
+    await page.evaluate(() => switchTab(null, 'academic-journey'));
+    await page.waitForSelector('#journey-overview.journey-no-stage');
+    assert.equal(await page.evaluate(() => { const next = document.getElementById('journey-next-action').getBoundingClientRect(), stage = document.querySelector('.journey-position').getBoundingClientRect(); return next.left < stage.left || next.top < stage.top; }), true, 'without a recorded stage the next step leads the page');
+    pass('Academic Journey leads with the next step when no stage is recorded');
 
     // ---------- Admin ----------
     const admin = await context.newPage();
@@ -189,7 +215,29 @@ async function login(page, role) {
     await admin.evaluate(() => { if (currentLang !== 'en') toggleLanguage(); });
     assert.deepEqual(await admin.locator('#admin-table-main thead th.lang').evaluateAll(nodes => nodes.slice(0, 3).map(node => node.textContent.trim())).then(list => list.filter(Boolean)).then(list => list.includes('Student') && list.includes('Request Type')), true);
     pass('Queue table headers follow the selected language');
-    await admin.evaluate(() => { if (currentLang !== 'id') toggleLanguage(); switchTab(null, 'admin-master'); });
+    await admin.evaluate(() => { if (currentLang !== 'id') toggleLanguage(); });
+    assert.match(await admin.evaluate(() => window.IPCOSAcademic.caseHtml({id:'X', nim:'222', jenis:'Outline', status:'Accepted'})), /data-stage-gap/, 'an approved request without its stage recorded is flagged for the admin');
+    await admin.locator('#table-admin-reg [data-case-id="Q2"]').click();
+    await admin.waitForFunction(() => document.getElementById('case-detail-content').dataset.activeDocumentIndex === '0');
+    await admin.evaluate(() => caseDetailAction('dospem'));
+    await admin.selectOption('#case-supervisor', {index:1});
+    await admin.locator('#btn-case-submit').click();
+    await admin.waitForSelector('#decision-mark-stage');
+    assert.equal(await admin.isChecked('#decision-mark-stage'), false, 'recording the stage is never automatic');
+    await admin.check('#decision-mark-stage');
+    assert.equal(await admin.locator('#admin-decision-summary').count(), 1, 'ticking the stage keeps the summary open');
+    await admin.locator('#btn-case-submit').click();
+    await admin.waitForFunction(() => window.IPCOSAcademic.progress('222').level === 1);
+    const stageCall = calls.find(c => c.action === 'save_academic_progress');
+    assert.deepEqual([stageCall.nim, stageCall.level, stageCall.revision], ['222', 1, 0]);
+    assert(calls.findIndex(c => c.action === 'update' && c.id === 'Q2') < calls.indexOf(stageCall), 'the stage is recorded only after the approval succeeds');
+    await admin.evaluate(() => closeModal('modal-case-detail', true));
+    pass('Wide screens open the first file automatically; approving can also record the completed stage in the same step');
+
+    await admin.evaluate(() => { switchTab(null, 'admin-master'); });
+    assert.deepEqual(await admin.locator('#admin-master .master-section').evaluateAll(nodes => nodes.filter(node => node.getClientRects().length).map(node => node.id)), ['master-students-section'], 'Master Data shows one section at a time');
+    await admin.evaluate(() => { window.IPCOSMaster.show('services'); });
+    assert.deepEqual(await admin.locator('#admin-master .master-section').evaluateAll(nodes => nodes.filter(node => node.getClientRects().length).map(node => node.id)), ['master-services-section']);
     await admin.locator('#admin-password-card > summary').click();
     await admin.fill('#admin-pw-user', 'admin'); await admin.fill('#admin-pw-current', 'lama-salah');
     await admin.fill('#admin-pw-new', 'pendek'); await admin.fill('#admin-pw-repeat', 'pendek');

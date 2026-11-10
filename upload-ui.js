@@ -23,7 +23,9 @@
         if(!panel){panel=document.createElement('div');panel.id=input.id+'-selection';panel.className='upload-selection';input.insertAdjacentElement('afterend',panel);}
         const fragment=document.createDocumentFragment();
         const heading=document.createElement('p');heading.className='upload-selection-status';heading.setAttribute('role','status');heading.setAttribute('aria-live','polite');
-        heading.textContent=files.length?t('Dipilih di perangkat · belum dikirim','Selected on this device · not sent'):t('Belum ada berkas dipilih','No file selected');fragment.append(heading);
+        heading.textContent=files.length?t('Dipilih di perangkat · belum dikirim','Selected on this device · not sent'):t('Belum ada berkas dipilih','No file selected');
+        if(!files.length||input.multiple){const choose=button(files.length?t('Ganti pilihan berkas','Change selected files'):t('Pilih Berkas','Choose File'),'replace',input);choose.classList.add('upload-choose');choose.setAttribute('aria-describedby',input.id+'-selection-status');fragment.append(choose);}
+        heading.id=input.id+'-selection-status';fragment.append(heading);
         const total=files.reduce((sum,file)=>sum+file.size,0);
         if(input.multiple){
             const limit=document.createElement('p');limit.className='field-helper upload-total';

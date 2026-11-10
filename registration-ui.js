@@ -58,6 +58,11 @@
             review:t('Periksa data dan isi berkas. Pengajuan dikirim hanya melalui Konfirmasi & Kirim.','Check your details and file contents. Only Confirm & Send submits your request.')
         };
         setText(el('registration-companion-help'),help[activeStep]);
+        let jump=el('registration-readiness-jump');
+        if(!jump){jump=document.createElement('button');jump.type='button';jump.id='registration-readiness-jump';jump.className='registration-readiness-jump';nav.after(jump);}
+        const readyCount=requirements.filter(item=>item.ready).length;
+        jump.hidden=!selected||review||activeStep==='service'||!requirements.length;
+        setText(jump,t(`Persyaratan: ${readyCount}/${requirements.length} siap · Lihat daftar ↓`,`Requirements: ${readyCount}/${requirements.length} ready · View list ↓`));
     }
     function focusField(field){
         if(!field)return;
@@ -109,6 +114,7 @@
     function reset(){generation++;activeStep='service';previousType='';refresh();}
     document.addEventListener('click',event=>{
         const step=event.target.closest('[data-registration-step]');if(step&&!step.disabled)navigate(step.dataset.registrationStep);
+        if(event.target.closest('#registration-readiness-jump')){const target=el('registration-readiness')||el('registration-companion');target?.scrollIntoView({block:'start',behavior:'instant'});const heading=el('readiness-heading');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}return;}
         if(event.target.closest('[data-registration-files-next],#registration-service-next'))next();
         if(event.target.closest('#registration-back'))back();
     });

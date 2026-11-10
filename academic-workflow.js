@@ -137,12 +137,12 @@
     if (mine.level < index)
       return index === 1
         ? t(
-            "Outline belum ditandai selesai oleh admin. Hubungi admin untuk verifikasi tahapan sebelumnya.",
-            "Admin has not marked Outline completed. Contact admin to verify your previous stages.",
+            "Outline belum dicatat selesai oleh admin. Jika Outline Anda sudah disetujui, minta admin mencatat tahap ini agar layanan terbuka.",
+            "Admin has not recorded Outline as completed. If your Outline was approved, ask admin to record the stage to open this service.",
           )
         : t(
-            "Sempro belum ditandai selesai oleh admin. Hubungi admin untuk verifikasi tahapan sebelumnya.",
-            "Admin has not marked the proposal seminar completed. Contact admin to verify your previous stages.",
+            "Sempro belum dicatat selesai oleh admin. Jika seminar Anda sudah selesai, minta admin mencatat tahap ini agar layanan terbuka.",
+            "Admin has not recorded the proposal seminar as completed. If your seminar is done, ask admin to record the stage to open this service.",
           );
     return "";
   }
@@ -408,8 +408,30 @@
       }
     }
   }
+  // Approving a request and completing a stage are separate facts; the admin may record both in one step.
+  function stageOffer(item) {
+    if (!enabled || !sessionMatches() || currentUser.role !== "admin" || !item) return null;
+    const index = ["Outline", "Proposal", "Pendadaran"].indexOf(item.jenis);
+    const value = byNim[String(item.nim ?? "").trim()];
+    if (index < 0 || !validProgress(value)) return null;
+    const level = value.exists ? value.level : 0;
+    if (level > index) return null;
+    return { nim: String(item.nim).trim(), level: index + 1, label: levels()[index + 1], revision: Number.isInteger(value.revision) ? value.revision : 0 };
+  }
+  async function complete(item, offer) {
+    if (!offer || currentUser.role !== "admin" || !sessionMatches()) return false;
+    try {
+      const result = await api({ action: "save_academic_progress", nim: offer.nim, level: offer.level,
+        reason: `Dicatat saat menyetujui pengajuan ${item.jenis} (${item.id}).`, revision: offer.revision, requestId: crypto.randomUUID() });
+      byNim[offer.nim] = result.academic;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
   function caseHtml(item) {
     if (!enabled || !sessionMatches()) return "";
+    const offer = String(item.status).toLowerCase() === "accepted" ? stageOffer(item) : null;
     const draft = typeDrafts[String(item.id)] || {
       type: item.jenis,
       reason: "",
@@ -418,7 +440,7 @@
       currentUser.role === "admin"
         ? byNim[String(item.nim)] || { exists: false, level: 0 }
         : mine;
-    return `<section class="case-academic-stage"><h3>${t("Tahap Akademik", "Academic Stage")}</h3><p>${escapeHtml(summary(value))}</p>${currentUser.role === "admin" ? `<button type="button" class="text-link" data-edit-academic="${escapeHtml(item.nim)}">${t("Kelola Tahap Akademik", "Manage Academic Stage")}</button>` : ""}</section>${currentUser.role === "admin" && ["Outline", "Proposal", "Pendadaran"].includes(item.jenis) && ["pending", "revision", "resubmitted"].includes(String(item.status).toLowerCase()) ? `<details class="request-type-correction"><summary>${t("Koreksi Jenis Pengajuan", "Correct Request Type")}</summary><p class="field-helper">${t("Untuk salah memilih pendaftaran. Berkas dan riwayat tetap tersimpan. Pengajuan kembali menunggu pemeriksaan admin.", "For a wrong registration selection. Files and history are retained.")}</p><label for="correct-request-type">${t("Jenis tujuan", "Destination type")}</label><select id="correct-request-type">${["Outline", "Proposal", "Pendadaran"].map((type) => `<option value="${type}" ${type === draft.type ? "selected" : ""}>${escapeHtml(serviceLabel(type))}</option>`).join("")}</select><label for="correct-request-reason">${t("Alasan koreksi", "Correction reason")}</label><textarea id="correct-request-reason" rows="2" maxlength="500">${escapeHtml(draft.reason)}</textarea><p id="correct-request-feedback" class="field-error" role="status"></p><button type="button" class="btn-secondary" data-change-request-type>${t("Simpan Koreksi Jenis", "Save Type Correction")}</button></details>` : ""}`;
+    return `<section class="case-academic-stage"><h3>${t("Tahap Akademik", "Academic Stage")}</h3><p>${escapeHtml(summary(value))}</p>${currentUser.role === "admin" ? `${offer ? `<p class="case-stage-gap" data-stage-gap>${t("Pengajuan ini sudah disetujui, tetapi tahapnya belum dicatat selesai. Mahasiswa belum bisa mendaftar tahap berikutnya sampai tahap ini dicatat.", "This request is approved, but its stage is not recorded as completed. The student cannot register for the next stage until it is recorded.")}</p>` : ""}<button type="button" class="text-link" data-edit-academic="${escapeHtml(item.nim)}">${t("Kelola Tahap Akademik", "Manage Academic Stage")}</button>` : ""}</section>${currentUser.role === "admin" && ["Outline", "Proposal", "Pendadaran"].includes(item.jenis) && ["pending", "revision", "resubmitted"].includes(String(item.status).toLowerCase()) ? `<details class="request-type-correction"><summary>${t("Koreksi Jenis Pengajuan", "Correct Request Type")}</summary><p class="field-helper">${t("Untuk salah memilih pendaftaran. Berkas dan riwayat tetap tersimpan. Pengajuan kembali menunggu pemeriksaan admin.", "For a wrong registration selection. Files and history are retained.")}</p><label for="correct-request-type">${t("Jenis tujuan", "Destination type")}</label><select id="correct-request-type">${["Outline", "Proposal", "Pendadaran"].map((type) => `<option value="${type}" ${type === draft.type ? "selected" : ""}>${escapeHtml(serviceLabel(type))}</option>`).join("")}</select><label for="correct-request-reason">${t("Alasan koreksi", "Correction reason")}</label><textarea id="correct-request-reason" rows="2" maxlength="500">${escapeHtml(draft.reason)}</textarea><p id="correct-request-feedback" class="field-error" role="status"></p><button type="button" class="btn-secondary" data-change-request-type>${t("Simpan Koreksi Jenis", "Save Type Correction")}</button></details>` : ""}`;
   }
   document.addEventListener("input", (event) => {
     if (
@@ -505,6 +527,8 @@
     languageChanged,
     reason,
     caseHtml,
+    stageOffer,
+    complete,
     progress,
     reset,
     dirty: () => $("correct-request-reason")?.value.trim().length > 0,

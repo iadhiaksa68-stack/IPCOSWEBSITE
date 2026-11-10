@@ -109,3 +109,14 @@ body.dark-mode .service-card.open span { color:#6fd39b; }
   .health-funnel td.health-funnel-service { font-weight:700; padding-bottom:6px; }
   .health-funnel td.health-funnel-service::before { content:none; }
 }
+/* Review round: phones and first-time clarity */
+@media(max-width:600px) { .case-tracker:not(.compact) { overflow:visible; } .case-tracker:not(.compact) li { min-width:0; padding-inline:2px; font-size:11px; overflow-wrap:anywhere; } .case-tracker:not(.compact) li small { font-size:10px; } }
+#registration-shell:not(.registration-has-service) #registration-service-actions { display:none; }
+.registration-readiness-jump { display:none; }
+@media(max-width:1100px) { .registration-readiness-jump:not([hidden]) { display:flex; align-items:center; width:100%; min-height:44px; margin:0 0 16px; padding:10px 14px; border:1px solid var(--item-border); border-radius:12px; background:var(--card-bg); color:var(--heading-color); font:inherit; font-size:13px; font-weight:600; text-align:left; cursor:pointer; } }
+#journey-overview.journey-no-stage .journey-position { order:2; background:var(--bg-color); }
+#journey-overview.journey-no-stage .journey-position h2 { font-size:17px; letter-spacing:0; margin:10px 0; }
+#journey-overview.journey-no-stage #journey-next-action { order:1; border-left:0; border-right:1px solid var(--item-border); background:var(--card-bg); }
+#journey-overview.journey-no-stage #journey-next-action h3 { font-size:clamp(21px,2.4vw,27px); letter-spacing:-.5px; }
+@media(max-width:800px) { #journey-overview.journey-no-stage #journey-next-action { border-right:0; border-top:0; } #journey-overview.journey-no-stage .journey-position { border-top:1px solid var(--item-border); } }
+@media(max-width:1100px) { #admin-data .queue-request-card { position:relative; padding-left:38px; } #admin-data .queue-request-card .bulk-mobile-check { position:absolute; left:0; top:12px; width:32px; height:44px; margin:0; font-size:0; justify-content:flex-start; } }

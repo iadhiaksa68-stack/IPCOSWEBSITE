@@ -1,5 +1,7 @@
 .upload-field,.upload-selection,.upload-file-info{min-width:0}
-.upload-picker{display:block;width:100%;max-width:100%;min-height:48px;padding:8px!important;border:1px solid var(--item-border);border-radius:12px;background:var(--card-bg);color:var(--text-color);font:inherit;overflow:hidden}
+.upload-field{position:relative}.upload-picker{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;opacity:0;overflow:hidden;clip-path:inset(50%);pointer-events:none}
+.upload-choose{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:48px;margin:0 0 10px;padding:10px 18px;font-size:13px;font-weight:700;color:var(--umy-maroon);border-color:color-mix(in srgb,var(--umy-maroon) 45%,var(--item-border))}
+.upload-picker:focus-visible+.upload-selection .upload-choose,.upload-picker:focus-visible+.upload-selection .upload-file-card{outline:3px solid var(--umy-maroon);outline-offset:3px}
 .upload-picker::file-selector-button{margin-right:10px;padding:9px 12px;border:0;border-radius:8px;background:var(--umy-maroon);color:#fff;font:inherit;font-weight:700;cursor:pointer}
 .upload-picker:focus-visible{outline:3px solid var(--umy-maroon);outline-offset:3px}
 .upload-selection{margin-top:10px}

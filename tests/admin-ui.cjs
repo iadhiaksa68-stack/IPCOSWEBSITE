@@ -171,8 +171,10 @@ async function footerReachable(page) {
     await page.screenshot({path:'test-results/admin-ui-queue-desktop.png',fullPage:true,animations:'disabled'});
     pass('Queue titles, filters and action text fit 320/390/768/1365 widths in both languages and themes');
 
+    await page.setViewportSize({width:390,height:900});
     await (await visibleRequest(page,'qa-pending')).click();
     await page.waitForSelector('#modal-case-detail.admin-review-mode');
+    assert.equal(calls.filter(data=>data.action==='get_document').length,0,'Phones list the files first instead of opening one automatically');
     assert.equal(await page.locator('.admin-review-workspace').count(),1);
     assert.equal(await page.locator('.admin-document-navigation').count(),1);
     assert.equal(await page.locator('.admin-review-rail').count(),1);

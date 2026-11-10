@@ -164,7 +164,7 @@ async function layout(page,label) {
     await admin.check('[name="revision-document"][value="Transkrip"]'); await admin.fill('#case-revision-note','Instruksi admin asli');
     await admin.evaluate(()=>toggleLanguage()); await admin.evaluate(()=>toggleLanguage()); assert.equal(await admin.inputValue('#case-revision-note'),'Instruksi admin asli'); assert(await admin.isChecked('[value="Transkrip"]')); assert((await admin.locator('#case-action-panel').textContent()).includes('Select files needing corrections'));
     await admin.evaluate(()=>closeModal('modal-case-detail',true));
-    await admin.evaluate(()=>switchTab(null,'admin-master')); await admin.locator('.service-management').first().locator('summary').click(); await admin.fill('#service-admin-0','19'); await admin.evaluate(()=>toggleLanguage()); await admin.evaluate(()=>toggleLanguage()); assert.equal(await admin.inputValue('#service-admin-0'),'19');
+    await admin.evaluate(()=>switchTab(null,'admin-master')); await admin.locator('[data-master-section=services]').click(); await admin.fill('#service-admin-0','19'); await admin.evaluate(()=>toggleLanguage()); await admin.evaluate(()=>toggleLanguage()); assert.equal(await admin.inputValue('#service-admin-0'),'19');
     pass('Admin correction drafts and unsaved service settings survive language changes');
     await admin.evaluate(()=>openCaseDetail('created')); await admin.evaluate(()=>caseDetailAction('dospem'));
     assert((await admin.locator('#case-action-panel h3').textContent()).includes('Assign Supervisor & Approve'));
