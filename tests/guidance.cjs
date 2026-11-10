@@ -12,7 +12,7 @@ const revisionNote = JSON.stringify([
 ]);
 const records = [
     {id:'JOURNAL', date:day(4), nim:'A', nama:'Mahasiswa Uji', jenis:'Skripsi Jurnal', detail:'<b>Judul:</b> J', link:link('j1', 'LoA')+'<br>'+link('j2', 'Draft'), status:'Revision', note:revisionNote},
-    {id:'Q1', date:day(6), nim:'111', nama:'Antrean Satu', jenis:'Proposal', detail:'<b>Judul:</b> 1', link:link('q1', 'Form'), status:'Pending', note:'[]'},
+    {id:'Q1', date:day(6), nim:'111', nama:'Antrean Satu', jenis:'Proposal', detail:'<b>Judul:</b> 1', link:link('q1', 'Form'), status:'Pending', note:JSON.stringify([{role:'mhs', sender:'Antrean Satu', time:day(6), message:'Pendaftaran', documents:[{url:'https://drive.google.com/file/d/q1/view', label:'Form', fileName:'berkas.rar', version:1}]}])},
     {id:'Q2', date:day(1), nim:'222', nama:'Antrean Dua', jenis:'Outline', detail:'<b>Judul:</b> 2', link:link('q2', 'T')+'<br>'+link('q3', 'D'), status:'Pending', note:'[]'},
     {id:'Q3', date:day(3), nim:'333', nama:'Antrean Tiga', jenis:'Skripsi Jurnal', detail:'<b>Judul:</b> 3', link:link('q4', 'L')+'<br>'+link('q5', 'D'), status:'Resubmitted', note:'[]'}
 ];
@@ -186,6 +186,7 @@ async function login(page, role) {
     await admin.fill('#admin-search-input', ''); await admin.evaluate(() => filterAdminData());
     await admin.locator('#table-admin-reg [data-case-id="Q1"]').click();
     await admin.waitForSelector('#case-review-next');
+    assert.equal(await admin.evaluate(() => document.getElementById('case-detail-content').dataset.activeDocumentIndex), undefined, 'an archive that cannot be previewed is not fetched automatically');
     await admin.locator('#case-detail-content').click({position:{x:5, y:5}});
     await admin.keyboard.press('j');
     await admin.waitForFunction(() => selectedCaseId === 'Q3');

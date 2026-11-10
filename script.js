@@ -2422,7 +2422,8 @@ function openCaseDetail(id, languageRefresh = false) {
     window.IPCOSReviewWorkspace?.opened();
     // Reviewers start on the first file instead of an empty preview pane.
     if (!languageRefresh && isAdmin && ['pending','resubmitted'].includes(String(item.status).toLowerCase()) && !content.dataset.activeDocumentIndex && window.matchMedia('(min-width:1101px)').matches) {
-        const first = content.querySelector('[data-preview-index]');
+        // Word files and archives cannot be shown in the page, so fetching them up front only wastes a download.
+        const first = [...content.querySelectorAll('[data-preview-index]')].find(button => !/\.(docx?|rar|zip|7z)\s*$/i.test(button.closest('.case-file-row')?.querySelector('.document-version')?.textContent || ''));
         if (first && !first.disabled) { first.click(); modal.querySelector('.case-close').focus({preventScroll:true}); }
     }
     return true;
