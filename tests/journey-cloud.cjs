@@ -92,7 +92,7 @@ async function verifyCloudAcknowledgements(){
     async function saved(page){await page.waitForFunction(()=>!journeyCloud.saving && !Object.keys(journeyCloud.pending).length && !journeyCloud.error);}
     const a=await newPage('A',{m1:true});await saved(a);assert.equal(cloud.get('A').checks.m1,true);
     await a.evaluate(()=>switchTab(null,'academic-journey'));
-    assert((await a.locator('#academic-journey-content').textContent()).includes('Berkas disetujui admin'));
+    assert((await a.locator('#academic-journey-content').textContent()).includes('Berkas disetujui · menunggu admin mencatat tahap'));
     assert(!(await a.locator('#academic-journey-content').textContent()).includes('PRIVAT MAHASISWA LAIN'));
     assert.equal(await a.locator('#academic-journey .journey-history-item').count(),0);
     await a.locator('#academic-journey [data-journey-status]').click();

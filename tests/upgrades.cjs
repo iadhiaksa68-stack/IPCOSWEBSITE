@@ -156,7 +156,7 @@ async function noOverflow(page, label) { assert.equal(await page.evaluate(() => 
     assert.equal(await student.locator('#dashboard .operation-feedback:visible').count(), 0, 'welcome is a toast only, not a permanent box');
     pass('An important announcement shows once, in the banner, and the welcome message is not pinned to Home');
 
-    assert.match(await student.locator('#task-home .request-wait').first().textContent(), /Sudah menunggu 5 hari · biasanya diproses dalam 3 hari/);
+    assert.match(await student.locator('#task-home .request-wait').first().textContent(), /Sudah menunggu 5 hari · lebih lama dari biasanya \(3 hari\)/);
     await student.waitForSelector('#home-preparation');
     assert.equal(await student.locator('#home-preparation .home-preparation-row').count(), 2);
     pass('Students see how long a request has waited against the usual time, plus preparation on Home');

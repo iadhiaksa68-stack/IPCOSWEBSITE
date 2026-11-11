@@ -14,6 +14,7 @@ const records = [
     {id:'JOURNAL', date:day(4), nim:'A', nama:'Mahasiswa Uji', jenis:'Skripsi Jurnal', detail:'<b>Judul:</b> J', link:link('j1', 'LoA')+'<br>'+link('j2', 'Draft'), status:'Revision', note:revisionNote},
     {id:'Q1', date:day(6), nim:'111', nama:'Antrean Satu', jenis:'Proposal', detail:'<b>Judul:</b> 1', link:link('q1', 'Form'), status:'Pending', note:JSON.stringify([{role:'mhs', sender:'Antrean Satu', time:day(6), message:'Pendaftaran', documents:[{url:'https://drive.google.com/file/d/q1/view', label:'Form', fileName:'berkas.rar', version:1}]}])},
     {id:'Q2', date:day(1), nim:'222', nama:'Antrean Dua', jenis:'Outline', detail:'<b>Judul:</b> 2', link:link('q2', 'T')+'<br>'+link('q3', 'D'), status:'Pending', note:'[]'},
+    {id:'Q4', date:day(20), nim:'444', nama:'Antrean Empat', jenis:'Outline', detail:'<b>Judul:</b> 4', link:link('q6', 'T'), status:'Accepted', note:'[]'},
     {id:'Q3', date:day(3), nim:'333', nama:'Antrean Tiga', jenis:'Skripsi Jurnal', detail:'<b>Judul:</b> 3', link:link('q4', 'L')+'<br>'+link('q5', 'D'), status:'Resubmitted', note:'[]'}
 ];
 const services = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'].map(type => ({type, enabled:type !== 'Pendadaran', open:type === 'Pendadaran' ? '2099-01-15' : '', close:'', adminDays:3, studentDays:7}));
@@ -26,9 +27,9 @@ async function mock(context) {
             else if (data.action === 'student_login') result = {status:'success', token:'student-' + data.nim, nama:'Mahasiswa Uji'};
             else if (data.action === 'get_data') {
                 const nim = String(data.token).startsWith('student-') ? String(data.token).slice(8) : '';
-                result = {status:'success', registrations:structuredClone(nim ? records.filter(r => r.nim === nim) : records), students:[], announcements:[], contents:[], services,
+                result = {status:'success', registrations:structuredClone(nim ? records.filter(r => r.nim === nim) : records), students:nim ? [] : [{NIM:'444', Nama:'Antrean Empat', Status:'Aktif'}, {NIM:'222', Nama:'Antrean Dua', Status:'Aktif'}], announcements:[], contents:[], services,
                     dosens:[{Nama:'Dr. Alfa', Terpakai:4, Maksimal:5}, {Nama:'Dr. Beta', Terpakai:1, Maksimal:5}, {Nama:'Dr. Gamma', Terpakai:5, Maksimal:5}]};
-                if (!nim) Object.assign(result, {academicSupported:true, academicByNim:{'222':{exists:false, level:0, revision:0, updatedAt:''}}});
+                if (!nim) Object.assign(result, {academicSupported:true, academicByNim:{'222':{exists:false, level:0, revision:0, updatedAt:''}, '444':{exists:false, level:0, revision:0, updatedAt:''}}});
             } else if (data.action === 'get_journey') result = {status:'success', journey:{checks:{}, revision:1}};
             else if (data.action === 'save_academic_progress') result = {status:'success', academic:{exists:true, level:data.level, revision:data.revision + 1, updatedAt:new Date().toISOString(), events:[]}};
             else if (data.action === 'save_progress') result = {status:'success', journey:{checks:data.changes || {}, revision:2}};
@@ -162,11 +163,24 @@ async function login(page, role) {
     await page.waitForSelector('#journey-overview.journey-no-stage');
     assert.equal(await page.evaluate(() => { const next = document.getElementById('journey-next-action').getBoundingClientRect(), stage = document.querySelector('.journey-position').getBoundingClientRect(); return next.left < stage.left || next.top < stage.top; }), true, 'without a recorded stage the next step leads the page');
     pass('Academic Journey leads with the next step when no stage is recorded');
+    const stageLine = await page.evaluate(() => journeyStageHtml('Outline', [{jenis:'Outline', status:'Accepted'}], {level:null}, 0));
+    assert.match(stageLine, /data-stage-awaits-record/); assert.equal(stageLine.includes('journey-map-request'), false, 'an approved request without a recorded stage reads as one status, not two');
+    assert.match(await page.evaluate(() => journeyStageHtml('Outline', [{jenis:'Outline', status:'Accepted'}], {level:1}, 0)), /journey-map-request/, 'a recorded stage keeps both lines');
+    const waits = await page.evaluate(late => { const item = JSON.parse(sessionStorage.getItem('ipcos_registrations')).find(r => r.id === 'JOURNAL'); return [caseWaitHtml(item), caseWaitHtml({...item, note:late})]; },
+        JSON.stringify([{role:'mhs', sender:'Uji', time:day(40), message:'Pendaftaran', status:'Pending'}, {role:'admin', sender:'Admin', time:day(31), status:'Revision', message:'Perbaiki.'}]));
+    assert.match(waits[0], /disarankan dikirim dalam 7 hari/); assert.match(waits[1], /Revisi diminta 31 hari lalu · sudah lewat dari saran 7 hari, kirim secepatnya/);
+    pass('The stage map shows one clear status, and an overdue correction no longer suggests a deadline that has passed');
 
     // ---------- Admin ----------
     const admin = await context.newPage();
     admin.on('pageerror', error => errors.push(error.message)); admin.on('dialog', dialog => dialog.accept());
     await login(admin, 'admin');
+    const emptyHome = await admin.evaluate(() => { const saved = sessionStorage.getItem('ipcos_registrations'); isDbLoaded = false; sessionStorage.setItem('ipcos_registrations', '[]'); renderTaskHome();
+        const state = [document.querySelectorAll('#task-home .task-empty[data-loading]').length, [...document.querySelectorAll('#admin-today .admin-today-tile strong')].map(node => node.textContent).join(''), document.getElementById('task-home').textContent.includes('sudah ditindaklanjuti')];
+        isDbLoaded = true; sessionStorage.setItem('ipcos_registrations', saved); renderTaskHome(); return state; });
+    assert.deepEqual(emptyHome, [1, '…'.repeat(5), false], 'before the first sync the admin home says it is loading instead of showing zeros');
+    assert.equal(await admin.locator('#task-home [data-loading]').count(), 0);
+    pass('Admin home shows a loading state until requests arrive');
     await admin.locator('[data-nav-target="admin-data"]').click();
     await admin.waitForSelector('#queue-saved-views [data-queue-view]');
     await admin.locator('[data-queue-view="resubmitted"]').click();
@@ -237,6 +251,13 @@ async function login(page, role) {
 
     await admin.evaluate(() => { switchTab(null, 'admin-master'); });
     assert.deepEqual(await admin.locator('#admin-master .master-section').evaluateAll(nodes => nodes.filter(node => node.getClientRects().length).map(node => node.id)), ['master-students-section'], 'Master Data shows one section at a time');
+    const gapOption = await admin.locator('#master-stage-filter option[value=gap]').textContent();
+    assert.match(gapOption, /^Disetujui, tahap belum dicatat \(1\)$/i);
+    await admin.selectOption('#master-stage-filter', 'gap');
+    assert.deepEqual(await admin.locator('#table-master-mhs tr[data-master-student]').evaluateAll(rows => rows.map(row => row.dataset.masterStudent)), ['444']);
+    assert.match(await admin.locator('#table-master-mhs [data-master-gap]').textContent(), /^Outline sudah disetujui, tahap belum dicatat$/);
+    await admin.selectOption('#master-stage-filter', 'all');
+    pass('Master Data lists students whose approved request still has no recorded stage');
     await admin.evaluate(() => { window.IPCOSMaster.show('services'); });
     assert.deepEqual(await admin.locator('#admin-master .master-section').evaluateAll(nodes => nodes.filter(node => node.getClientRects().length).map(node => node.id)), ['master-services-section']);
     await admin.locator('#admin-password-card > summary').click();

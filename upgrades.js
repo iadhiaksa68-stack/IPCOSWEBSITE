@@ -29,8 +29,8 @@
     function renderAdminHome() {
         const home = el('task-home'), subtitle = el('admin-home-subtitle');
         if (currentUser.role !== 'admin' || !home) return;
-        const s = adminStats();
-        if (subtitle) subtitle.textContent = s.waiting
+        const s = adminStats(), loading = !isDbLoaded && syncPhase !== 'error' && !records().length;
+        if (subtitle) subtitle.textContent = loading ? t('Memuat data pengajuan…', 'Loading requests…') : s.waiting
             ? `${s.waiting} ${t('pengajuan menunggu tinjauan', s.waiting === 1 ? 'request awaiting review' : 'requests awaiting review')}${s.overdue ? ` · ${s.overdue} ${t('lewat target', 'past target')}` : ''}.`
             : t('Tidak ada pengajuan yang menunggu tinjauan.', 'No requests are awaiting review.');
         let panel = el('admin-today');
@@ -38,6 +38,8 @@
         if (panel.parentNode !== home) home.prepend(panel);
         const tile = (value, label, extra = '', tone = '') => `<div class="admin-today-tile${tone ? ' ' + tone : ''}"><strong>${value}</strong><span>${label}</span>${extra ? `<small>${extra}</small>` : ''}</div>`;
         const avg = s.average === null ? '—' : (s.average < 10 ? s.average.toFixed(1) : Math.round(s.average)) + ' ' + t('hari', 'days');
+        panel.toggleAttribute('data-loading', loading);
+        if (loading) { const wait = label => tile('…', label); panel.innerHTML = wait(t('Masuk hari ini', 'Received today')) + wait(t('Selesai hari ini', 'Completed today')) + wait(t('Rata-rata waktu proses', 'Average processing time')) + wait(t('Lewat target', 'Past target')) + wait(t('Kuota dosen kritis', 'Supervisors near capacity')); return; }
         panel.innerHTML = tile(s.incoming, t('Masuk hari ini', 'Received today'))
             + tile(s.doneToday, t('Selesai hari ini', 'Completed today'))
             + tile(avg, t('Rata-rata waktu proses', 'Average processing time'), s.durations ? t(`${s.durations} pengajuan · 30 hari`, `${s.durations} requests · 30 days`) : t('Belum ada data 30 hari', 'No data in 30 days'))

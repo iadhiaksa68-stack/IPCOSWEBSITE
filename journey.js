@@ -253,7 +253,8 @@ function journeyStageHtml(type,records,progress,index) {
     const state=!known?'unknown':complete?'complete':next?'next':'waiting';
     const label=type==='Outline'?'Outline':type==='Proposal'?uxText('Seminar Proposal','Proposal Seminar'):uxText('Pendadaran','Thesis Defense');
     const text=!known?uxText('Belum diverifikasi','Not verified'):complete?uxText('Selesai diverifikasi','Verified complete'):next?uxText('Tahap berikutnya','Next stage'):uxText('Tahap selanjutnya','Later stage');
-    return `<li class="journey-map-step ${complete?'is-complete':''}" data-journey-stage="${type}" data-stage-state="${state}" ${next?'aria-current="step"':''}><span class="journey-map-marker" aria-hidden="true">${complete?'✓':index+1}</span><div><h3>${label}</h3><p class="journey-map-state">${text}</p><p class="journey-map-request">${journeyDocumentState(journeyServiceRecord(type,records))}</p></div></li>`;
+    const record=journeyServiceRecord(type,records),pendingRecord=!complete&&journeyCaseState(record)==='accepted';
+    return `<li class="journey-map-step ${complete?'is-complete':''}" data-journey-stage="${type}" data-stage-state="${state}" ${next?'aria-current="step"':''}><span class="journey-map-marker" aria-hidden="true">${complete?'✓':index+1}</span><div><h3>${label}</h3>${pendingRecord?`<p class="journey-map-state" data-stage-awaits-record>${uxText('Berkas disetujui · menunggu admin mencatat tahap','Documents approved · waiting for admin to record the stage')}</p>`:`<p class="journey-map-state">${text}</p><p class="journey-map-request">${journeyDocumentState(record)}</p>`}</div></li>`;
 }
 function journeyNextAction(records,progress,admin) {
     const nextType=progress.level!==null?['Outline','Proposal','Pendadaran'][progress.level]:'';

@@ -61,8 +61,9 @@ function caseWaitHtml(item) {
     const status=String(item.status).toLowerCase();
     if (currentUser.role==='admin') return `<p class="request-wait${wait.overdue?' overdue':''}" data-wait-days="${wait.days}"><strong>${wait.days?days(wait.days):uxText('Hari ini','Today')}</strong>${wait.overdue?' · '+uxText('lewat target','past target')+' '+days(wait.target):''}</p>`;
     const since=status==='revision'?(wait.days?uxText('Revisi diminta ','Corrections requested ')+days(wait.days)+uxText(' lalu',' ago'):uxText('Revisi diminta hari ini','Corrections requested today')):wait.days?uxText('Sudah menunggu ','Waiting for ')+days(wait.days):uxText('Masuk hari ini','Received today');
-    const usual=status==='revision'?uxText('disarankan dikirim dalam ','suggested within ')+days(wait.target):uxText('biasanya diproses dalam ','usually processed within ')+days(wait.target);
-    return `<p class="request-wait">${since} · ${usual}</p>`;
+    const late=wait.days>wait.target;
+    const usual=status==='revision'?(late?uxText('sudah lewat dari saran ','past the suggested ')+days(wait.target)+uxText(', kirim secepatnya',', send it as soon as you can'):uxText('disarankan dikirim dalam ','suggested within ')+days(wait.target)):late?uxText('lebih lama dari biasanya (','longer than the usual ')+days(wait.target)+uxText(')',''):uxText('biasanya diproses dalam ','usually processed within ')+days(wait.target);
+    return `<p class="request-wait"${late?' data-wait-late':''}>${since} · ${usual}</p>`;
 }
 function caseDocumentOptions(item) { return registrationSpecs(item.jenis).map(([,label])=>label); }
 const revisionAssociations=new WeakMap();
