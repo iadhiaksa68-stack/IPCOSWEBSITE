@@ -100,3 +100,9 @@
  #registration-companion .requirement-list { display:block; }
  #registration-review h3 { font-size:20px; }
 }
+#req-pendadaran #pendadaran-upload-intro { margin:0 0 6px; }
+#req-pendadaran .upload-total-meter { margin:0 0 14px; font-size:12px; font-weight:600; color:var(--text-muted); }
+#req-pendadaran .upload-total-meter:empty { display:none; }
+#req-pendadaran .upload-total-meter.field-error { color:var(--status-revision,#ab314a); }
+#req-pendadaran .form-group > .field-helper { margin:2px 0 4px; }
+#req-pendadaran .form-group { margin-bottom:12px; }

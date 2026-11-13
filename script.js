@@ -1042,11 +1042,29 @@ function clearFormDraft() {
 
 // Transaction views use the existing registration and note fields.
 function uxText(id, en) { return currentLang === 'en' ? en : id; }
+// One upload per Pendadaran document, in the order the backend expects. A third value marks an optional slot.
+const PENDADARAN_DOCUMENTS = [
+        ['file-pdd-blangko', 'Blangko Pendadaran'],
+        ['file-pdd-kkn', 'Sertifikat KKN'],
+        ['file-pdd-bta', 'Sertifikat BTA'],
+        ['file-pdd-bimbingan', 'Kartu Bimbingan'],
+        ['file-pdd-khs', 'Kartu Hasil Studi'],
+        ['file-pdd-ktm', 'KTM'],
+        ['file-pdd-pembayaran', 'Bukti Pembayaran KRS Skripsi dan Ujian'],
+        ['file-pdd-toefl', 'Sertifikat TOEFL'],
+        ['file-pdd-bnsp', 'Sertifikat BNSP'],
+        ['file-pdd-ba-proposal', 'Berita Acara Proposal dan Lembar Revisi', true],
+        ['file-pdd-ie', 'Sertifikat International Exposure'],
+        ['file-pdd-proofread', 'Screenshot Proofread']
+];
+const REGISTRATION_TOTAL_LIMIT = 20 * 1024 * 1024;
+function registrationOptional(id) { return PENDADARAN_DOCUMENTS.some(([docId, , optional]) => docId === id && optional === true); }
+function registrationFilesTotal(jenis) { return registrationSpecs(jenis).reduce((sum, [id]) => sum + (document.getElementById(id)?.files[0]?.size || 0), 0); }
 function registrationSpecs(jenis) {
     return ({
         'Outline': [['file-transkrip', 'Transkrip'], ['file-proposal', 'Draft Proposal']],
         'Proposal': [['file-acc-sempro', 'Form ACC Seminar Proposal']],
-        'Pendadaran': [['file-folder-pendadaran', 'Berkas Pendadaran']],
+        'Pendadaran': PENDADARAN_DOCUMENTS,
         'Skripsi Jurnal': [['file-loa-jurnal', 'LoA Jurnal'], ['file-draft-jurnal', 'Draft Jurnal']],
         'Pergantian Pembimbing': [['file-surat-ganti', 'Surat Permohonan Ganti Dosen']]
     })[jenis] || [];
@@ -1090,7 +1108,7 @@ function syncRegistrationFields() {
     const type = document.getElementById('reg-jenis-utama').value;
     const active = new Set(type ? [...registrationTextSpecs(type), ...registrationSpecs(type)].map(([id]) => id) : []);
     document.querySelectorAll('#registration-fields input,#registration-fields textarea').forEach(input => {
-        input.required = active.has(input.id);
+        input.required = active.has(input.id) && !registrationOptional(input.id);
         if (!active.has(input.id) && input.getAttribute('aria-invalid') === 'true') setFieldError(input.id, '');
     });
     refreshRegistrationFieldHints();
@@ -1123,9 +1141,16 @@ function validateRegistration() {
     registrationSpecs(jenis).forEach(([id]) => {
         const input = document.getElementById(id);
         const file = input.files[0];
+        if (!file && registrationOptional(id)) { setFieldError(id, ''); return; }
         const error = fileProblem(file, input.accept) || (documentInspections.get(file)?.pending !== false ? uxText('Tunggu pemeriksaan format atau pilih Periksa Ringkasan kembali.', 'Wait for the format check or select Review Summary again.') : '');
         setFieldError(id, error); if (error && !firstError) firstError = id;
     });
+    const total = registrationFilesTotal(jenis);
+    if (!firstError && total > REGISTRATION_TOTAL_LIMIT) {
+        const largest = registrationSpecs(jenis).map(([id]) => [id, document.getElementById(id).files[0]?.size || 0]).sort((a, b) => b[1] - a[1])[0][0];
+        setFieldError(largest, uxText(`Total semua berkas ${formatFileSize(total)}, melebihi 20 MB. Perkecil berkas terbesar ini atau berkas lain.`, `All files together are ${formatFileSize(total)}, over 20 MB. Make this largest file, or another one, smaller.`));
+        firstError = largest;
+    }
     if (firstError) { if(window.IPCOSRegistration)window.IPCOSRegistration.focus(firstError);else document.getElementById(firstError).focus(); return false; }
     return !!jenis;
 }
@@ -1173,7 +1198,8 @@ function renderRegistrationReview() {
         ${detail.map(([label,id]) => `<dt>${escapeHtml(systemText(label))}</dt><dd>${escapeHtml(document.getElementById(id).value.trim())}</dd>`).join('')}</dl>
         <h4>${uxText('Berkas siap dikirim', 'Files ready to send')}</h4><ul class="review-files">${registrationSpecs(jenis).map(([id,label]) => {
             const f = document.getElementById(id).files[0];
-            return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span><button type="button" class="btn-secondary" data-local-preview="${id}">${uxText('Periksa Isi Berkas','Preview File Contents')}</button><button type="button" class="btn-secondary" data-guide="templates-faq" data-guide-field="${id}">${uxText('Lihat Template','View Templates')}</button></li>`;
+            if (!f) return `<li data-review-skipped><strong>${escapeHtml(systemText(label))}</strong><span>${uxText('Tidak dilampirkan · opsional', 'Not attached · optional')}</span></li>`;
+            return `<li><strong>${escapeHtml(systemText(label))}</strong><span>${escapeHtml(f.name)} · ${formatFileSize(f.size)}</span><button type="button" class="btn-secondary" data-local-preview="${id}">${uxText('Periksa Isi Berkas','Preview File Contents')}</button>${jenis !== 'Pendadaran' || id === 'file-pdd-blangko' ? `<button type="button" class="btn-secondary" data-guide="templates-faq" data-guide-field="${id}">${uxText('Lihat Template','View Templates')}</button>` : ''}</li>`;
         }).join('')}</ul>${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p>${uxText('Format dasar berkas sudah diperiksa. Isi, tanda tangan, dan kelayakan akademik tetap diverifikasi admin.', 'Basic file formats have been checked. Admin will verify the contents, signatures and academic eligibility.')}</p><p>${uxText('Setelah dikirim, pengajuan akan masuk ke antrean admin.', 'Your request will enter the admin review queue after submission.')}</p>
         <button type="button" class="btn-secondary" id="btn-edit-registration" onclick="editRegistration();window.IPCOSRegistration?.navigate('data')">${uxText('Kembali Mengubah', 'Back to Editing')}</button>`;
 }
@@ -1383,7 +1409,7 @@ function caseDetailAction(action) {
     } else if (action === 'reply') {
         const rev = getRevisionInstructions(item);
         html = `<h3>${uxText('Kirim perbaikan Anda', 'Send Your Corrections')}</h3>${rev.files.length ? `<fieldset class="revision-file-options"><legend>${uxText('Konfirmasi yang sudah Anda perbaiki', 'Confirm Your Corrections')}</legend>${rev.files.map(label => `<label class="check-row"><input type="checkbox" name="correction-complete"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}</fieldset>` : ''}
-        <label for="case-reply-files">${uxText('Berkas perbaikan · maksimal 10 MB per berkas', 'Corrected files · maximum 10 MB per file')}</label><input type="file" id="case-reply-files" multiple accept="${item.jenis === 'Pendadaran' ? '.pdf,.zip,.rar' : '.pdf,.doc,.docx'}"><p class="field-helper">${uxText('Pilih hingga 5 berkas dengan total maksimal 20 MB. Berkas lama tetap ada dalam riwayat.', 'Choose up to 5 files, 20 MB total. Previous files remain in the history.')}</p><div id="case-reply-file-list"></div><label for="case-reply-note">${uxText('Jelaskan perbaikan Anda', 'Describe Your Corrections')}</label><textarea id="case-reply-note" rows="3"></textarea>`;
+        <label for="case-reply-files">${uxText('Berkas perbaikan · maksimal 10 MB per berkas', 'Corrected files · maximum 10 MB per file')}</label><input type="file" id="case-reply-files" multiple accept="${item.jenis === 'Pendadaran' ? (caseDocumentOptions(item).includes('Berkas Pendadaran') ? '.pdf,.jpg,.jpeg,.png,.zip,.rar' : '.pdf,.jpg,.jpeg,.png') : '.pdf,.doc,.docx'}"><p class="field-helper">${uxText('Pilih hingga 5 berkas dengan total maksimal 20 MB. Berkas lama tetap ada dalam riwayat.', 'Choose up to 5 files, 20 MB total. Previous files remain in the history.')}</p><div id="case-reply-file-list"></div><label for="case-reply-note">${uxText('Jelaskan perbaikan Anda', 'Describe Your Corrections')}</label><textarea id="case-reply-note" rows="3"></textarea>`;
     }
     if (!html) return;
     panel.innerHTML = `${currentUser.role==='admin'?`<div class="admin-decision-fields">${html}</div>`:html}<p id="case-action-feedback" class="field-error" role="status"></p><div class="button-row"><button type="button" class="btn-secondary" onclick="cancelCaseAction()">${uxText('Batal','Cancel')}</button><button type="button" id="btn-case-submit" class="btn-primary" onclick="submitCaseAction(event)">${action === 'revision' ? uxText('Kirim Instruksi Revisi','Send Correction Request') : action === 'reply' ? uxText('Kirim Perbaikan','Send Corrections') : uxText('Konfirmasi Persetujuan','Confirm Approval')}</button></div>`;
@@ -1432,6 +1458,7 @@ async function submitCaseAction(event) {
         const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
         const instruction = document.getElementById('case-revision-note').value.trim();
         if (!selected.length) return fail(uxText('Pilih minimal satu berkas atau isian yang perlu diperbaiki.', 'Select at least one file or field needing corrections.'),panel.querySelector('[name="revision-document"]'));
+        if (selected.filter(label => label !== 'Isian pengajuan').length > 5) return fail(uxText('Pilih maksimal 5 berkas per putaran revisi, karena mahasiswa dapat mengirim hingga 5 berkas sekaligus. Minta berkas lainnya pada putaran berikutnya.', 'Choose at most 5 files per correction round, because students can send up to 5 files at once. Request the others in the next round.'),panel.querySelector('[name="revision-document"]:checked'));
         if (!instruction) return fail(uxText('Tulis instruksi perbaikan untuk mahasiswa.', 'Write correction instructions for the student.'),document.getElementById('case-revision-note'));
         note = `Berkas yang perlu diperbaiki:\n${selected.map(label => '- ' + label).join('\n')}\n\nInstruksi:\n${instruction}`;
         newStatus = 'Revision';
@@ -1618,9 +1645,11 @@ async function submitForm(e) {
             if (!fAcc) throw new Error(currentLang === 'id' ? "Mohon upload Bukti ACC!" : "Please upload Approval Proof!");
             filesToUpload.push({ label: 'Bukti ACC', fileName: fAcc.name, mimeType: fAcc.type, base64: await fileToBase64(fAcc) });
         } else if (jenisUjian === "Pendadaran") {
-            const fPendadaran = document.getElementById('file-folder-pendadaran').files[0];
-            if (!fPendadaran) throw new Error(currentLang === 'id' ? "Mohon upload berkas pendadaran!" : "Please upload defense documents!");
-            filesToUpload.push({ label: 'Berkas Pendadaran', fileName: fPendadaran.name, mimeType: fPendadaran.type, base64: await fileToBase64(fPendadaran) });
+            for (const [id, label, optional] of registrationSpecs('Pendadaran')) {
+                const file = document.getElementById(id).files[0];
+                if (!file) { if (optional) continue; throw new Error(currentLang === 'id' ? "Mohon upload seluruh berkas pendadaran!" : "Please upload every defense document!"); }
+                filesToUpload.push({ label, fileName: file.name, mimeType: file.type, base64: await fileToBase64(file) });
+            }
         } else if (jenisUjian === "Skripsi Jurnal") {
             const fLoa = document.getElementById('file-loa-jurnal').files[0];
             const fDraftJurnal = document.getElementById('file-draft-jurnal').files[0];

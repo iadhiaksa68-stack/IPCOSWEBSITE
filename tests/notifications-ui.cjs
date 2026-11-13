@@ -101,8 +101,8 @@ async function login(browser,role='mhs',nim='A'){
  pass('Full center, compact preview and long exact announcement reader fit all 16 width/language/theme combinations with 44px actions and no text overflow');
 
  await mode(student,390,'id',false);await student.evaluate(()=>switchTab(null,'pendaftaran'));await selectService(student,'Pendadaran');await student.fill('#reg-judul','Notifikasi menjaga draf eCommerce O’Connor');
- for(const id of['file-folder-pendadaran'])await student.setInputFiles('#'+id,{name:id+'.pdf',mimeType:'application/pdf',buffer:pdf()});
- await student.evaluate(()=>{window.notificationDraftFiles=['file-folder-pendadaran'].map(id=>({id,input:document.getElementById(id),file:document.getElementById(id).files[0]}));});
+ for(const id of['file-pdd-blangko','file-pdd-kkn'])await student.setInputFiles('#'+id,{name:id+'.pdf',mimeType:'application/pdf',buffer:pdf()});
+ await student.evaluate(()=>{window.notificationDraftFiles=['file-pdd-blangko','file-pdd-kkn'].map(id=>({id,input:document.getElementById(id),file:document.getElementById(id).files[0]}));});
  await student.locator('.notification-toggle').click();const compactKey=(await rowKeys(student,'#notif-list-container'))[0],compact=card(student,compactKey,'#notif-list-container').locator('[data-notification-action=open]');
  await student.evaluate(key=>{saveReadNotificationIds(getReadNotificationIds().filter(id=>id!==key));renderNotifications();},latestKey);student.notificationPermit=false;await compact.click();
  assert.equal(await student.evaluate(()=>document.querySelector('.tab-content.active').id),'pendaftaran');assert(!(await student.evaluate(key=>getReadNotificationIds().includes(key),latestKey)),'Denied dirty registration navigation stays unread');

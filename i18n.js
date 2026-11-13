@@ -122,7 +122,7 @@ const interfaceEnglish = {
     'Outline':'Thesis outline', 'Proposal':'Proposal seminar', 'Pendadaran':'Thesis defense (Pendadaran)',
     'Skripsi Jurnal':'Journal-based thesis', 'Pergantian Pembimbing':'Supervisor change',
     'Transkrip':'Transcript', 'ACC Sempro':'Proposal Seminar Approval Form', 'Draft Proposal':'Proposal Draft', 'Form ACC Seminar Proposal':'Proposal seminar approval form',
-    'Bukti ACC':'Approval form', 'Form ACC':'Approval form', 'Berkas Pendadaran':'Thesis defense documents',
+    'Bukti ACC':'Approval form', 'Form ACC':'Approval form', 'Berkas Pendadaran':'Thesis defense documents', 'Blangko Pendadaran':'Thesis defense form', 'Sertifikat KKN':'Community service (KKN) certificate', 'Sertifikat BTA':'Qur’an reading (BTA) certificate', 'Kartu Bimbingan':'Supervision card', 'Kartu Hasil Studi':'Study results card (KHS)', 'KTM':'Student ID card (KTM)', 'Bukti Pembayaran KRS Skripsi dan Ujian':'Thesis and exam payment proof', 'Sertifikat TOEFL':'TOEFL certificate', 'Sertifikat BNSP':'BNSP certificate', 'Berita Acara Proposal dan Lembar Revisi':'Proposal seminar minutes and revision sheet', 'Sertifikat International Exposure':'International Exposure certificate', 'Screenshot Proofread':'Proofread screenshot',
     'LoA Jurnal':'Journal acceptance letter', 'Draft Jurnal':'Journal draft',
     'Surat Permohonan Ganti Dosen':'Supervisor change request letter', 'Isian pengajuan':'Request details',
     'Dosen sekarang':'Current supervisor', 'Usulan dosen':'Proposed supervisor', 'Alasan':'Reason', 'Judul':'Title',

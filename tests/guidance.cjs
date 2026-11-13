@@ -249,6 +249,20 @@ async function login(page, role) {
     await admin.evaluate(() => closeModal('modal-case-detail', true));
     pass('Wide screens open the first file automatically; approving can also record the completed stage in the same step');
 
+    const documentOptions = await admin.evaluate(() => [caseDocumentOptions({jenis:'Pendadaran', note:'[]'}).length, caseDocumentOptions({jenis:'Pendadaran', note:JSON.stringify([{role:'mhs', documents:[{label:'Berkas Pendadaran', version:1}]}])})]);
+    assert.deepEqual(documentOptions, [12, ['Berkas Pendadaran']], 'new defense requests list 12 documents; older archive requests keep their single document');
+    await admin.evaluate(() => { const list = JSON.parse(sessionStorage.getItem('ipcos_registrations')); list.push({id:'PDD', date:new Date().toISOString(), nim:'555', nama:'Uji Pendadaran', jenis:'Pendadaran', detail:'<b>Judul:</b> P', link:'', status:'Pending', note:'[]'}); sessionStorage.setItem('ipcos_registrations', JSON.stringify(list)); openCaseDetail('PDD'); caseDetailAction('revision'); });
+    const boxes = admin.locator('#case-action-panel [name="revision-document"]');
+    assert.equal(await boxes.count(), 13, 'admin can pick any of the 12 documents or the request details');
+    for (let i = 0; i < 6; i++) await boxes.nth(i).check();
+    await admin.fill('#case-revision-note', 'Scan ulang.');
+    await admin.locator('#btn-case-submit').click();
+    assert.match(await admin.locator('#case-action-feedback').textContent(), /maksimal 5 berkas/);
+    assert.equal(calls.filter(c => c.action === 'update' && c.id === 'PDD').length, 0);
+    await boxes.nth(5).uncheck(); await admin.locator('#btn-case-submit').click();
+    await admin.waitForSelector('#admin-decision-summary');
+    await admin.evaluate(() => { document.getElementById('case-action-panel').dataset.dirty = 'false'; cancelCaseAction(); closeModal('modal-case-detail', true); const list = JSON.parse(sessionStorage.getItem('ipcos_registrations')).filter(r => r.id !== 'PDD'); sessionStorage.setItem('ipcos_registrations', JSON.stringify(list)); });
+    pass('Admins can request up to 5 defense documents per correction round, matching what a student can send');
     await admin.evaluate(() => { switchTab(null, 'admin-master'); });
     assert.deepEqual(await admin.locator('#admin-master .master-section').evaluateAll(nodes => nodes.filter(node => node.getClientRects().length).map(node => node.id)), ['master-students-section'], 'Master Data shows one section at a time');
     const gapOption = await admin.locator('#master-stage-filter option[value=gap]').textContent();

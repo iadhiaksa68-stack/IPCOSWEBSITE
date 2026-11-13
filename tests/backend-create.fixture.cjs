@@ -2,9 +2,9 @@ function handleRegistration(data) {
   const duplicate = featureCheckCreate(data); if (duplicate) return duplicate;
   if (!['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'].includes(data.jenis) || !String(data.detail || '').trim()) throw new Error('Jenis atau isian pengajuan tidak valid.');
   if (String(data.detail).includes('Dosen Pembimbing:')) throw new Error('Dosen pembimbing hanya ditetapkan oleh admin.');
-  const required = ['Outline','Skripsi Jurnal'].includes(data.jenis) ? 2 : 1;
+  const required = featureSubmissionCount(data.jenis, data.files);
   const files = auditFiles(data.files, required, required, data.jenis === 'Pendadaran');
-  files.forEach((file,index) => { file.label = featureLabels(data.jenis)[index]; });
+  files.forEach((file,index) => { file.label = featureSubmissionLabel(data.jenis, files, index); });
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = getOrCreateSheet(ss, SHEET_REGISTRASI, ['id','date','nim','nama','jenis','detail','link','status','note']);
   const created = [];

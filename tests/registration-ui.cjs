@@ -10,10 +10,12 @@ const origin = process.env.IPCOS_TEST_BASE_URL || 'http://127.0.0.1:8766';
 const services = {
     Outline: ['file-transkrip', 'file-proposal'],
     Proposal: ['file-acc-sempro'],
-    Pendadaran: ['file-folder-pendadaran'],
+    Pendadaran: ['file-pdd-blangko','file-pdd-kkn','file-pdd-bta','file-pdd-bimbingan','file-pdd-khs','file-pdd-ktm','file-pdd-pembayaran','file-pdd-toefl','file-pdd-bnsp','file-pdd-ie','file-pdd-proofread'],
     'Skripsi Jurnal': ['file-loa-jurnal', 'file-draft-jurnal'],
     'Pergantian Pembimbing': ['file-surat-ganti']
 };
+const optionalFiles = {Pendadaran: ['file-pdd-ba-proposal']};
+const allFiles = type => [...services[type], ...(optionalFiles[type] || [])].sort();
 const steps = ['service', 'data', 'files', 'review'];
 const calls = [], errors = [], checks = [], records = [];
 const pass = name => { checks.push(name); console.log('PASS ' + name); };
@@ -164,7 +166,7 @@ async function fill(page, type) {
         await fill(page,type);
         await page.locator('[data-registration-step="files"]').click(); await currentStep(page,'files');
         const visibleFiles=await page.locator('#registration-fields input[type=file]').evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&!node.closest('[hidden]')).map(node=>node.id).sort());
-        assert.deepEqual(visibleFiles,[...services[type]].sort(),type+' shows exactly its own file fields');
+        assert.deepEqual(visibleFiles,allFiles(type),type+' shows exactly its own file fields');
         if(type==='Outline') {
             await page.evaluate(()=>{serviceSettings.find(item=>item.type==='Outline').enabled=false;refreshServiceAvailability();});
             assert(await page.locator('#service-availability').isVisible(),'A service closing during entry remains visible');
@@ -197,7 +199,8 @@ async function fill(page, type) {
         await page.locator('#registration-service-next').click();await page.locator('[data-registration-files-next]').click();await currentStep(page,'files');
         await page.locator('[data-registration-step="review"]').click(); await page.waitForSelector('#review-heading');
         assert(await page.locator('#registration-fields').isHidden()); await currentStep(page,'review');
-        assert.equal(await page.locator('#registration-review .review-files li').count(), services[type].length);
+        assert.equal(await page.locator('#registration-review .review-files li').count(), allFiles(type).length);
+        assert.equal(await page.locator('#registration-review .review-files li[data-review-skipped]').count(), (optionalFiles[type] || []).length, type + ' marks an unattached optional document as skipped');
         for (const width of [320,390,768,1365]) for (const lang of ['id','en']) for (const dark of [false,true]) {
             await mode(page,width,lang,dark); await layout(page,`${type} review ${width}/${lang}/${dark}`);
             await sameFiles(page,type + ' summary preserves selected File identities');
@@ -261,7 +264,7 @@ async function fill(page, type) {
         assert.equal(await page.inputValue('#reg-jenis-utama'),change === 'service' ? 'Pendadaran' : 'Proposal');
         if (change === 'text') assert.equal(await page.inputValue('#reg-judul'),title+' — diperbarui saat pemeriksaan');
         else if (change === 'file') assert.equal(await page.locator('#file-acc-sempro').evaluate(node=>node.files[0].name),'replacement-after-preflight.pdf');
-        else {await currentStep(page,'service');await page.locator('#registration-service-next').click();await showFiles(page);assert(await page.locator(change === 'service' ? '#file-folder-pendadaran' : '#file-acc-sempro').isVisible());}
+        else {await currentStep(page,'service');await page.locator('#registration-service-next').click();await showFiles(page);assert(await page.locator(change === 'service' ? '#file-pdd-blangko' : '#file-acc-sempro').isVisible());}
         assert.equal(createCalls().length,0);
     }
     pass('Delayed preflights cannot open stale summaries after text/file/service changes, including service A to B to A');

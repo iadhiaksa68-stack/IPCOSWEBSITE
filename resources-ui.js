@@ -66,7 +66,7 @@
         'file-transkrip':['transkrip','transcript'],
         'file-proposal':['draf proposal','draft proposal','proposal draft'],
         'file-acc-sempro':['acc seminar proposal','form acc','seminar proposal','proposal seminar','sempro'],
-        'file-folder-pendadaran':['pendadaran','thesis defense','thesis defence'],
+        'file-pdd-blangko':['blangko','pendadaran','thesis defense','thesis defence'],
         'file-loa-jurnal':['loa','letter of acceptance','journal acceptance','penerimaan jurnal'],
         'file-draft-jurnal':['draf jurnal','draft jurnal','draft journal','journal draft','journal manuscript'],
         'file-surat-ganti':['ganti dosen','pergantian pembimbing','supervisor change','change supervisor']

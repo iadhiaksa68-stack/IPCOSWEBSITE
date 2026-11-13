@@ -23,7 +23,7 @@ function renderAcademicStages() {
         if (!guide) return;
         const service = guide.dataset.stageService;
         const existing = currentUser.role === 'mhs' && activeSameType(service);
-        const documents = registrationSpecs(service).map(([, title]) => systemText(title)).join(' · ');
+        const specs = registrationSpecs(service), documents = specs.length > 4 ? uxText(`${specs.length} dokumen, diunggah satu per satu (PDF/JPG/PNG)`, `${specs.length} documents, uploaded one by one (PDF/JPG/PNG)`) : specs.map(([, title]) => systemText(title)).join(' · ');
         guide.innerHTML = `<p><strong>${uxText('Berkas pengajuan', 'Submission documents')}</strong><span>${escapeHtml(documents)}</span></p>
             <button type="button" class="btn-secondary" data-start-service="${service}">${existing ? uxText('Lanjutkan pengajuan', 'Continue request') : uxText('Siapkan pengajuan', 'Prepare request')}</button>`;
     });
@@ -41,6 +41,7 @@ function registrationRequirements(type) {
     });
     return fields.concat(registrationSpecs(type).map(([id, title]) => {
         const input = document.getElementById(id), file = input.files[0];
+        if (!file && registrationOptional(id)) return {id, title, optional:true, ready:true, hint:uxText('Opsional · lewati jika tidak ada', 'Optional · skip if you do not have it')};
         const problem = fileProblem(file, input.accept);
         const inspection = file && documentInspections.get(file);
         return {id, title, ready: !problem && inspection?.pending === false, hint: file ? problem || `${file.name} · ${formatFileSize(file.size)} · ${inspection?.pending === false ? uxText('format diperiksa', 'format checked') : uxText('memeriksa format...', 'checking format...')}` : `${input.accept.replaceAll(',', ' / ')} · ${uxText('maks. 10 MB', 'max. 10 MB')}`};
@@ -53,6 +54,8 @@ function renderRegistrationReadiness() {
     const type = document.getElementById('reg-jenis-utama').value;
     const requirements = currentUser.role === 'mhs' ? registrationRequirements(type) : [];
     panel.hidden = !requirements.length;
+    const meter = document.getElementById('pendadaran-upload-total');
+    if (meter) { const total = type === 'Pendadaran' ? registrationFilesTotal(type) : 0; meter.textContent = total ? uxText(`Total berkas: ${formatFileSize(total)} dari 20 MB`, `Files total: ${formatFileSize(total)} of 20 MB`) : ''; meter.classList.toggle('field-error', total > REGISTRATION_TOTAL_LIMIT); }
     window.IPCOSRegistration?.refresh();
     if (!requirements.length) { panel.textContent = ''; delete panel.dataset.signature; return; }
     const complete = requirements.filter(item => item.ready).length;
@@ -63,7 +66,7 @@ function renderRegistrationReadiness() {
     panel.dataset.signature = signature;
     panel.innerHTML = `<div class="readiness-heading"><h3 id="readiness-heading">${uxText('Persyaratan pengajuan', 'Request requirements')}</h3><span class="stage-progress ${allReady ? 'is-ready' : ''}">${complete}/${requirements.length} ${uxText('siap', 'ready')}</span></div>
         <p class="readiness-status" role="status">${allReady ? uxText('Isian dan berkas siap diperiksa. Pilih Periksa Ringkasan sebelum mengirim.', 'Fields and files are ready for review. Select Review Summary before sending.') : uxText('Lengkapi poin berikut sebelum memeriksa ringkasan.', 'Complete the following items before reviewing the summary.')}</p>
-        <ul class="requirement-list">${requirements.map(item => `<li class="${item.ready ? 'requirement-ready' : ''}"><span class="requirement-state">${item.ready ? uxText('Siap', 'Ready') : uxText('Belum', 'Missing')}</span><button type="button" data-requirement-field="${item.id}"><strong>${escapeHtml(systemText(item.title))}</strong><span>${escapeHtml(item.hint)}</span></button></li>`).join('')}</ul>
+        <ul class="requirement-list">${requirements.map(item => `<li class="${item.ready ? 'requirement-ready' : ''}"><span class="requirement-state">${item.optional ? uxText('Opsional', 'Optional') : item.ready ? uxText('Siap', 'Ready') : uxText('Belum', 'Missing')}</span><button type="button" data-requirement-field="${item.id}"><strong>${escapeHtml(systemText(item.title))}</strong><span>${escapeHtml(item.hint)}</span></button></li>`).join('')}</ul>
         ${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p class="form-helper">${uxText('Pemeriksaan format tidak menilai isi atau tanda tangan. Kelengkapan akademik diperiksa admin setelah dikirim.', 'Format checks do not verify contents or signatures. Admin will verify academic requirements after submission.')}</p>`;
 }
 

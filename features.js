@@ -65,7 +65,13 @@ function caseWaitHtml(item) {
     const usual=status==='revision'?(late?uxText('sudah lewat dari saran ','past the suggested ')+days(wait.target)+uxText(', kirim secepatnya',', send it as soon as you can'):uxText('disarankan dikirim dalam ','suggested within ')+days(wait.target)):late?uxText('lebih lama dari biasanya (','longer than the usual ')+days(wait.target)+uxText(')',''):uxText('biasanya diproses dalam ','usually processed within ')+days(wait.target);
     return `<p class="request-wait"${late?' data-wait-late':''}>${since} · ${usual}</p>`;
 }
-function caseDocumentOptions(item) { return registrationSpecs(item.jenis).map(([,label])=>label); }
+// Defense requests sent before per-document uploads hold one archive labelled "Berkas Pendadaran".
+function caseDocumentOptions(item) {
+    const base=registrationSpecs(item.jenis).map(([,label])=>label);
+    if(item.jenis!=='Pendadaran')return base;
+    let stored=[];try{stored=(JSON.parse(item.note||'[]')||[]).flatMap(log=>Array.isArray(log?.documents)?log.documents:[]).map(doc=>String(doc?.label||''));}catch(_){}
+    return stored.concat(getCaseFiles(item).map(file=>file.label)).includes('Berkas Pendadaran')?['Berkas Pendadaran']:base;
+}
 const revisionAssociations=new WeakMap();
 function renderRevisionAssociations() {
     const item=currentCase(), input=document.getElementById('case-reply-files');

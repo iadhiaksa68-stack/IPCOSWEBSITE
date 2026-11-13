@@ -62,7 +62,12 @@ function featureCheckDocumentBytes(file) {
   if (problem) throw new Error(problem);
 }
 function featureCheckSubmissionFiles(files,type) {
-  const extensions={Outline:[['pdf'],['pdf','doc','docx']],Proposal:[['pdf']],Pendadaran:[['pdf','zip','rar']],'Skripsi Jurnal':[['pdf'],['pdf','doc','docx']],'Pergantian Pembimbing':[['pdf']]};
+  if (type==='Pendadaran') {
+    featurePendadaranLabels(files);
+    if (files.some(file=>!PENDADARAN_EXTENSIONS.includes(String(file.fileName||'').split('.').pop().toLowerCase()))) throw new Error('Berkas pendadaran harus berformat PDF, JPG, atau PNG.');
+    return;
+  }
+  const extensions={Outline:[['pdf'],['pdf','doc','docx']],Proposal:[['pdf']],'Skripsi Jurnal':[['pdf'],['pdf','doc','docx']],'Pergantian Pembimbing':[['pdf']]};
   const allowed=extensions[type];
   if (!allowed || files.length!==allowed.length || files.some((file,i)=>!allowed[i].includes(file.fileName.split('.').pop().toLowerCase()))) throw new Error('Format berkas tidak sesuai persyaratan jenis pengajuan.');
 }

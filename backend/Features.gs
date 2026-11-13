@@ -1,7 +1,40 @@
 // IPCOS transaction improvements. Existing sheet columns and authentication stay intact.
 const IPCOS_TYPES = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'];
+// Pendadaran documents are uploaded one per slot, in this order. Only the proposal minutes are optional:
+// students who did not take the proposal seminar leave that slot empty.
+const PENDADARAN_DOCUMENTS = [
+  ['Blangko Pendadaran',true],['Sertifikat KKN',true],['Sertifikat BTA',true],['Kartu Bimbingan',true],
+  ['Kartu Hasil Studi',true],['KTM',true],['Bukti Pembayaran KRS Skripsi dan Ujian',true],['Sertifikat TOEFL',true],
+  ['Sertifikat BNSP',true],['Berita Acara Proposal dan Lembar Revisi',false],['Sertifikat International Exposure',true],['Screenshot Proofread',true]
+];
+const PENDADARAN_EXTENSIONS = ['pdf','jpg','jpeg','png'];
 function featureLabels(type) {
-  return ({Outline:['Transkrip','Draft Proposal'],Proposal:['Form ACC Seminar Proposal'],Pendadaran:['Berkas Pendadaran'],'Skripsi Jurnal':['LoA Jurnal','Draft Jurnal'],'Pergantian Pembimbing':['Surat Permohonan Ganti Dosen']})[type] || [];
+  if (type === 'Pendadaran') return PENDADARAN_DOCUMENTS.map(doc=>doc[0]);
+  return ({Outline:['Transkrip','Draft Proposal'],Proposal:['Form ACC Seminar Proposal'],'Skripsi Jurnal':['LoA Jurnal','Draft Jurnal'],'Pergantian Pembimbing':['Surat Permohonan Ganti Dosen']})[type] || [];
+}
+// Pendadaran files carry their own label; every other service keeps its fixed order.
+function featurePendadaranLabels(files) {
+  const labels = (Array.isArray(files) ? files : []).map(file=>String(file && file.label || ''));
+  const order = featureLabels('Pendadaran');
+  const positions = labels.map(label=>order.indexOf(label));
+  if (positions.some(position=>position<0) || positions.some((position,index)=>index && position<=positions[index-1])) throw new Error('Susunan berkas pendadaran tidak sesuai. Muat ulang halaman, lalu pilih berkas kembali.');
+  const missing = PENDADARAN_DOCUMENTS.filter(doc=>doc[1] && !labels.includes(doc[0])).map(doc=>doc[0]);
+  if (missing.length) throw new Error('Lengkapi berkas pendadaran: ' + missing.join(', ') + '.');
+  return labels;
+}
+function featureSubmissionCount(type, files) {
+  return type === 'Pendadaran' ? featurePendadaranLabels(files).length : featureLabels(type).length;
+}
+function featureSubmissionLabel(type, files, index) {
+  return type === 'Pendadaran' ? featurePendadaranLabels(files)[index] : featureLabels(type)[index];
+}
+// Defense requests sent before per-document uploads hold one archive labelled "Berkas Pendadaran".
+function featureRowLabels(row) {
+  const known = featureLabels(row.jenis);
+  if (row.jenis !== 'Pendadaran') return known;
+  const linked = Array.from(String(row.link || '').matchAll(/<a\b[^>]*>([^<]+)<\/a>/gi)).map(match=>match[1].trim());
+  const stored = featureLogs(row.note).flatMap(log=>Array.isArray(log.documents)?log.documents:[]).map(doc=>String(doc && doc.label || '')).concat(linked);
+  return stored.includes('Berkas Pendadaran') ? known.concat(['Berkas Pendadaran']) : known;
 }
 function featureConfig() {
   let data; try { data = JSON.parse(PropertiesService.getScriptProperties().getProperty('IPCOS_SERVICE_CONFIG') || '{}'); } catch (_) { data = {}; }
@@ -47,7 +80,7 @@ function featureDocumentMetadata(files, links, logs, type) {
 }
 function featureValidateRevision(data,row) {
   if (data.senderRole !== 'mhs') return;
-  const allowed = featureLabels(row.jenis);
+  const allowed = featureRowLabels(row);
   const files = Array.isArray(data.files) ? data.files : [];
   const labels = files.map(f=>String(f.label || ''));
   if (labels.some(label=>!allowed.includes(label)) || new Set(labels).size !== labels.length) throw new Error('Pilih jenis dokumen yang berbeda untuk setiap berkas perbaikan.');
@@ -499,7 +532,12 @@ function featureCheckDocumentBytes(file) {
   if (problem) throw new Error(problem);
 }
 function featureCheckSubmissionFiles(files,type) {
-  const extensions={Outline:[['pdf'],['pdf','doc','docx']],Proposal:[['pdf']],Pendadaran:[['pdf','zip','rar']],'Skripsi Jurnal':[['pdf'],['pdf','doc','docx']],'Pergantian Pembimbing':[['pdf']]};
+  if (type==='Pendadaran') {
+    featurePendadaranLabels(files);
+    if (files.some(file=>!PENDADARAN_EXTENSIONS.includes(String(file.fileName||'').split('.').pop().toLowerCase()))) throw new Error('Berkas pendadaran harus berformat PDF, JPG, atau PNG.');
+    return;
+  }
+  const extensions={Outline:[['pdf'],['pdf','doc','docx']],Proposal:[['pdf']],'Skripsi Jurnal':[['pdf'],['pdf','doc','docx']],'Pergantian Pembimbing':[['pdf']]};
   const allowed=extensions[type];
   if (!allowed || files.length!==allowed.length || files.some((file,i)=>!allowed[i].includes(file.fileName.split('.').pop().toLowerCase()))) throw new Error('Format berkas tidak sesuai persyaratan jenis pengajuan.');
 }

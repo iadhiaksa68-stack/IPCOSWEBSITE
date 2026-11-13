@@ -68,14 +68,21 @@ await student.click('#btn-edit-registration');assert.equal(await student.inputVa
 failCreate=true;await student.click('#btn-submit-registration');await textHas(student,'#form-submit-status','Gangguan uji');assert.equal(await student.locator('#file-acc-sempro').evaluate(e=>e.files.length),1);assert(await student.locator('#btn-edit-registration').isEnabled());failCreate=false;
 await student.locator('#btn-submit-registration').evaluate(button=>{button.click();button.click();});await student.waitForSelector('#modal-submission-receipt',{state:'visible'});await textHas(student,'#submission-receipt-content','Menunggu admin');assert.equal(calls.filter(c=>c.action==='create').length,2);assert.equal(calls.filter(c=>c.action==='create')[0].requestId,calls.filter(c=>c.action==='create')[1].requestId);passed('Send failure preserves files, retry reuses request ID, repeated click sends once');
 await dismissReceipt(student);
-const types=[['Outline',['file-transkrip','file-proposal']],['Pendadaran',['file-folder-pendadaran']],['Skripsi Jurnal',['file-loa-jurnal','file-draft-jurnal']],['Pergantian Pembimbing',['file-surat-ganti']]];
+const types=[['Outline',['file-transkrip','file-proposal']],['Pendadaran',['file-pdd-blangko','file-pdd-kkn','file-pdd-bta','file-pdd-bimbingan','file-pdd-khs','file-pdd-ktm','file-pdd-pembayaran','file-pdd-toefl','file-pdd-bnsp','file-pdd-ie','file-pdd-proofread']],['Skripsi Jurnal',['file-loa-jurnal','file-draft-jurnal']],['Pergantian Pembimbing',['file-surat-ganti']]];
 for(const [type,ids] of types){
  await selectService(student,type);
  if(type==='Pergantian Pembimbing') {await student.fill('#reg-dosen-lama','Dosen A');await student.fill('#reg-dosen-baru',' dosen a ');await student.fill('#reg-alasan-ganti','Perubahan topik');await student.setInputFiles('#file-surat-ganti',pdf);await reviewRequest(student);await textHas(student,'#reg-dosen-baru-error','berbeda');await student.fill('#reg-dosen-baru','Dosen B');}
  else await student.fill('#reg-judul','Judul '+type);
  for(const id of ids)await student.setInputFiles('#'+id,pdf);
+ if(type==='Pendadaran'){
+  const big=n=>({name:'besar-'+n+'.pdf',mimeType:'application/pdf',buffer:Buffer.concat([Buffer.from('%PDF-1.4\n'),Buffer.alloc(8*1024*1024+n,32),Buffer.from('\n%%EOF')])});
+  for(const [n,id] of ids.slice(0,3).entries())await student.setInputFiles('#'+id,big(n));
+  await textHas(student,'#pendadaran-upload-total','dari 20 MB');assert(await student.locator('#pendadaran-upload-total').evaluate(node=>node.classList.contains('field-error')));
+  await reviewRequest(student);assert(await student.locator('#registration-fields').isVisible());await textHas(student,'#'+ids[2]+'-error','melebihi 20 MB');assert.equal(calls.filter(c=>c.action==='create'&&c.jenis==='Pendadaran').length,0);
+  for(const id of ids.slice(0,3))await student.setInputFiles('#'+id,pdf);
+ }
  await reviewRequest(student);await student.click('#btn-submit-registration');await student.waitForSelector('#modal-submission-receipt',{state:'visible'});
- const sent=calls.filter(c=>c.action==='create').at(-1);assert.equal(sent.jenis,type);assert.equal(sent.files.length,ids.length);assert(sent.files.every(file=>Buffer.from(file.base64,'base64').toString().startsWith('%PDF')));
+ const sent=calls.filter(c=>c.action==='create').at(-1);assert.equal(sent.jenis,type);assert.equal(sent.files.length,ids.length);if(type==='Pendadaran')assert.deepEqual(sent.files.map(file=>file.label),['Blangko Pendadaran','Sertifikat KKN','Sertifikat BTA','Kartu Bimbingan','Kartu Hasil Studi','KTM','Bukti Pembayaran KRS Skripsi dan Ujian','Sertifikat TOEFL','Sertifikat BNSP','Sertifikat International Exposure','Screenshot Proofread'],'each defense document is sent once with its own label, skipping the empty optional slot');assert(sent.files.every(file=>Buffer.from(file.base64,'base64').toString().startsWith('%PDF')));
  await dismissReceipt(student);
 }
 passed('All five registration types submit expected fields and file payloads');

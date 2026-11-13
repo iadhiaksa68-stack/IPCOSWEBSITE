@@ -168,7 +168,7 @@ function nextRevise(session,data) {
     try {
       const links=auditUpload(files,item.nim,item.nama,'[REVISI] ',created);
       const log={sender:session.nama || item.nama,role:'mhs',time:new Date().toISOString(),message:note,status:'Resubmitted',requestId:requestId,requestSignature:signature,fieldChanges:changes};
-      if(links.length) log.documents=featureDocumentMetadata(files,links.join('<br>'),logs.concat([{documents:featureLabels(item.jenis).map(label=>({label:label,version:1}))}]),item.jenis);
+      if(links.length) log.documents=featureDocumentMetadata(files,links.join('<br>'),logs.concat([{documents:featureRowLabels(item).map(label=>({label:label,version:1}))}]),item.jenis);
       logs.push(log);
       record.row[record.headers.indexOf('detail')]=detail;record.row[record.headers.indexOf('status')]='Resubmitted';record.row[record.headers.indexOf('note')]=JSON.stringify(logs);
       if(links.length) record.row[record.headers.indexOf('link')]=(item.link?item.link+'<br>':'')+links.join('<br>');

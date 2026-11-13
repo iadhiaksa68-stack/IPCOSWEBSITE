@@ -723,11 +723,79 @@
                         </div>
                     </div>
                     <div id="req-pendadaran" style="display:none;">
-                        <div class="form-group">
-                            <label for="file-folder-pendadaran" class="lang" data-id="Berkas Pendadaran *" data-en="Thesis Defense Documents *">Berkas Pendadaran *</label><p id="file-folder-pendadaran-format" class="upload-format lang" data-id="PDF / ZIP / RAR · Maks. 10 MB" data-en="PDF / ZIP / RAR · max. 10 MB">PDF / ZIP / RAR · Maks. 10 MB</p>
-                            <input type="file" id="file-folder-pendadaran" aria-describedby="file-folder-pendadaran-format" accept=".pdf,.zip,.rar"
-                                onchange="validateFile(this, 'name-pendadaran-badge')">
-                            <div id="name-pendadaran-badge"></div>
+                        <p id="pendadaran-upload-intro" class="field-helper lang" data-id="Unggah satu berkas untuk setiap dokumen. Tidak perlu menggabungkan ke ZIP/RAR. Total semua berkas maksimal 20 MB." data-en="Upload one file per document. No need to combine them into a ZIP/RAR. All files together may be up to 20 MB.">Unggah satu berkas untuk setiap dokumen. Tidak perlu menggabungkan ke ZIP/RAR. Total semua berkas maksimal 20 MB.</p>
+                        <p id="pendadaran-upload-total" class="upload-total-meter" role="status" aria-live="polite"></p>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-blangko" class="lang" data-id="Blangko Pendadaran *" data-en="Thesis defense form *">Blangko Pendadaran *</label><p id="file-pdd-blangko-hint" class="field-helper lang" data-id="Unduh template di Bantuan › Template &amp; FAQ." data-en="Download the template from Help › Templates &amp; FAQ.">Unduh template di Bantuan › Template &amp; FAQ.</p><p id="file-pdd-blangko-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-blangko" aria-describedby="file-pdd-blangko-hint file-pdd-blangko-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-blangko-badge')">
+                            <div id="file-pdd-blangko-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-kkn" class="lang" data-id="Sertifikat KKN *" data-en="Community service (KKN) certificate *">Sertifikat KKN *</label><p id="file-pdd-kkn-hint" class="field-helper lang" data-id="Sertifikat asli yang mencantumkan nilai." data-en="Original certificate showing the grade.">Sertifikat asli yang mencantumkan nilai.</p><p id="file-pdd-kkn-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-kkn" aria-describedby="file-pdd-kkn-hint file-pdd-kkn-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-kkn-badge')">
+                            <div id="file-pdd-kkn-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-bta" class="lang" data-id="Sertifikat BTA *" data-en="Qur’an reading (BTA) certificate *">Sertifikat BTA *</label><p id="file-pdd-bta-hint" class="field-helper lang" data-id="Bisa diambil di kantor IPCOS." data-en="Available at the IPCOS office.">Bisa diambil di kantor IPCOS.</p><p id="file-pdd-bta-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-bta" aria-describedby="file-pdd-bta-hint file-pdd-bta-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-bta-badge')">
+                            <div id="file-pdd-bta-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-bimbingan" class="lang" data-id="Kartu Bimbingan *" data-en="Supervision card *">Kartu Bimbingan *</label><p id="file-pdd-bimbingan-hint" class="field-helper lang" data-id="Sudah ditandatangani dosen pembimbing untuk ujian pendadaran." data-en="Signed by your supervisor for the thesis defense.">Sudah ditandatangani dosen pembimbing untuk ujian pendadaran.</p><p id="file-pdd-bimbingan-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-bimbingan" aria-describedby="file-pdd-bimbingan-hint file-pdd-bimbingan-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-bimbingan-badge')">
+                            <div id="file-pdd-bimbingan-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-khs" class="lang" data-id="Kartu Hasil Studi *" data-en="Study results card (KHS) *">Kartu Hasil Studi *</label><p id="file-pdd-khs-hint" class="field-helper lang" data-id="Unduh dari krs.umy.ac.id, bagian Kartu Hasil Studi." data-en="Download it from krs.umy.ac.id, Kartu Hasil Studi section.">Unduh dari krs.umy.ac.id, bagian Kartu Hasil Studi.</p><p id="file-pdd-khs-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-khs" aria-describedby="file-pdd-khs-hint file-pdd-khs-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-khs-badge')">
+                            <div id="file-pdd-khs-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-ktm" class="lang" data-id="KTM *" data-en="Student ID card (KTM) *">KTM *</label><p id="file-pdd-ktm-hint" class="field-helper lang" data-id="Scan kartu tanda mahasiswa." data-en="A scan of your student ID card.">Scan kartu tanda mahasiswa.</p><p id="file-pdd-ktm-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-ktm" aria-describedby="file-pdd-ktm-hint file-pdd-ktm-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-ktm-badge')">
+                            <div id="file-pdd-ktm-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-pembayaran" class="lang" data-id="Bukti Pembayaran KRS Skripsi dan Ujian *" data-en="Thesis and exam payment proof *">Bukti Pembayaran KRS Skripsi dan Ujian *</label><p id="file-pdd-pembayaran-hint" class="field-helper lang" data-id="Riwayat pembayaran skripsi dan ujian dari krs.umy.ac.id." data-en="Thesis and exam payment history from krs.umy.ac.id.">Riwayat pembayaran skripsi dan ujian dari krs.umy.ac.id.</p><p id="file-pdd-pembayaran-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-pembayaran" aria-describedby="file-pdd-pembayaran-hint file-pdd-pembayaran-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-pembayaran-badge')">
+                            <div id="file-pdd-pembayaran-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-toefl" class="lang" data-id="Sertifikat TOEFL *" data-en="TOEFL certificate *">Sertifikat TOEFL *</label><p id="file-pdd-toefl-hint" class="field-helper lang" data-id="Skor minimal 500. Jika lebih dari satu sertifikat, gabungkan dalam satu PDF." data-en="Minimum score 500. If you have several certificates, combine them into one PDF.">Skor minimal 500. Jika lebih dari satu sertifikat, gabungkan dalam satu PDF.</p><p id="file-pdd-toefl-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-toefl" aria-describedby="file-pdd-toefl-hint file-pdd-toefl-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-toefl-badge')">
+                            <div id="file-pdd-toefl-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-bnsp" class="lang" data-id="Sertifikat BNSP *" data-en="BNSP certificate *">Sertifikat BNSP *</label><p id="file-pdd-bnsp-hint" class="field-helper lang" data-id="Jika belum ikut UKOM BNSP, lampirkan bukti pendaftaran." data-en="If you have not taken the BNSP exam yet, attach your registration proof.">Jika belum ikut UKOM BNSP, lampirkan bukti pendaftaran.</p><p id="file-pdd-bnsp-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-bnsp" aria-describedby="file-pdd-bnsp-hint file-pdd-bnsp-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-bnsp-badge')">
+                            <div id="file-pdd-bnsp-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-ba-proposal" class="lang" data-id="Berita Acara Proposal dan Lembar Revisi (opsional)" data-en="Proposal seminar minutes and revision sheet (optional)">Berita Acara Proposal dan Lembar Revisi (opsional)</label><p id="file-pdd-ba-proposal-hint" class="field-helper lang" data-id="Lewati jika Anda tidak melalui Seminar Proposal." data-en="Skip this if you did not take the proposal seminar.">Lewati jika Anda tidak melalui Seminar Proposal.</p><p id="file-pdd-ba-proposal-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-ba-proposal" aria-describedby="file-pdd-ba-proposal-hint file-pdd-ba-proposal-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-ba-proposal-badge')">
+                            <div id="file-pdd-ba-proposal-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-ie" class="lang" data-id="Sertifikat International Exposure *" data-en="International Exposure certificate *">Sertifikat International Exposure *</label><p id="file-pdd-ie-hint" class="field-helper lang" data-id="Jika tidak ada sertifikat, lampirkan dokumentasi kegiatan." data-en="If you have no certificate, attach photos of the activity.">Jika tidak ada sertifikat, lampirkan dokumentasi kegiatan.</p><p id="file-pdd-ie-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-ie" aria-describedby="file-pdd-ie-hint file-pdd-ie-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-ie-badge')">
+                            <div id="file-pdd-ie-badge"></div>
+                        </div>
+                        <div class="form-group" data-pendadaran-document>
+                            <label for="file-pdd-proofread" class="lang" data-id="Screenshot Proofread *" data-en="Proofread screenshot *">Screenshot Proofread *</label><p id="file-pdd-proofread-hint" class="field-helper lang" data-id="Bukti pengajuan proofread pertama (pra-pendadaran)." data-en="Proof of your first proofread request (before the defense).">Bukti pengajuan proofread pertama (pra-pendadaran).</p><p id="file-pdd-proofread-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
+                            <input type="file" id="file-pdd-proofread" aria-describedby="file-pdd-proofread-hint file-pdd-proofread-format" accept=".pdf,.jpg,.jpeg,.png"
+                                onchange="validateFile(this, 'file-pdd-proofread-badge')">
+                            <div id="file-pdd-proofread-badge"></div>
                         </div>
                     </div>
                     <div id="req-jurnal-only" style="display:none;">

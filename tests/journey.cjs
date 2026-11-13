@@ -58,7 +58,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'1/3 siap','Draft restore should refresh readiness while files are missing');
     console.log('PASS Stage shortcut, field focus, file removal and draft restore keep readiness accurate');
 
-    const types = [['Outline',3],['Proposal',2],['Pendadaran',2],['Skripsi Jurnal',3],['Pergantian Pembimbing',4]];
+    const types = [['Outline',3],['Proposal',2],['Pendadaran',13],['Skripsi Jurnal',3],['Pergantian Pembimbing',4]];
     for (const [type,total] of types) {
         await selectService(page,type);
         if (type==='Pergantian Pembimbing') {
