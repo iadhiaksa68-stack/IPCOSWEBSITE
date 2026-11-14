@@ -26,6 +26,8 @@
             });
             const latest=new Map();for(const row of rows)if(row.version!==null){const previous=latest.get(row.label);if(!previous||row.version>=previous.version)latest.set(row.label,row);}
             for(const row of rows)if(row.version!==null)row.latest=latest.get(row.label)===row;
+            // Documents named in an open correction request need fixing even when no per-file result was saved.
+            if(String(item.status||'').trim().toLowerCase()==='revision'){const asked=getRevisionInstructions(item);for(const row of rows)if(row.latest&&row.state==='pending'&&asked.files.includes(row.label)){row.state='revision';if(!row.note)row.note=asked.instruction||'';}}
             return rows;
         }).sort((a,b)=>{const date=value=>{const stamp=displayDate(value).getTime();return Number.isFinite(stamp)?stamp:0;};return Number(b.latest)-Number(a.latest)||Number(b.state==='revision')-Number(a.state==='revision')||date(b.date)-date(a.date)||a.id.localeCompare(b.id)||a.label.localeCompare(b.label)||Number(b.version)-Number(a.version);});
     }

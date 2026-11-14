@@ -184,7 +184,7 @@ const searchDatabase = [
     { title: "Status Pengajuan", keywords: "status riwayat revisi dokumen", tab: "student-status" },
     { title: "Template Dokumen & FAQ", keywords: "template download format faq tanya jawab", tab: "templates-faq" },
     { title: "Sebaran Mata Kuliah", keywords: "kurikulum mata kuliah sks", tab: "kurikulum" },
-    { title: "SOP Remidial", keywords: "remidial sop perbaikan nilai", tab: "remidial" },
+    { title: "SOP Remedial", keywords: "remedial remidial sop perbaikan nilai", tab: "remidial" },
     { title: "SOP Magang", keywords: "sop magang internship procedure panduan lampiran", tab: "sop-magang" },
     { title: "SOP Tugas Akhir", keywords: "sop tugas akhir final project thesis procedure panduan", tab: "sop-tugas-akhir" },
     { title: "Kalender Yudisium", keywords: "kalender jadwal batas yudisium wisuda deadline", tab: "kalender" },
@@ -1833,7 +1833,7 @@ const defaultKurikulum = [
 ];
 
 const defaultRemedial = [
-    { title: "Alur Remidial", items: [{ id: "r1", text: "1. Pra-KRS & Bayar", sub: "Daftar di menu remidi dan bayar di Bank Gedung AR B. Wajib key-in kembali!" }, { id: "r2", text: "2. Penentuan Dosen", sub: "Prodi menetapkan dosen pengampu sesuai linearitas semester reguler." }, { id: "r3", text: "3. Bimbingan", sub: "Tatap muka 100 menit. 2 SKS = 2x pertemuan, 3 SKS = 3x pertemuan, dst." }, { id: "r4", text: "4. Uji Kompetensi", sub: "1 kali tes akhir untuk mengukur penguasaan materi dan nilai masuk KHS." }] }
+    { title: "Alur Remedial", items: [{ id: "r1", text: "1. Pra-KRS & Bayar", sub: "Daftar di menu remidi dan bayar di Bank Gedung AR B. Wajib key-in kembali!" }, { id: "r2", text: "2. Penentuan Dosen", sub: "Prodi menetapkan dosen pengampu sesuai linearitas semester reguler." }, { id: "r3", text: "3. Bimbingan", sub: "Tatap muka 100 menit. 2 SKS = 2x pertemuan, 3 SKS = 3x pertemuan, dst." }, { id: "r4", text: "4. Uji Kompetensi", sub: "1 kali tes akhir untuk mengukur penguasaan materi dan nilai masuk KHS." }] }
 ];
 
 const defaultKalender = [
@@ -1987,7 +1987,7 @@ function openContentEditor(type, replaceDraft = false) {
         'magang': 'Edit Konten Magang',
         'skripsi': 'Edit Konten Skripsi',
         'kurikulum': 'Edit Konten Kurikulum',
-        'remidial': 'Edit SOP Remidial',
+        'remidial': 'Edit SOP Remedial',
         'kalender': 'Edit Kalender TA',
         'template_berkas': 'Edit Template & Link Download',
         'faq': 'Edit Pertanyaan & Jawaban FAQ'

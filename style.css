@@ -2065,3 +2065,6 @@ body:has(#modal-case-detail[style*="display: flex"]) .toast-container { top:auto
     .pdf-note-controls button { flex:1 1 150px; }
     .pdf-note-page-link { width:100%; }
 }
+
+/* Checkboxes and radios never take the text-field padding; it pushed them over their labels. */
+input[type="checkbox"], input[type="radio"] { padding:0; }

@@ -170,6 +170,14 @@ async function login(page, role) {
         JSON.stringify([{role:'mhs', sender:'Uji', time:day(40), message:'Pendaftaran', status:'Pending'}, {role:'admin', sender:'Admin', time:day(31), status:'Revision', message:'Perbaiki.'}]));
     assert.match(waits[0], /disarankan dikirim dalam 7 hari/); assert.match(waits[1], /Revisi diminta 31 hari lalu · sudah lewat dari saran 7 hari, kirim secepatnya/);
     pass('The stage map shows one clear status, and an overdue correction no longer suggests a deadline that has passed');
+    await page.evaluate(() => switchTab(null, 'skripsi'));
+    const box = await page.locator('#skripsi .preparation-item input[type=checkbox]').first().evaluate(node => { const a = node.getBoundingClientRect(), b = node.closest('.preparation-item').querySelector('label').getBoundingClientRect(); return [Math.round(a.width), a.right <= b.left]; });
+    assert.deepEqual(box, [22, true], 'checklist checkboxes keep their size and do not cover their text');
+    await page.evaluate(() => { const list = JSON.parse(sessionStorage.getItem('ipcos_registrations')); const item = list.find(r => r.id === 'JOURNAL'); const logs = JSON.parse(item.note); logs.unshift({role:'mhs', documents:[{url:'https://drive.google.com/file/d/j1/view', label:'LoA Jurnal', fileName:'loa.pdf', version:1}, {url:'https://drive.google.com/file/d/j2/view', label:'Draft Jurnal', fileName:'draft.pdf', version:1}]}); item.note = JSON.stringify(logs); sessionStorage.setItem('ipcos_registrations', JSON.stringify(list)); switchTab(null, 'student-files'); });
+    await page.waitForSelector('.file-center-card');
+    assert.match(await page.locator('#file-center-overview').textContent(), /1 perlu perbaikan/, 'a document named in an open correction request counts as needing correction');
+    assert.equal(await page.locator('.file-center-card').first().locator('[data-state=revision]').count(), 1, 'it is listed first');
+    pass('Checklist checkboxes no longer overlap their text, and Pusat Berkas counts documents the admin asked to fix');
 
     // ---------- Admin ----------
     const admin = await context.newPage();
@@ -181,6 +189,15 @@ async function login(page, role) {
     assert.deepEqual(emptyHome, [1, '…'.repeat(5), false], 'before the first sync the admin home says it is loading instead of showing zeros');
     assert.equal(await admin.locator('#task-home [data-loading]').count(), 0);
     pass('Admin home shows a loading state until requests arrive');
+    await admin.setViewportSize({width:390, height:844});
+    assert.equal(await admin.locator('#admin-bottom-nav').isVisible(), true, 'admins get a bottom bar on phones');
+    assert.equal(await admin.locator('#student-bottom-nav').isVisible(), false);
+    await admin.locator('#admin-bottom-nav [data-bottom-target="admin-data"]').click();
+    assert.equal(await admin.evaluate(() => document.querySelector('.tab-content.active').id), 'admin-data');
+    await admin.evaluate(() => switchTab(null, 'dashboard'));
+    await admin.setViewportSize({width:1365, height:900});
+    assert.equal(await admin.locator('#admin-bottom-nav').isVisible(), false, 'the bar is for phones only');
+    pass('Admins on phones reach Home, the queue, notifications and the menu from a bottom bar');
     await admin.locator('[data-nav-target="admin-data"]').click();
     await admin.waitForSelector('#queue-saved-views [data-queue-view]');
     await admin.locator('[data-queue-view="resubmitted"]').click();

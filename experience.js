@@ -114,7 +114,7 @@
         syncModalAccessibility();
     }
     const icon = name => {
-        const paths = { home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/>', requests:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>', sop:'<path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Z"/><path d="M12 5v15"/>', menu:'<path d="M4 6h16M4 12h16M4 18h16"/>' };
+        const paths = { home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/>', requests:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>', sop:'<path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Z"/><path d="M12 5v15"/>', menu:'<path d="M4 6h16M4 12h16M4 18h16"/>', bell:'<path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/>' };
         return '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+paths[name]+'</svg>';
     };
     function setup() {
@@ -131,6 +131,11 @@
         bottom.innerHTML = items.map(([target,name,id,en]) => '<button type="button" data-bottom-target="'+target+'">'+icon(name)+'<span data-label-id="'+id+'" data-label-en="'+en+'">'+text(id,en)+'</span></button>').join('');
         bottom.addEventListener('click', event => { const button = event.target.closest('[data-bottom-target]'); if (!button) return; if (button.dataset.bottomTarget === 'menu') toggleSidebar(); else if (button.dataset.bottomTarget === 'sop-magang') window.IPCOSPolish?.openSopPicker(); else navigate(button.dataset.bottomTarget); });
         document.body.appendChild(bottom);
+        // Admins get the same thumb-reachable bar on phones, pointed at their own pages.
+        const adminBottom = document.createElement('nav'); adminBottom.id = 'admin-bottom-nav'; adminBottom.className = 'workspace-bottom-nav'; adminBottom.hidden = true;
+        adminBottom.innerHTML = [['dashboard','home','Beranda','Home'],['admin-data','requests','Antrean','Queue'],['notifications','bell','Notifikasi','Alerts'],['menu','menu','Menu','Menu']].map(([target,name,id,en]) => '<button type="button" data-bottom-target="'+target+'">'+icon(name)+'<span data-label-id="'+id+'" data-label-en="'+en+'">'+text(id,en)+'</span></button>').join('');
+        adminBottom.addEventListener('click', event => { const button = event.target.closest('[data-bottom-target]'); if (!button) return; if (button.dataset.bottomTarget === 'menu') toggleSidebar(); else navigate(button.dataset.bottomTarget); });
+        document.body.appendChild(adminBottom);
         const backdrop = document.createElement('button'); backdrop.id = 'nav-backdrop'; backdrop.type = 'button'; backdrop.hidden = true; backdrop.tabIndex = -1; backdrop.addEventListener('click', () => { document.getElementById('main-sidebar').classList.remove('active'); drawerChanged(); }); document.body.appendChild(backdrop);
         document.addEventListener('click', event => { if (profile.open && !profile.contains(event.target)) profile.open = false; });
         document.addEventListener('keydown', event => {
@@ -171,6 +176,8 @@
         }
         document.getElementById('student-bottom-nav').hidden = !auth || currentUser.role !== 'mhs';
         document.getElementById('student-bottom-nav').setAttribute('aria-label',text('Navigasi mahasiswa','Student navigation'));
+        document.getElementById('admin-bottom-nav').hidden = !auth || currentUser.role !== 'admin';
+        document.getElementById('admin-bottom-nav').setAttribute('aria-label',text('Navigasi admin','Admin navigation'));
         document.querySelector('[data-nav-group="management"]').closest('.nav-group').hidden = !auth || currentUser.role !== 'admin';
         document.getElementById('nav-backdrop').setAttribute('aria-label',text('Tutup menu','Close menu'));
         document.querySelectorAll('[data-label-id]').forEach(el=>el.textContent=el.dataset[currentLang === 'en' ? 'labelEn' : 'labelId']);
@@ -186,7 +193,7 @@
             if (active) { item.setAttribute('aria-current','page'); const group = item.closest('details[data-nav-group]'); if (group) group.open = true; }
             else item.removeAttribute('aria-current');
         });
-        document.querySelectorAll('#student-bottom-nav button').forEach(button => {
+        document.querySelectorAll('#student-bottom-nav button,#admin-bottom-nav button').forEach(button => {
             const target = button.dataset.bottomTarget;
             const active = target === activeTab || target === 'student-status' && activeTab === 'pendaftaran' || target === 'sop-magang' && ['sop-magang','sop-tugas-akhir','remidial'].includes(activeTab);
             button.classList.toggle('active',active);
@@ -208,8 +215,9 @@
         document.body.classList.toggle('nav-drawer-open',open);
         document.getElementById('main-workspace').inert = open;
         document.getElementById('student-bottom-nav').inert = open;
+        document.getElementById('admin-bottom-nav').inert = open;
         document.querySelectorAll('.mobile-nav-toggle,[data-bottom-target="menu"]').forEach(button => button.setAttribute('aria-expanded',String(open)));
-        document.querySelector('[data-bottom-target="menu"]').setAttribute('aria-controls','main-sidebar');
+        document.querySelectorAll('[data-bottom-target="menu"]').forEach(button => button.setAttribute('aria-controls','main-sidebar'));
         document.getElementById('btn-toggle-sidebar').setAttribute('aria-expanded',String(!sidebar.classList.contains('collapsed')));
         sidebar.inert = !authenticated() || mobile() ? !open : sidebar.classList.contains('collapsed');
         if (open && !previouslyOpen) { drawerTrigger = document.activeElement; sidebar.querySelector('.nav-item:not([style*="none"])')?.focus(); }

@@ -227,6 +227,7 @@
     try {
       const result = await api({ action: "get_academic_progress", nim });
       if (epoch !== sessionEpoch || editing !== nim) return;
+      if (!validProgress(result.academic)) throw new Error(t("Status tahap belum dapat dimuat. Tutup lalu coba lagi.", "The stage status could not be loaded. Close and try again."));
       base = result.academic;
       const student =
         readStoredJSON(sessionStorage, "ipcos_students", []).find(

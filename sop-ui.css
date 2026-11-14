@@ -15,7 +15,7 @@
 .sop-reader-tools{display:none}
 body.sop-focus-mode{overflow-anchor:none;overflow-x:clip;overflow-y:visible}
 .sop-reading-layout,.sop-reading-content,.sop-reading-index{min-width:0}
-body.sop-focus-mode #main-sidebar,body.sop-focus-mode .workspace-toolbar,body.sop-focus-mode .mobile-nav-toggle,body.sop-focus-mode #student-bottom-nav,body.workspace-authenticated.sop-focus-mode #student-bottom-nav:not([hidden]){display:none!important}
+body.sop-focus-mode #main-sidebar,body.sop-focus-mode .workspace-toolbar,body.sop-focus-mode .mobile-nav-toggle,body.sop-focus-mode #student-bottom-nav,body.sop-focus-mode #admin-bottom-nav,body.workspace-authenticated.sop-focus-mode #student-bottom-nav:not([hidden]){display:none!important}
 body.sop-focus-mode .main-content,body.sop-focus-mode .main-content.expanded{margin-left:0;width:100%;max-width:none;padding:0 32px 40px;transition:none}
 body.sop-focus-mode .sop-page{max-width:1120px;margin-inline:auto}
 body.sop-focus-mode .sop-reader-tools{position:sticky;top:0;z-index:35;display:flex;align-items:center;gap:18px;flex-wrap:wrap;min-width:0;padding:14px 0;background:var(--bg-color);border-bottom:1px solid var(--item-border);margin:0 0 28px;box-shadow:0 6px 12px var(--bg-color)}
