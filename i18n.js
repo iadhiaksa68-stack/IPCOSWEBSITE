@@ -69,7 +69,6 @@ const interfaceEnglish = {
     'Upload Transkrip Nilai (PDF, Max 10MB) *':'Upload transcript (PDF, max. 10 MB) *',
     'Upload Draft Proposal (PDF/DOCX, Max 10MB) *':'Upload proposal draft (PDF/DOC/DOCX, max. 10 MB) *',
     'Upload Form ACC Seminar Proposal (PDF, Max 10MB) *':'Upload proposal seminar approval form (PDF, max. 10 MB) *',
-    'Upload Berkas Pendadaran (PDF/ZIP/RAR, Max 10MB) *':'Upload thesis defense documents (PDF/ZIP/RAR, max. 10 MB) *',
     'Upload LoA Jurnal (PDF, Max 10MB) *':'Upload journal acceptance letter (PDF, max. 10 MB) *',
     'Upload Draft Jurnal (PDF/DOCX, Max 10MB) *':'Upload journal draft (PDF/DOC/DOCX, max. 10 MB) *',
     'Dosen Pembimbing Sekarang *':'Current supervisor *', 'Usulan Dosen Pembimbing Baru *':'Proposed supervisor *',

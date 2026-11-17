@@ -32,7 +32,6 @@ function registrationWarnings() {
         const file = document.getElementById(id).files[0], hash = file && documentInspections.get(file)?.hash;
         if (hash && seen.has(hash)) warnings.push(uxText('Dua persyaratan memakai berkas yang sama. Pastikan dokumen tersebut memang memenuhi keduanya.', 'Two requirements use the same file. Make sure it meets both requirements.'));
         if (hash) seen.add(hash);
-        if (file && /\.(zip|rar)$/i.test(file.name)) warnings.push(uxText('Isi arsip tetap diperiksa admin. Pastikan seluruh dokumen wajib ada di dalamnya.', 'Admin will check the archive contents. Include every required document.'));
     }
     return [...new Set(warnings)];
 }
