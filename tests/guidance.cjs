@@ -268,7 +268,13 @@ async function login(page, role) {
 
     const documentOptions = await admin.evaluate(() => [caseDocumentOptions({jenis:'Pendadaran', note:'[]'}).length, caseDocumentOptions({jenis:'Pendadaran', note:JSON.stringify([{role:'mhs', documents:[{label:'Berkas Pendadaran', version:1}]}])})]);
     assert.deepEqual(documentOptions, [12, ['Berkas Pendadaran']], 'new defense requests list 12 documents; older archive requests keep their single document');
-    await admin.evaluate(() => { const list = JSON.parse(sessionStorage.getItem('ipcos_registrations')); list.push({id:'PDD', date:new Date().toISOString(), nim:'555', nama:'Uji Pendadaran', jenis:'Pendadaran', detail:'<b>Judul:</b> P', link:'', status:'Pending', note:'[]'}); sessionStorage.setItem('ipcos_registrations', JSON.stringify(list)); openCaseDetail('PDD'); caseDetailAction('revision'); });
+    await admin.evaluate(() => { const list = JSON.parse(sessionStorage.getItem('ipcos_registrations')); list.push({id:'PDD', date:new Date().toISOString(), nim:'555', nama:'Uji Pendadaran', jenis:'Pendadaran', detail:'<b>Judul:</b> P', link:['Blangko Pendadaran','Sertifikat KKN','KTM'].map((label, i) => `<a href="https://drive.google.com/file/d/pdd${i}/view">${label}</a>`).join('<br>'), status:'Pending', note:JSON.stringify([{role:'mhs', documents:['Blangko Pendadaran','Sertifikat KKN','KTM'].map((label, i) => ({url:`https://drive.google.com/file/d/pdd${i}/view`, label, fileName:`d${i}.pdf`, version:1}))}])}); sessionStorage.setItem('ipcos_registrations', JSON.stringify(list)); openCaseDetail('PDD'); caseDetailAction('revision'); });
+    await admin.waitForSelector('#review-accept-rest');
+    await admin.selectOption('#document-review-status-0', 'revision'); await admin.fill('#document-review-note-0', 'Scan ulang, tidak terbaca.');
+    await admin.locator('#review-accept-rest').click();
+    assert.deepEqual(await admin.locator('[data-review-status]').evaluateAll(nodes => nodes.map(node => node.value)), ['revision', 'accepted', 'accepted'], 'only files not yet reviewed are marked as fine; an existing result stays');
+    assert.match(await admin.locator('#document-review-progress').textContent(), /3 \/ 3/);
+    assert.equal(await admin.locator('#review-accept-rest').isHidden(), true, 'the action disappears once nothing is left to review');
     const boxes = admin.locator('#case-action-panel [name="revision-document"]');
     assert.equal(await boxes.count(), 13, 'admin can pick any of the 12 documents or the request details');
     for (let i = 0; i < 6; i++) await boxes.nth(i).check();

@@ -96,6 +96,7 @@
         setText(el('active-review-filename'),active<0?t('Versi terdahulu · tidak dapat diubah di sini','Historical version · cannot be edited here'):draft[active].fileName);
         if(el('review-file-position'))el('review-file-position').textContent=active<0?'':t('Berkas ','File ')+(active+1)+' / '+draft.length;
         if(el('review-select-file'))el('review-select-file').hidden=!!file;
+        if(el('review-accept-rest')){const pending=draft.some(review=>review.status==='pending');el('review-accept-rest').hidden=!pending;el('review-accept-rest').disabled=saving;if(el('review-accept-rest-help'))el('review-accept-rest-help').hidden=!pending;}
         if(el('review-historical'))el('review-historical').hidden=!file||active>=0;
         if(el('review-save-actions'))el('review-save-actions').hidden=active<0||!canEdit;
         const next=el('review-save-next');if(next){next.disabled=saving;next.textContent=saving?t('Menyimpan…','Saving…'):nextPending(active)<0?t('Simpan & Selesai','Save & Finish'):t('Simpan & Lanjut','Save & Continue');}
@@ -137,7 +138,7 @@
         if(!draft.length){root.textContent='';return;}
         const pageFocus=preserve&&document.activeElement?.matches('[data-use-pdf-page],[data-remove-pdf-page]')&&root.contains(document.activeElement)?document.activeElement.id:'';
         const preservedControls=preserve?[...root.querySelectorAll('select,textarea,[data-use-pdf-page],[data-remove-pdf-page]')]:[];
-        root.innerHTML=`<h3>${t('Pemeriksaan Per Berkas','Document Review')}</h3><p id="document-review-progress" class="review-progress" role="status"></p>
+        root.innerHTML=`<h3>${t('Pemeriksaan Per Berkas','Document Review')}</h3><p id="document-review-progress" class="review-progress" role="status"></p>${canEdit&&draft.length>2?`<button type="button" class="text-link" id="review-accept-rest" data-review-accept-rest>${t('Tandai sisa berkas sesuai','Mark remaining files as fine')}</button><p class="field-helper" id="review-accept-rest-help">${t('Hanya berkas yang belum diperiksa. Hasil yang sudah Anda isi tidak berubah. Anda tetap bisa mengubah tiap berkas sebelum menyimpan.','Only files not reviewed yet. Results you already set stay as they are. You can still change any file before saving.')}</p>`:''}
             <div id="review-select-file"><p class="field-helper">${t('Pilih berkas untuk membuka dokumen dan catatan yang sesuai.','Choose a file to open its document and matching notes.')}</p><button type="button" class="btn-secondary" data-review-start>${canEdit?t('Mulai Pemeriksaan','Start Review'):t('Lihat Hasil Pemeriksaan','View Review Results')}</button></div>
             <div id="active-review-context" hidden><span id="review-file-position" class="field-helper"></span><h4 id="active-review-title" tabindex="-1"></h4><p id="active-review-filename" data-preserve-case></p></div>
             <p id="review-historical" class="field-helper" hidden>${t('Catatan baru hanya untuk versi terbaru. Pilih berkas terbaru pada daftar untuk melanjutkan.','New notes apply only to the latest version. Choose the latest file in the list to continue.')}</p>`+
@@ -267,6 +268,10 @@
         if(usePage){const index=Number(usePage.dataset.usePdfPage),reference=currentPageReference(index);if(reference&&!samePage(reference,draft[index]?.pageRef)){draft[index].pageRef=reference;markChanged();}}
         if(removePage){const index=Number(removePage.dataset.removePdfPage);if(noteReferences&&!saving&&!isPreparingReviewDecision&&!isPreparingCorrection&&!activeUpdateIds.size&&editable(currentCase())&&editingId===String(currentCase()?.id)&&activeReviewIndex()===index&&draft[index]?.pageRef){delete draft[index].pageRef;markChanged();}}
         if(event.target.closest('[data-review-start]'))openReview(draft.findIndex(review=>review.status==='pending')<0?0:draft.findIndex(review=>review.status==='pending'));
+        if(event.target.closest('[data-review-accept-rest]')&&!saving&&editable(currentCase())&&editingId===String(currentCase()?.id)){
+            let changed=0;draft.forEach((review,index)=>{if(review.status==='pending'){review.status='accepted';changed++;const status=el('document-review-status-'+index);if(status)status.value='accepted';}});
+            if(changed){markChanged();if(el('document-review-feedback'))el('document-review-feedback').textContent=changed+' '+t('berkas ditandai sesuai. Periksa lalu simpan.','files marked as fine. Check them, then save.');}
+        }
         if(event.target.closest('[data-open-active-review]'))reviewView(true);
         if(event.target.closest('[data-save-next-review]'))saveAndNext().catch(error=>{if(!error.staleSession&&el('document-review-feedback'))el('document-review-feedback').textContent=systemText(error.message);});
         if(event.target.closest('[data-reload-document-review]'))reloadReview();

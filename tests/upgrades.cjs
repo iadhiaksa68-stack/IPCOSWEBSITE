@@ -154,6 +154,10 @@ async function noOverflow(page, label) { assert.equal(await page.evaluate(() => 
     assert.equal(await student.locator('#announcement-banner').isVisible(), true);
     assert.equal(await student.locator('#announcement-banner').evaluate(node => node.classList.contains('announcement-important')), true);
     assert.equal(await student.locator('#dashboard .operation-feedback:visible').count(), 0, 'welcome is a toast only, not a permanent box');
+    await student.evaluate(() => switchTab(null, 'student-status'));
+    assert.equal(await student.locator('#announcement-banner').isVisible(), false, 'the banner stays off task pages');
+    await student.evaluate(() => switchTab(null, 'dashboard'));
+    assert.equal(await student.locator('#announcement-banner').isVisible(), true, 'and returns on Beranda');
     pass('An important announcement shows once, in the banner, and the welcome message is not pinned to Home');
 
     assert.match(await student.locator('#task-home .request-wait').first().textContent(), /Sudah menunggu 5 hari · lebih lama dari biasanya \(3 hari\)/);

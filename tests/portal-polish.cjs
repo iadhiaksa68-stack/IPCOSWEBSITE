@@ -90,7 +90,7 @@ async function noTiming(page,tab) {
     const student=await context.newPage();student.on('pageerror',error=>errors.push(error.message));student.on('dialog',dialog=>dialog.accept());await login(student,'mhs');
     for (const width of [320,390,1365]) for (const lang of ['id','en']) for (const dark of [false,true]) {
         await student.setViewportSize({width,height:900});await student.evaluate(({lang,dark})=>{if(currentLang!==lang)toggleLanguage();document.body.classList.toggle('dark-mode',dark);},{lang,dark});
-        for (const tab of ['dashboard','student-status']) {await noTiming(student,tab);await layout(student,'student '+tab+' '+width+' '+lang+' '+dark);}
+        for (const tab of ['student-status','dashboard']) {await noTiming(student,tab);await layout(student,'student '+tab+' '+width+' '+lang+' '+dark);}
         const banner=await presentation(student,'#announcement-text');assert(banner.contrast>=4.5,'Announcement contrast '+JSON.stringify(banner));
     }
     const beforeStudentPost=calls.filter(call=>call.action==='post_announcement').length;await student.evaluate(()=>postAnnouncement('Unauthorized fixture','info'));assert.equal(calls.filter(call=>call.action==='post_announcement').length,beforeStudentPost);
