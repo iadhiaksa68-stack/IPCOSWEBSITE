@@ -330,9 +330,11 @@ async function login(page, role) {
     for (let i = 0; i < 6; i++) await boxes.nth(i).check();
     await admin.fill('#case-revision-note', 'Scan ulang.');
     assert.match(await admin.locator('#revision-file-limit').textContent(), /6 berkas dipilih · maksimal 5 per putaran/, 'the limit shows while files are being chosen');
-    assert.equal(await admin.locator('#revision-file-limit').evaluate(node => node.classList.contains('field-error')), true);
-    const limitColors = await admin.locator('#revision-file-limit').evaluate(node => ({ note: getComputedStyle(node).color, maroon: getComputedStyle(node).getPropertyValue('--umy-maroon').trim() }));
-    assert.equal(limitColors.note, 'rgb(159, 36, 66)', `the over-limit note must render in the warning maroon (${limitColors.maroon}), not the muted helper grey`);
+    // Class and rendered colour are read together; a failure reports what the page actually had.
+    await admin.waitForFunction(() => { const node = document.getElementById('revision-file-limit'); return node?.classList.contains('field-error') && getComputedStyle(node).color === 'rgb(159, 36, 66)'; }, null, {timeout: 5000}).catch(() => {});
+    const limitState = await admin.evaluate(() => { const node = document.getElementById('revision-file-limit'); return { className: node?.className, color: node && getComputedStyle(node).color, notes: document.querySelectorAll('#revision-file-limit').length, checked: document.querySelectorAll('#case-action-panel [name="revision-document"]:checked').length, rule: [...document.styleSheets].some(sheet => { try { return [...sheet.cssRules].some(rule => String(rule.selectorText || '').includes('#revision-file-limit.field-error')); } catch (_) { return false; } }) }; });
+    assert.equal(limitState.className, 'field-helper field-error', 'the over-limit note is marked as an error ' + JSON.stringify(limitState));
+    assert.equal(limitState.color, 'rgb(159, 36, 66)', 'the over-limit note must render in the warning maroon, not the muted helper grey ' + JSON.stringify(limitState));
     await admin.locator('#btn-case-submit').click();
     assert.match(await admin.locator('#case-action-feedback').textContent(), /maksimal 5 berkas/);
     assert.equal(calls.filter(c => c.action === 'update' && c.id === 'PDD').length, 0);
