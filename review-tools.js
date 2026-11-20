@@ -79,7 +79,7 @@
         if(!noteReferences&&!pageRef(review.pageRef))return '';
         return `<div class="pdf-note-controls">${noteReferences?`<button type="button" id="document-review-use-page-${index}" class="btn-secondary" data-use-pdf-page="${index}" disabled>${t('Gunakan Halaman Ini','Use This Page')}</button>`:''}<p class="field-helper" data-pdf-page-reference="${index}" role="status" hidden></p>${noteReferences?`<button type="button" id="document-review-remove-page-${index}" class="btn-secondary" data-remove-pdf-page="${index}" hidden>${t('Hapus Rujukan','Remove Reference')}</button>`:''}</div>`;
     }
-    function markChanged(){dirty=true;retry=null;window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);if(el('document-review-feedback'))el('document-review-feedback').textContent=t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.');syncSelection();}
+    function markChanged(){queueMicrotask(syncContinue);dirty=true;retry=null;window.IPCOSAdminDrafts?.rememberReview(currentCase(),baseRecord,draft,retry);if(el('document-review-feedback'))el('document-review-feedback').textContent=t('Ada pemeriksaan yang belum disimpan.','There are unsaved review changes.');syncSelection();}
     function reviewView(focusNote=false){
         el('modal-case-detail').dataset.workspaceView='review';syncToggle();
         if(focusNote){const target=el('document-review-note-'+activeReviewIndex())||el('active-review-title');target?.focus({preventScroll:true});target?.scrollIntoView({block:'center',behavior:'instant'});}
@@ -213,7 +213,25 @@
         toggle.innerHTML=`<button type="button" data-workspace-view="documents">${t('Dokumen','Documents')}</button><button type="button" data-workspace-view="review">${currentUser.role==='mhs'?t('Tindak Lanjut','Follow-up'):t('Pemeriksaan','Review')}</button>`;
         toggle.hidden=currentUser.role!=='admin'&&!el('modal-case-detail').classList.contains('has-document-preview');syncToggle();
     }
-    function syncToggle(){const modal=el('modal-case-detail');el('workspace-view-toggle')?.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.workspaceView===(modal.dataset.workspaceView||'documents'))));}
+    function syncToggle(){const modal=el('modal-case-detail');el('workspace-view-toggle')?.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.workspaceView===(modal.dataset.workspaceView||'documents'))));syncContinue();}
+    // On a phone, while files are still unchecked on the Documents pane, continuing the check leads the footer.
+    // The decision buttons stay in their own labelled group with their usual eligibility and confirmation.
+    const phoneReview=matchMedia('(max-width:850px)');
+    function syncContinue(){
+        const modal=el('modal-case-detail'),footer=el('case-review-action-footer'),item=currentCase();if(!modal)return;
+        const pending=currentUser.role==='admin'&&supported===true&&item&&editable(item)&&editingId===String(item.id)?draft.filter(review=>review.status==='pending'):[];
+        const show=!!footer&&pending.length>0&&modal.style.display==='flex'&&modal.classList.contains('admin-review-mode')&&phoneReview.matches&&(modal.dataset.workspaceView||'documents')==='documents';
+        const row=footer&&[...footer.children].find(node=>node.id!=='review-continue');
+        if(row&&currentUser.role==='admin'&&item&&editable(item)){row.setAttribute('role','group');row.setAttribute('aria-label',t('Keputusan pengajuan','Request decision'));}
+        footer?.classList.toggle('has-review-continue',show);
+        let bar=el('review-continue');if(!show){bar?.remove();return;}
+        if(!bar){bar=document.createElement('div');bar.id='review-continue';bar.className='review-continue';}
+        const html=`<button type="button" class="btn-primary" data-review-continue>${t('Lanjutkan Pemeriksaan','Continue Review')}</button><p class="review-continue-note">${escapeHtml(t(`Berikutnya: ${documentText(pending[0].label||'')} · ${pending.length} belum diperiksa`,`Next: ${documentText(pending[0].label||'')} · ${pending.length} not reviewed`))}</p><p class="review-decision-label">${t('Keputusan pengajuan','Request decision')}</p>`;
+        if(bar.dataset.signature!==html){bar.innerHTML=html;bar.dataset.signature=html;}
+        if(bar.parentNode!==footer)footer.prepend(bar);
+    }
+    phoneReview.addEventListener('change',syncContinue);
+    const reviewCard=el('modal-case-detail')?.querySelector('.case-detail-card');if(reviewCard)new MutationObserver(syncContinue).observe(reviewCard,{childList:true});
     function previewReady(){syncSelection();const modal=el('modal-case-detail');modal.classList.add('has-document-preview');if(!modal.dataset.workspaceView)modal.dataset.workspaceView='documents';if(el('workspace-view-toggle'))el('workspace-view-toggle').hidden=false;syncToggle();const panel=el('case-file-preview'),content=el('case-detail-content');if(panel&&content&&!modal.classList.contains('admin-review-mode')&&modal.dataset.workspaceView==='documents')content.scrollTop+=panel.getBoundingClientRect().top-content.getBoundingClientRect().top;const review=el('document-review-tools');if(currentUser.role==='admin'&&review&&!modal.classList.contains('admin-review-mode'))document.querySelector('.case-action-column')?.prepend(review);}
     function archiveCandidates(){
         const from=el('archive-from')?.value||'',to=el('archive-to')?.value||'',type=el('archive-service')?.value||'';
@@ -267,6 +285,7 @@
         const usePage=event.target.closest('[data-use-pdf-page]'),removePage=event.target.closest('[data-remove-pdf-page]');
         if(usePage){const index=Number(usePage.dataset.usePdfPage),reference=currentPageReference(index);if(reference&&!samePage(reference,draft[index]?.pageRef)){draft[index].pageRef=reference;markChanged();}}
         if(removePage){const index=Number(removePage.dataset.removePdfPage);if(noteReferences&&!saving&&!isPreparingReviewDecision&&!isPreparingCorrection&&!activeUpdateIds.size&&editable(currentCase())&&editingId===String(currentCase()?.id)&&activeReviewIndex()===index&&draft[index]?.pageRef){delete draft[index].pageRef;markChanged();}}
+        if(event.target.closest('[data-review-continue]')){const index=draft.findIndex(review=>review.status==='pending');if(index>=0)openReview(index);return;}
         if(event.target.closest('[data-review-start]'))openReview(draft.findIndex(review=>review.status==='pending')<0?0:draft.findIndex(review=>review.status==='pending'));
         if(event.target.closest('[data-review-accept-rest]')&&!saving&&editable(currentCase())&&editingId===String(currentCase()?.id)){
             let changed=0;draft.forEach((review,index)=>{if(review.status==='pending'){review.status='accepted';changed++;const status=el('document-review-status-'+index);if(status)status.value='accepted';}});

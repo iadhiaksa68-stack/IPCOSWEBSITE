@@ -126,6 +126,11 @@
         const quick = document.createElement('div'); quick.className = 'workspace-quick-toggles';
         ['lang-btn','header-theme-toggle'].forEach(id => { const button = document.getElementById(id); if (button) quick.appendChild(button); });
         utilities.insertBefore(quick, profile);
+        // On phones the top bar keeps search, alerts and the account; language and theme move into the account menu.
+        const preferences = document.createElement('div'); preferences.className = 'profile-preferences'; preferences.setAttribute('role','group');
+        preferences.innerHTML = '<button type="button" id="profile-language" class="btn-secondary"></button><button type="button" id="profile-theme" class="btn-secondary" aria-pressed="false"></button>';
+        header.querySelector('.student-info-actions').before(preferences);
+        preferences.addEventListener('click', event => { if (event.target.closest('#profile-language')) toggleLanguage(); else if (event.target.closest('#profile-theme')) toggleDarkMode(); });
         const bottom = document.createElement('nav'); bottom.id = 'student-bottom-nav'; bottom.hidden = true;
         const items = [['dashboard','home','Beranda','Home'],['student-status','requests','Pengajuan','Requests'],['sop-magang','sop','SOP','SOP'],['menu','menu','Menu','Menu']];
         bottom.innerHTML = items.map(([target,name,id,en]) => '<button type="button" data-bottom-target="'+target+'">'+icon(name)+'<span data-label-id="'+id+'" data-label-en="'+en+'">'+text(id,en)+'</span></button>').join('');
@@ -180,6 +185,7 @@
         document.getElementById('admin-bottom-nav').setAttribute('aria-label',text('Navigasi admin','Admin navigation'));
         document.querySelector('[data-nav-group="management"]').closest('.nav-group').hidden = !auth || currentUser.role !== 'admin';
         document.getElementById('nav-backdrop').setAttribute('aria-label',text('Tutup menu','Close menu'));
+        document.querySelector('.profile-preferences')?.setAttribute('aria-label',text('Bahasa dan tampilan','Language and appearance'));
         document.querySelectorAll('[data-label-id]').forEach(el=>el.textContent=el.dataset[currentLang === 'en' ? 'labelEn' : 'labelId']);
         document.querySelector('.mobile-nav-toggle').setAttribute('aria-label',text('Buka menu navigasi','Open navigation menu'));
         document.getElementById('btn-toggle-sidebar').setAttribute('aria-label',text('Tampilkan atau sembunyikan menu','Show or hide menu'));

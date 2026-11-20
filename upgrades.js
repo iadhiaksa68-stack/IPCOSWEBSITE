@@ -26,6 +26,9 @@
         const critical = dosens.filter(row => { const max = Number(row.Maksimal), used = Number(row.Terpakai); return Number.isFinite(max) && max > 0 && Number.isFinite(used) && max - used <= 1; });
         return {incoming, doneToday, average, durations:durations.length, waiting:waiting.length, overdue, critical};
     }
+    // On a phone the work queue leads the home page; today's figures follow it.
+    const phoneHome = matchMedia('(max-width:850px)');
+    phoneHome.addEventListener('change', () => { if (currentUser.role === 'admin' && el('admin-today')) renderAdminHome(); });
     function renderAdminHome() {
         const home = el('task-home'), subtitle = el('admin-home-subtitle');
         if (currentUser.role !== 'admin' || !home) return;
@@ -35,7 +38,8 @@
             : t('Tidak ada pengajuan yang menunggu tinjauan.', 'No requests are awaiting review.');
         let panel = el('admin-today');
         if (!panel) { panel = document.createElement('section'); panel.id = 'admin-today'; panel.setAttribute('aria-label', t('Kondisi hari ini', 'Today at a glance')); }
-        if (panel.parentNode !== home) home.prepend(panel);
+        if (phoneHome.matches) { if (home.lastElementChild !== panel) home.append(panel); }
+        else if (home.firstElementChild !== panel) home.prepend(panel);
         const tile = (value, label, extra = '', tone = '') => `<div class="admin-today-tile${tone ? ' ' + tone : ''}"><strong>${value}</strong><span>${label}</span>${extra ? `<small>${extra}</small>` : ''}</div>`;
         const avg = s.average === null ? '—' : (s.average < 10 ? s.average.toFixed(1) : Math.round(s.average)) + ' ' + t('hari', 'days');
         panel.toggleAttribute('data-loading', loading);

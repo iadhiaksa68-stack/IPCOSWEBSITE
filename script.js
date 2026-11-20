@@ -535,9 +535,15 @@ function applyDatabaseSnapshot(data) {
             }
             isDbLoaded = true;
 
+            const noticeMeta = Array.isArray(data.contents) && data.contents.find(item => item?.Tipe === 'notice_meta');
+            if (noticeMeta && !(contentResponseVersions.has(data) && contentResponseVersions.get(data) !== contentPublicationVersion)) cachePublishedContent('notice_meta', noticeMeta.DataJSON);
             if (data.announcements && data.announcements.length > 0) {
                 const latest = data.announcements[data.announcements.length - 1];
-                if (currentUser.role === 'mhs') {
+                // An expired or archived notice is kept in the inbox Archive, never re-announced as a banner or pop-up.
+                if (currentUser.role === 'mhs' && window.IPCOSNotifications?.noticeActive?.(latest) === false) {
+                    const banner = document.getElementById('announcement-banner');
+                    if (banner) banner.style.display = 'none';
+                } else if (currentUser.role === 'mhs') {
                     const annType = latest.Tipe || latest.type;
                     const annId = latest.Id || latest.id || latest.date || latest.Tanggal || latest.Pesan || latest.message;
                     const bannerText = document.getElementById('announcement-text');
@@ -579,6 +585,7 @@ function applyDatabaseSnapshot(data) {
                     cachePublishedContent(item.Tipe, item.DataJSON);
                 });
                 renderDynamicContent();
+                window.IPCOSNotifications?.render();
             }
 
             if (currentUser.role === 'admin') {
@@ -682,7 +689,7 @@ function finalizeLogin(displayName, displayNim, role, token) {
     currentUser = { nim: displayNim, nama: displayName, role: role, token: token };
     const requestedSection = sectionFromUrl();
     historyNavigating = true; try { switchTab(null, 'dashboard'); } finally { historyNavigating = false; }
-    try { history.replaceState({ipcosTab:'dashboard'}, '', '#dashboard'); } catch (_) {}
+    try { history.replaceState({ipcosTab:'dashboard', ipcosIndex:historyIndex}, '', '#dashboard'); } catch (_) {}
     // A reload returns to the section the user was on, if this role may open it.
     if (requestedSection && requestedSection !== 'dashboard' && canAccessTab(requestedSection)) switchTab(null, requestedSection);
     const loginEpoch = sessionEpoch;
@@ -777,67 +784,7 @@ function renderNotifications() {
     renderTaskHome();
     window.IPCOSFileCenter?.render();
     window.IPCOSSearch?.refresh();
-    if (window.IPCOSNotifications) { window.IPCOSNotifications.render(); return; }
-    const listContainer = document.getElementById('notif-list-container');
-    const badgeEl = document.getElementById('notif-badge');
-    if (!listContainer) return;
-
-    const notifs = [];
-    const records = readStoredJSON(sessionStorage, 'ipcos_registrations', []);
-    records.forEach(rec => {
-        const status = String(rec.status || '').toLowerCase();
-        const isStudent = currentUser.role === 'mhs';
-        if (isStudent && !isStudentOwner(rec)) return;
-        if (isStudent && !['revision', 'accepted'].includes(status)) return;
-        if (!isStudent && currentUser.role === 'admin' && !['pending', 'resubmitted'].includes(status)) return;
-        if (!['mhs', 'admin'].includes(currentUser.role)) return;
-        const date = getCaseEventTime(rec);
-        notifs.push({
-            key: notificationHash(`${rec.id}:${status}:${date}`), caseId: String(rec.id), date,
-            type: status,
-            title: isStudent ? (status === 'revision' ? `${uxText('Perlu Revisi','Corrections needed')}: ${systemText(rec.jenis)}` : `${uxText('Disetujui','Approved')}: ${systemText(rec.jenis)}`)
-                : (status === 'resubmitted' ? `${uxText('Perbaikan Masuk','Corrections received')}: ${systemText(rec.jenis)}` : `${uxText('Pengajuan Baru','New request')}: ${systemText(rec.jenis)}`),
-            text: isStudent ? caseNextStep(rec) : `${rec.nama} — ${caseNextStep(rec)}`,
-            tab: isStudent ? 'student-status' : 'admin-data'
-        });
-    });
-
-    const announcements = readStoredJSON(sessionStorage, 'ipcos_announcements', []);
-    announcements.slice(-5).reverse().forEach(ann => {
-        notifs.push({
-            key: notificationHash(`announcement:${ann.Id || ann.date || ann.Tanggal || ann.Pesan || ann.message}`),
-            type: 'broadcast',
-            title: uxText('Pengumuman Akademik','Academic announcement'),
-            text: ann.Pesan || ann.message || uxText('Pengumuman baru dari Administrator IPCOS','New announcement from IPCOS admin'),
-            date: ann.date || ann.Tanggal || new Date().toISOString(),
-            tab: 'dashboard'
-        });
-    });
-
-    notifs.sort((a, b) => displayDate(b.date).getTime() - displayDate(a.date).getTime());
-    currentNotificationIds = notifs.map(n => n.key);
-    const readIds = getReadNotificationIds();
-    const unreadCount = notifs.filter(n => !readIds.includes(n.key)).length;
-
-    if (notifs.length === 0) {
-        listContainer.innerHTML = `<div style="padding: 20px; font-size: 13px; color: var(--text-muted); text-align: center;" class="lang" data-id="Belum ada notifikasi baru." data-en="No new notifications.">Belum ada notifikasi baru.</div>`;
-        if (badgeEl) badgeEl.style.display = 'none';
-    } else {
-        if (badgeEl) {
-            badgeEl.innerText = unreadCount;
-            badgeEl.style.display = unreadCount ? 'flex' : 'none';
-        }
-        listContainer.innerHTML = notifs.map(n => `
-            <button type="button" class="notif-item ${readIds.includes(n.key) ? 'is-read' : ''}" onclick="openNotification(${escapeHtml(JSON.stringify(n.key))}, ${escapeHtml(JSON.stringify(n.caseId || ''))}, ${escapeHtml(JSON.stringify(n.tab))})">
-                <div style="font-weight: 700; font-size: 13px; color: var(--heading-color); margin-bottom: 3px; display:flex; align-items:center; gap:6px;">
-                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${n.type === 'revision' ? 'var(--umy-maroon)' : n.type === 'accepted' ? 'var(--umy-green)' : 'var(--umy-gold)'};"></span>
-                    ${escapeHtml(n.title)}
-                </div>
-                <div style="font-size: 12px; color: var(--text-color); margin-bottom: 4px; line-height: 1.4;">${escapeHtml(n.text)}</div>
-                <div style="font-size: 10px; color: var(--text-muted);">${timeAgo(n.date)}</div>
-            </button>
-        `).join('');
-    }
+    window.IPCOSNotifications?.render();
 }
 
 let currentNotificationIds = [];
@@ -854,15 +801,7 @@ function getReadNotificationIds() {
 function saveReadNotificationIds(ids) {
     try { localStorage.setItem(notificationReadKey(), JSON.stringify([...new Set(ids)].filter(id=>typeof id==='string'))); } catch (_) {}
 }
-function openNotification(key, caseId, tabName) {
-    if (typeof window !== 'undefined' && window.IPCOSNotifications) return window.IPCOSNotifications.open(key);
-    if (!switchTab(null, tabName)) return;
-    saveReadNotificationIds([...getReadNotificationIds(), key]);
-    renderNotifications();
-    const dropdown = document.getElementById('notif-dropdown');
-    if (dropdown) dropdown.style.display = 'none';
-    if (caseId) openCaseDetail(caseId);
-}
+function openNotification(key) { return window.IPCOSNotifications?.open(key) ?? false; }
 
 function toggleNotifDropdown(e) {
     if (e) e.stopPropagation();
@@ -874,12 +813,7 @@ function toggleNotifDropdown(e) {
     }
 }
 
-function markAllNotificationsRead() {
-    if (!getSessionToken() || !['mhs','admin'].includes(currentUser.role)) return;
-    saveReadNotificationIds([...getReadNotificationIds(), ...currentNotificationIds]);
-    renderNotifications();
-    showToast(currentLang === 'id' ? 'Semua notifikasi ditandai dibaca' : 'All notifications marked as read', 'success');
-}
+function markAllNotificationsRead() { return window.IPCOSNotifications?.markVisible() ?? false; }
 
 document.addEventListener('click', (e) => {
     const wrapper = document.getElementById('notif-wrapper');
@@ -1286,10 +1220,20 @@ function studentHomeAction(records = readStoredJSON(sessionStorage, 'ipcos_regis
     if (revision) return {kind:'revision', id:String(revision.id), label:uxText('Lanjutkan Revisi','Continue Corrections')};
     const draft = readStoredJSON(sessionStorage, 'ipcos_form_draft', {});
     const type = draft['reg-jenis-utama'] || draft.jenis;
-    if (draft.ownerNim === currentUser.nim && SERVICE_TYPES.includes(type) && !active.some(item => item.jenis === type))
-        return {kind:'draft', label:uxText('Lanjutkan Draf','Continue Draft')};
+    if (draft.ownerNim === currentUser.nim && SERVICE_TYPES.includes(type) && !active.some(item => item.jenis === type)) {
+        const step = draftResumeStep(type, draft);
+        return {kind:'draft', type, step, label: step === 'data' ? uxText('Lanjutkan isian','Continue details') : step === 'review' ? uxText('Periksa & kirim','Review & send') : uxText('Lanjutkan ke berkas','Continue to files')};
+    }
     if (active.length) return {kind:'case', id:String(active[0].id), label:uxText('Lihat Pengajuan','View Request')};
     return {kind:'new', label:uxText('Buat Pengajuan','New Request')};
+}
+// A saved draft resumes at its first unfinished step. Selected files live only in this tab,
+// so after a reload the files step is next; the wizard re-checks each prerequisite on arrival.
+function draftResumeStep(type, draft) {
+    if (!registrationTextSpecs(type).every(([id]) => String(draft[id] || '').trim())) return 'data';
+    const select = document.getElementById('reg-jenis-utama');
+    if (select?.value === type && registrationFilesTotal(type) <= REGISTRATION_TOTAL_LIMIT && registrationRequirements(type).every(item => item.ready)) return 'review';
+    return 'files';
 }
 function continueStudentHome() {
     if (currentUser.role !== 'mhs' || !getSessionToken()) return false;
@@ -1297,7 +1241,8 @@ function continueStudentHome() {
     // behind that modal, and programmatic callers must respect the same state.
     if (caseEditorDirty() || isPreparingCorrection || activeUpdateIds.has(selectedCaseId)) return false;
     const action = studentHomeAction();
-    if (action.kind === 'new' || action.kind === 'draft') return switchTab(null, 'pendaftaran');
+    if (action.kind === 'new') return switchTab(null, 'pendaftaran');
+    if (action.kind === 'draft') { if (!switchTab(null, 'pendaftaran')) return false; window.IPCOSRegistration?.navigate(action.step); return true; }
     if (!switchTab(null, 'student-status')) return false;
     const origin = [...document.querySelectorAll('#student-status [data-case-id]')].find(button => String(button.dataset.caseId) === action.id && !button.disabled && button.getClientRects().length);
     origin?.focus({preventScroll:true});
@@ -1327,8 +1272,8 @@ function renderStudentHome(home, records) {
     const revisions = records.filter(item=>state(item)==='revision').length;
     const waiting = records.filter(item=>['pending','resubmitted'].includes(state(item))).length;
     const completed = records.filter(item=>state(item)==='accepted').length;
-    const heading = action.kind==='revision' ? uxText('Ada perbaikan untuk Anda','Your corrections are needed') : action.kind==='draft' ? uxText('Draf Anda siap dilanjutkan','Your draft is ready to continue') : action.kind==='case' ? uxText('Pengajuan Anda sedang diperiksa','Your request is under review') : uxText('Siap untuk langkah berikutnya?','Ready for your next step?');
-    const description = focus ? caseNextStep(focus) : action.kind==='draft' ? uxText('Lanjutkan isian yang tersimpan, lalu periksa kembali sebelum mengirim.','Continue your saved details, then review them before submitting.') : uxText('Pilih layanan akademik dan siapkan berkas sebelum mengirim pengajuan.','Choose an academic service and prepare your files before submitting a request.');
+    const heading = action.kind==='revision' ? uxText('Ada perbaikan untuk Anda','Your corrections are needed') : action.kind==='draft' ? uxText(`Draf ${systemText(action.type)}`,`${systemText(action.type)} draft`) : action.kind==='case' ? uxText('Pengajuan Anda sedang diperiksa','Your request is under review') : uxText('Siap untuk langkah berikutnya?','Ready for your next step?');
+    const description = focus ? caseNextStep(focus) : action.kind==='draft' ? (action.step === 'data' ? uxText('Lengkapi isian yang belum ada, lalu pilih berkas.','Complete the missing details, then choose your files.') : action.step === 'review' ? uxText('Isian dan berkas sudah lengkap. Periksa ringkasan sebelum mengirim.','Details and files are complete. Check the summary before sending.') : uxText('Data sudah tersimpan. Berikutnya pilih berkas; berkas perlu dipilih ulang setelah halaman dimuat ulang.','Your details are saved. Next, choose your files; files must be selected again after a page reload.')) : uxText('Pilih layanan akademik dan siapkan berkas sebelum mengirim pengajuan.','Choose an academic service and prepare your files before submitting a request.');
     home.classList.add('student-dashboard');
     home.innerHTML = `<section class="student-next-step" aria-labelledby="student-next-title"><div class="student-next-copy"><span class="student-eyebrow">${uxText('LANGKAH BERIKUTNYA','YOUR NEXT STEP')}</span><h2 id="student-next-title">${heading}</h2>${focus ? `<p class="student-focus-service">${escapeHtml(systemText(focus.jenis))}</p>` : ''}<p>${escapeHtml(description)}</p><button type="button" class="btn-primary" data-student-home-action onclick="continueStudentHome()">${action.label}<span aria-hidden="true"> →</span></button></div><div class="student-next-context">${focus ? studentProgressHtml(focus) : `<strong>${uxText('Satu tempat untuk progres Anda','One place for your progress')}</strong><p>${uxText('Pengajuan, berkas, dan catatan admin tetap terhubung.','Your requests, files, and admin notes stay connected.')}</p>`}</div></section>${records.length ? `
     ${records.length<3?'':`<dl class="student-overview" aria-label="${uxText('Ringkasan pengajuan','Request overview')}">${[[revisions,uxText('Perlu perbaikan','Needs corrections')],[waiting,uxText('Dalam pemeriksaan','Under review')],[completed,uxText('Selesai diverifikasi','Verified')]].map(([count,label])=>`<div><dt>${label}</dt><dd>${count}</dd></div>`).join('')}</dl>`}
@@ -2021,6 +1966,8 @@ window.addEventListener('ipcos:logout',()=>{editorTempData=[];contentSaving=fals
 
 function openContentEditor(type, replaceDraft = false) {
     if(currentUser.role!=='admin'||contentSaving||!['magang','skripsi','kurikulum','remidial','kalender','template_berkas','faq'].includes(type))return;
+    // The studio is admin-only and loads the first time an editor opens.
+    if(!window.IPCOSContentStudio&&window.loadContentStudio){const epoch=sessionEpoch;showLoader();window.loadContentStudio().then(()=>{if(epoch===sessionEpoch&&currentUser.role==='admin'&&window.IPCOSContentStudio)openContentEditor(type,replaceDraft);}).catch(error=>{if(epoch===sessionEpoch)showToast(error.message,'error');}).finally(()=>{if(epoch===sessionEpoch)hideLoader();});return;}
     if(!replaceDraft&&contentEditorDirty()&&!confirm(uxText('Ganti konten dan tinggalkan perubahan yang belum disimpan?','Switch content and discard unsaved changes?')))return;
     editorCurrentType = type;
     editorTempData = JSON.parse(JSON.stringify(getChecklistData(type)));
@@ -2045,18 +1992,10 @@ function openContentEditor(type, replaceDraft = false) {
     modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; }, 10);
 }
 
+// The content studio (loaded before any editor opens) renders and translates the editor.
 function refreshContentEditorLanguage(){
     if(document.getElementById('modal-edit-content').style.display!=='flex'||contentSaving)return;
-    if(window.IPCOSContentStudio){window.IPCOSContentStudio.render();return;}
-    const container=document.getElementById('editor-ui-container'),active=document.activeElement;
-    const key=container.contains(active)?active.getAttribute('oninput')||active.getAttribute('onchange'):null;
-    const selection=key?{start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
-    const expanded=[...container.querySelectorAll('details')].map(el=>el.open),scroll=container.closest('.content-editor-body').scrollTop;
-    renderEditorUI();container.querySelectorAll('details').forEach((el,i)=>el.open=!!expanded[i]);
-    document.getElementById('editor-modal-title').textContent=systemText(document.getElementById('editor-modal-title').dataset.sourceTitle||'Edit Konten');
-    const replacement=key?[...container.querySelectorAll('input,textarea,select')].find(el=>(el.getAttribute('oninput')||el.getAttribute('onchange'))===key):null;
-    if(replacement){replacement.focus({preventScroll:true});if(selection.start!==null&&selection.start!==undefined&&typeof replacement.setSelectionRange==='function')replacement.setSelectionRange(selection.start,selection.end,selection.direction);}
-    container.closest('.content-editor-body').scrollTop=scroll;
+    window.IPCOSContentStudio?.render();
 }
 
 function preparationEditorLinks(group, groupIndex, itemIndex = -1) {
@@ -2095,39 +2034,7 @@ function editPreparationMeta(scope,groupIndex,itemIndex,field,value) {
     else target[field]=String(value);
 }
 
-function renderEditorUI() {
-    if(window.IPCOSContentStudio){window.IPCOSContentStudio.render();return;}
-    const container = document.getElementById('editor-ui-container');
-    let html = '';
-
-    editorTempData.forEach((group, gIdx) => {
-        html += `<div class="card" style="padding: 15px; margin-bottom: 15px; box-shadow:none; border:1px solid var(--item-border);">
-            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <input type="text" value="${escapeHtml(group.title)}" oninput="editorTempData[${gIdx}].title = this.value" style="font-weight:bold; flex: 1; margin-bottom:0;" placeholder="${uxText('Judul Kategori Utama','Category title')}">
-                <button class="action-btn btn-rev" onclick="removeContentGroup(${gIdx})">${uxText('Hapus Kategori','Delete category')}</button>
-            </div>
-            <label class="editor-translation-label">${uxText('Judul kategori dalam English (opsional)', 'Category title in English (optional)')}<input type="text" value="${escapeHtml(group.titleEn || '')}" oninput="editorTempData[${gIdx}].titleEn = this.value"></label>
-            ${preparationEditorLinks(group,gIdx)}<div style="margin-left: 10px; border-left: 2px solid var(--item-border); padding-left: 10px;">`;
-
-        group.items.forEach((item, iIdx) => {
-            html += `<div style="display:flex; gap:8px; margin-bottom: 10px; align-items:center;">
-                <div style="flex-grow:1;">
-                    <input type="text" value="${escapeHtml(item.text)}" placeholder="${uxText('Data Utama','Main text')}" oninput="editorTempData[${gIdx}].items[${iIdx}].text = this.value" style="margin-bottom:5px; padding: 10px;">
-                    <input type="text" value="${escapeHtml(item.sub)}" placeholder="${uxText('Deskripsi/Detail','Description / Details')}" oninput="editorTempData[${gIdx}].items[${iIdx}].sub = this.value" style="margin-bottom:0; padding: 10px; font-size:13px;">
-                </div>
-                <button class="action-btn btn-rev" onclick="removeContentItem(${gIdx}, ${iIdx})" style="height: 40px; padding: 0 12px;">X</button>
-            </div><details class="editor-translations"><summary>${uxText('English untuk mahasiswa internasional (opsional)', 'English for international students (optional)')}</summary><div class="details-content"><label>${uxText('Teks English','English text')}<input type="text" value="${escapeHtml(item.textEn || '')}" oninput="editorTempData[${gIdx}].items[${iIdx}].textEn = this.value"></label>${editorCurrentType !== 'template_berkas' ? `<label>${uxText('Detail English','English details')}<textarea rows="2" oninput="editorTempData[${gIdx}].items[${iIdx}].subEn = this.value">${escapeHtml(item.subEn || '')}</textarea></label>` : ''}</div></details>${preparationEditorLinks(group,gIdx,iIdx)}`;
-        });
-
-        html += `<button class="action-btn btn-acc" onclick="addContentItem(${gIdx})" style="width:auto; margin-top:5px;">${uxText('+ Tambah Item','+ Add item')}</button>
-            </div></div>`;
-    });
-
-    html += `<button class="btn-secondary" style="background:var(--umy-gold); color:black; width:100%; margin-top: 10px;" onclick="addContentGroup()">${uxText('+ Tambah Kategori Baru','+ Add category')}</button>`;
-
-    container.innerHTML = html;
-    bindLanguageBlock(container);
-}
+function renderEditorUI() { window.IPCOSContentStudio?.render(); }
 
 function canEditContent(){return currentUser.role==='admin'&&!!getSessionToken()&&!contentSaving&&document.getElementById('modal-edit-content').style.display==='flex';}
 function addContentGroup() { if(!canEditContent())return;editorTempData.push({ title: uxText('Kategori Baru','New Category'), items: [] }); renderEditorUI();window.IPCOSContentStudio?.addedGroup();document.getElementById('studio-'+(editorTempData.length-1)+'--1-title')?.focus(); }
@@ -2617,8 +2524,13 @@ function setAdminQueueFilter(value) {
     filterAdminData();
 }
 
+// Open work says Review; settled or student-side cases say View Details. Checkboxes name the student and request.
+function adminQueueAction(item) {
+    return ['pending','resubmitted'].includes(String(item.status || '').trim().toLowerCase()) ? uxText('Periksa Pengajuan','Review Request') : uxText('Lihat Rincian','View Details');
+}
+function adminQueueSelectLabel(item) { return uxText('Pilih ','Select ') + `${item.nama || ''} · ${item.id}`; }
 function adminQueueCard(item) {
-    return `<article class="case-mobile-card queue-request-card" data-queue-case="${escapeHtml(item.id)}"><label class="bulk-mobile-check"><input type="checkbox" data-bulk-id="${escapeHtml(item.id)}"> ${uxText('Pilih','Select')}</label><div class="queue-row-identity"><div><strong>${escapeHtml(item.nama)}</strong><span>${escapeHtml(item.nim)}</span></div><time>${escapeHtml(formatDate(getCaseEventTime(item)))}</time></div><p class="queue-request-service">${escapeHtml(systemText(item.jenis))}</p>${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}<button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${uxText('Periksa Pengajuan','Review Request')} <span aria-hidden="true">→</span></button></article>`;
+    return `<article class="case-mobile-card queue-request-card" data-queue-case="${escapeHtml(item.id)}"><label class="bulk-mobile-check"><input type="checkbox" data-bulk-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(adminQueueSelectLabel(item))}"> ${uxText('Pilih','Select')}</label><div class="queue-row-identity"><div><strong>${escapeHtml(item.nama)}</strong><span>${escapeHtml(item.nim)}</span></div><time>${escapeHtml(formatDate(getCaseEventTime(item)))}</time></div><p class="queue-request-service">${escapeHtml(systemText(item.jenis))}</p>${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}<button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${adminQueueAction(item)} <span aria-hidden="true">→</span></button></article>`;
 }
 
 function renderAdminTable() {
@@ -2655,12 +2567,12 @@ function renderAdminTable() {
 
     paginatedItems.forEach(item => {
         tbody.innerHTML += `<tr data-queue-case="${escapeHtml(item.id)}">
-            <td class="bulk-cell"><input type="checkbox" data-bulk-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(uxText('Pilih pengajuan ','Select request from ')+item.nama)}"></td>
+            <td class="bulk-cell"><input type="checkbox" data-bulk-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(adminQueueSelectLabel(item))}"></td>
             <td style="font-size:13px;">${formatDateTime(getCaseEventTime(item))}</td>
             <td><strong>${escapeHtml(item.nama)}</strong><br><small>${escapeHtml(item.nim)}</small></td>
             <td><strong>${escapeHtml(systemText(item.jenis))}</strong></td>
             <td>${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`}</td>
-            <td><button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${uxText('Periksa','Review')} <span aria-hidden="true">→</span></button></td>
+            <td><button type="button" class="btn-secondary queue-open-request" data-case-id="${escapeHtml(item.id)}">${adminQueueAction(item)} <span aria-hidden="true">→</span></button></td>
         </tr>`;
     });
     applyDynamicLanguage();
@@ -2925,6 +2837,9 @@ function closeModal(modalId, force = false) {
 }
 function syncThemeControl() {
     const dark = document.body.classList.contains('dark-mode');
+    const profileTheme = document.getElementById('profile-theme'), profileLanguage = document.getElementById('profile-language');
+    if (profileTheme) { profileTheme.setAttribute('aria-pressed', String(dark)); profileTheme.textContent = uxText(`Mode gelap · ${dark ? 'Aktif' : 'Mati'}`, `Dark mode · ${dark ? 'On' : 'Off'}`); }
+    if (profileLanguage) { profileLanguage.textContent = uxText('Bahasa: Indonesia · Ganti ke English', 'Language: English · Switch to Indonesian'); profileLanguage.lang = currentLang; }
     for (const button of [document.getElementById('login-theme-toggle'), document.getElementById('header-theme-toggle')]) {
         if (!button) continue;
         button.setAttribute('aria-pressed', String(dark));
@@ -2951,8 +2866,37 @@ function canAccessTab(tabId) {
 }
 // Browser Back and Forward move between portal sections. The URL only ever carries a section name,
 // never a student number, request ID or document link; access is still checked by canAccessTab.
-let historyNavigating = false;
+let historyNavigating = false, historyIndex = 0;
+const sectionFocus = new Map();
 try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (_) {}
+// The browser tab names the open page, e.g. "Notifikasi · IPCOS UMY".
+function portalPageTitle() {
+    const id = getSessionToken() && document.querySelector('.tab-content.active')?.id;
+    const nav = id && document.querySelector(`.nav-item[data-nav-target="${id}"]`);
+    const name = nav ? nav.dataset[currentLang === 'en' ? 'en' : 'id'] || nav.textContent : id ? document.getElementById(id).querySelector('h1')?.textContent : '';
+    return name ? `${String(name).replace(/\s+/g, ' ').trim()} · IPCOS UMY` : '';
+}
+function syncDocumentTitle() { document.title = portalPageTitle() || uxText('IPCOS UMY — Portal Akademik', 'IPCOS UMY — Academic Portal'); }
+// Back returns to the control that left a page (a notification, a queue row); Forward lands on the page heading.
+function rememberSectionFocus() {
+    const leaving = document.querySelector('.tab-content.active'), active = document.activeElement;
+    if (!leaving || !active || active === document.body || !leaving.contains(active)) return;
+    const row = active.closest('[data-notification-key],[data-queue-case],[data-case-id]');
+    sectionFocus.set(leaving.id, { node: active, id: active.id, key: row ? row.dataset.notificationKey || row.dataset.queueCase || row.dataset.caseId || '' : '', action: active.dataset.notificationAction || '' });
+}
+function focusAfterHistory(tabId, back) {
+    const section = document.getElementById(tabId), saved = back ? sectionFocus.get(tabId) : null;
+    if (!section) return;
+    const visible = node => node && node.isConnected && section.contains(node) && node.getClientRects().length && !node.disabled;
+    let target = visible(saved?.node) ? saved.node : null;
+    if (!target && saved?.key) {
+        const row = [...section.querySelectorAll('[data-notification-key],[data-queue-case],[data-case-id]')].find(node => [node.dataset.notificationKey, node.dataset.queueCase, node.dataset.caseId].includes(saved.key));
+        target = row && (row.matches('button') ? row : row.querySelector(saved.action ? `[data-notification-action="${saved.action}"]` : 'button'));
+    }
+    if (!target && saved?.id) target = document.getElementById(saved.id);
+    if (!visible(target)) { target = section.querySelector('h1'); if (target && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1'); }
+    requestAnimationFrame(() => { if (document.getElementById(tabId)?.classList.contains('active')) target?.focus({ preventScroll: true }); });
+}
 function sectionFromUrl() {
     let id = '';
     try { id = decodeURIComponent(location.hash.slice(1)); } catch (_) { return ''; }
@@ -2961,8 +2905,8 @@ function sectionFromUrl() {
 function syncSectionUrl(tabId) {
     if (historyNavigating || !getSessionToken()) return;
     try {
-        if (!history.state?.ipcosTab) history.replaceState({ipcosTab:tabId}, '', '#' + tabId);
-        else if (history.state.ipcosTab !== tabId || location.hash !== '#' + tabId) history.pushState({ipcosTab:tabId}, '', '#' + tabId);
+        if (!history.state?.ipcosTab) history.replaceState({ipcosTab:tabId, ipcosIndex:historyIndex}, '', '#' + tabId);
+        else if (history.state.ipcosTab !== tabId || location.hash !== '#' + tabId) { historyIndex = (Number.isFinite(history.state.ipcosIndex) ? history.state.ipcosIndex : historyIndex) + 1; history.pushState({ipcosTab:tabId, ipcosIndex:historyIndex}, '', '#' + tabId); }
     } catch (_) {}
 }
 function clearSectionUrl() {
@@ -2973,11 +2917,13 @@ window.addEventListener('popstate', event => {
     // In-page anchors (SOP contents, sections) also fire popstate; only section entries move the portal.
     const tab = event.state?.ipcosTab || sectionFromUrl(), active = document.querySelector('.tab-content.active')?.id;
     if (!tab || !active || tab === active) return;
+    const index = event.state?.ipcosIndex, back = Number.isFinite(index) ? index < historyIndex : true;
     // Back never closes an open dialog behind the user's back; finish or close it first.
     const dialogOpen = [...document.querySelectorAll('.overlay,.overlay-dialog')].some(node => !['welcome-modal','loader'].includes(node.id) && getComputedStyle(node).display !== 'none');
     let moved = false;
     if (!dialogOpen) { historyNavigating = true; try { moved = switchTab(null, tab); } finally { historyNavigating = false; } }
-    if (!moved) { try { history.pushState({ipcosTab:active}, '', '#' + active); } catch (_) {} }
+    if (moved) { if (Number.isFinite(index)) historyIndex = index; focusAfterHistory(tab, back); }
+    else { try { historyIndex++; history.pushState({ipcosTab:active, ipcosIndex:historyIndex}, '', '#' + active); } catch (_) {} }
 });
 function switchTab(event, tabId) {
     const target = document.getElementById(tabId);
@@ -2989,7 +2935,9 @@ function switchTab(event, tabId) {
     if (tabId === 'dashboard') renderTaskHome();
     if (tabId === 'notifications') window.IPCOSNotifications?.render();
     if (tabId === 'feedback') window.IPCOSHelp?.render();
+    if (tabId === 'admin-master') window.loadNoticeAdmin?.();
     if (tabId === 'student-files') window.IPCOSFileCenter?.render();
+    rememberSectionFocus();
     window.IPCOSExperience?.beforeTab(tabId);
     document.body.classList.toggle('transaction-view', ['dashboard', 'pendaftaran', 'student-status', 'admin-data'].includes(tabId));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -3015,6 +2963,7 @@ function switchTab(event, tabId) {
         }
     }
     syncSectionUrl(tabId);
+    syncDocumentTitle();
     return true;
 }
 
@@ -3193,6 +3142,11 @@ async function postAnnouncement(customMsg = null, customType = null) {
     const msg = customMsg !== null ? customMsg : (masterInput ? masterInput.value.trim() : '');
 
     if (!msg) { showToast("Pesan pengumuman tidak boleh kosong!", "error"); return false; }
+    // The Master Data form also names the notice and may tie it to a service and an end date.
+    const subjectInput = document.getElementById('input-broadcast-subject'), serviceInput = document.getElementById('input-broadcast-service'), expiresInput = document.getElementById('input-broadcast-expires');
+    const details = customMsg === null && subjectInput ? { subject: subjectInput.value.trim(), service: serviceInput?.value || '', expires: expiresInput?.value || '' } : null;
+    if (details && !details.subject) { showToast(uxText('Isi subjek singkat pengumuman.', 'Enter a short subject for the notice.'), 'error'); subjectInput.focus(); return false; }
+    if (details?.expires && details.expires < new Date(Date.now() + 25200000).toISOString().slice(0, 10)) { showToast(uxText('Tanggal berlaku sudah lewat. Pilih hari ini atau sesudahnya.', 'The valid-until date has passed. Choose today or later.'), 'error'); expiresInput.focus(); return false; }
 
     postingAnnouncement = true;
     const requestEpoch = sessionEpoch;
@@ -3209,9 +3163,16 @@ async function postAnnouncement(customMsg = null, customType = null) {
         });
 
         if (requestEpoch !== sessionEpoch || requestToken !== getSessionToken()) return false;
-        showToast("Pengumuman berhasil disebarkan!", "success");
+        let detailsSaved = true;
+        if (details && window.IPCOSNoticeAdmin) {
+            try { await window.IPCOSNoticeAdmin.saveNotice(msg, details); }
+            catch (error) { if (error.staleSession) return false; detailsSaved = false; }
+            if (requestEpoch !== sessionEpoch || requestToken !== getSessionToken()) return false;
+        }
+        showToast(detailsSaved ? "Pengumuman berhasil disebarkan!" : uxText('Pengumuman terkirim, tetapi subjek dan tanggalnya belum tersimpan. Atur dari Kelola Pengumuman Terbit.', 'The notice was sent, but its subject and dates were not saved. Set them in Manage Published Notices.'), detailsSaved ? "success" : "error");
 
         const unchangedDraft = customMsg === null && masterInput?.value.trim() === msg;
+        if (unchangedDraft && details && subjectInput.value.trim() === details.subject) { subjectInput.value = ''; if (serviceInput) serviceInput.value = ''; if (expiresInput) expiresInput.value = ''; }
         if (unchangedDraft) masterInput.value = '';
         if (unchangedDraft && customType === null && checkImportant?.checked === (annType === 'important')) checkImportant.checked = false;
 
@@ -3228,17 +3189,8 @@ async function postAnnouncement(customMsg = null, customType = null) {
 // ==========================================
 // 16. CRUD MASTER MAHASISWA & BROADCAST
 // ==========================================
-function renderMasterMahasiswa(students) {
-    if (window.IPCOSMaster) { window.IPCOSMaster.render(students); return; }
-    const tbody = document.getElementById('table-master-mhs');
-    if (!tbody) return; tbody.innerHTML = '';
-    students.slice().reverse().forEach(s => {
-        const statusMhs = s.Status || s.status || "Aktif"; let badgeClass = "badge-accepted";
-        if (statusMhs.toLowerCase() === "tidak aktif") badgeClass = "badge-revision"; else if (statusMhs.toLowerCase() === "lulus") badgeClass = "badge-resubmitted";
-        tbody.innerHTML += `<tr><td><b>${escapeHtml(s.NIM)}</b></td><td>${escapeHtml(s.Nama)}</td><td><span class="status-badge ${badgeClass}">${escapeHtml(systemText(statusMhs))}</span></td><td data-academic-nim="${escapeHtml(String(s.NIM??s.nim))}"></td><td><button class="action-btn btn-rev" onclick="deleteStudent(${escapeHtml(JSON.stringify(String(s.NIM)))})">${uxText('Hapus','Delete')}</button></td></tr>`;
-    });
-    window.IPCOSAcademic?.render();
-}
+// Data & Layanan Admin (master-ui.js) renders the student table.
+function renderMasterMahasiswa(students) { window.IPCOSMaster?.render(students); }
 
 let masterMutationBusy = false;
 function masterFeedback(kind,id,en,type='error') { window.IPCOSMaster?.feedback(type,id,en); showToast(uxText(id,en),type); }
@@ -3319,44 +3271,8 @@ function closeAnnouncementModal() {
 // ==========================================
 // FITUR BARU: MANAJEMEN PLOTTING DOSEN
 // ==========================================
-function renderDosenTable() {
-    if (window.IPCOSSupervisors) { window.IPCOSSupervisors.render(); return; }
-    const tbody = document.getElementById('table-admin-dosen');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    const dosens = readStoredJSON(sessionStorage, 'ipcos_dosens', []);
-
-    dosens.sort((a, b) => {
-        const sisaA = parseInt(a.Maksimal) - parseInt(a.Terpakai);
-        const sisaB = parseInt(b.Maksimal) - parseInt(b.Terpakai);
-        return sisaB - sisaA;
-    });
-
-    dosens.forEach(d => {
-        const nama = d.Nama;
-        const terpakai = parseInt(d.Terpakai) || 0;
-        const maksimal = parseInt(d.Maksimal) || 0;
-        const sisa = maksimal - terpakai;
-
-        let statusBadge = `<span class="status-badge badge-accepted">${uxText('Tersedia', 'Available')} (${sisa})</span>`;
-        if (sisa <= 0) statusBadge = `<span class="status-badge badge-revision">${uxText('Penuh','Full')}</span>`;
-        else if (sisa <= 2) statusBadge = `<span class="status-badge badge-pending">${uxText('Hampir Penuh','Nearly full')}</span>`;
-
-        tbody.innerHTML += `
-            <tr>
-                <td><b>${escapeHtml(nama)}</b></td>
-                <td style="text-align: center; font-size: 16px; font-weight: bold;">${terpakai}</td>
-                <td style="text-align: center;">${maksimal}</td>
-                <td style="text-align: center;">${statusBadge}</td>
-                <td>
-                    <button class="action-btn" style="background: var(--item-hover); border: 1px solid var(--item-border);" onclick="openEditDosen(${escapeHtml(JSON.stringify(nama))}, ${terpakai}, ${maksimal})">Edit</button>
-                    <button class="action-btn btn-rev" onclick="deleteDosen(${escapeHtml(JSON.stringify(nama))})">${uxText('Hapus','Delete')}</button>
-                </td>
-            </tr>
-        `;
-    });
-}
+// The supervisor page (supervisor-ui.js) renders the quota table.
+function renderDosenTable() { window.IPCOSSupervisors?.render(); }
 
 function populateDospemDropdown() {
     const select = document.getElementById('input-dospem-select');

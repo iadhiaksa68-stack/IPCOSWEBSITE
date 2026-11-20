@@ -114,6 +114,8 @@ body.dark-mode .btn-primary:hover { background:#7e1934; }
 .btn-secondary { background:var(--card-bg); border:1px solid var(--item-border); color:var(--text-color); padding:10px 14px; }
 input:not([type="checkbox"]),select,textarea { border:1px solid var(--item-border); background:var(--input-bg); border-radius:8px; color:var(--text-color); font-size:13px; box-shadow:none; }
 input:focus,select:focus,textarea:focus { border-color:#b57185; box-shadow:0 0 0 3px rgb(159 36 66 / 8%); outline:none; }
+/* Every dropdown shows its caret in both themes; module rules that reset the background no longer hide it. */
+select:not([multiple]):not([size]) { background-image:linear-gradient(45deg,transparent 50%,var(--text-muted) 50%),linear-gradient(135deg,var(--text-muted) 50%,transparent 50%)!important; background-position:right 20px center,right 15px center!important; background-size:5px 5px,5px 5px!important; background-repeat:no-repeat!important; }
 input::placeholder,textarea::placeholder { color:#8a909e; }
 button:disabled { opacity:.55; cursor:wait; }
 .status-badge { font-size:10px; font-weight:600; border-radius:6px; padding:5px 9px; border:1px solid transparent; }
@@ -212,7 +214,7 @@ body.dark-mode .badge-accepted { background:#22372b; color:#a6d9b7; border-color
 /* Compact vector icons: no icon font, library, or extra network requests. */
 .nav-item.active::before { opacity:1; }
 .notification-toggle { color:var(--text-color); cursor:pointer; display:grid; place-items:center; }
-.workspace-toolbar button[aria-label="Cari"],.notification-toggle { width:44px!important; height:44px!important; min-height:44px!important; border-radius:10px!important; }
+.workspace-toolbar .header-search,.notification-toggle { width:44px!important; height:44px!important; min-height:44px!important; flex-shrink:0!important; border-radius:10px!important; }
 .mobile-nav-toggle { font:inherit; min-height:44px; cursor:pointer; }
 .sidebar .logo-area > svg { flex-shrink:0; }
 @media (max-width:600px) { input:not([type="checkbox"]):not([type="radio"]),select,textarea,#welcome-modal input { font-size:16px; } }

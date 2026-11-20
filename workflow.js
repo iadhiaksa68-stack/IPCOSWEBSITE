@@ -19,6 +19,8 @@ function setSyncPhase(phase) {
     syncPhase = phase;
     if (phase === 'success') { lastSyncTime = new Date().toISOString(); sessionStorage.setItem('ipcos_last_sync',lastSyncTime); }
     renderSyncStatus();
+    // The inbox shows its own retry line while a refresh has failed.
+    if (phase === 'error' || phase === 'success') window.IPCOSNotifications?.render();
 }
 function saveQueueView() {
     if (currentUser.role !== 'admin') return;

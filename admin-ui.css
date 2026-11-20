@@ -80,16 +80,20 @@
  #admin-data .queue-tools { margin-top:16px; }
 }
 @media(max-width:380px) {
- #admin-data .queue-control-shell { flex-direction:column; }
+ #admin-data .queue-control-shell { flex-direction:column; align-items:stretch; }
+ #admin-data .queue-control-shell>.admin-table-controls { flex:auto; }
  #admin-data .admin-table-controls { flex:auto; width:100%; }
  #admin-data #queue-advanced { align-self:flex-end; width:100%; }
  #admin-data #queue-advanced>summary { width:fit-content; margin-left:auto; }
 }
-@media(max-width:600px) {
- #admin-data .queue-status-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); overflow:visible; gap:6px; }
- #admin-data .queue-status-tab { justify-content:space-between; white-space:normal; text-align:left; padding:9px 10px; }
- #admin-data .queue-status-tab>span { min-width:0; overflow-wrap:anywhere; }
- #admin-data .queue-status-count { flex:0 0 auto; }
+@media(max-width:850px) {
+ #admin-data .queue-status-tab { flex:0 0 auto; white-space:nowrap; }
+ #admin-data .queue-control-shell { flex-direction:row; flex-wrap:wrap; align-items:flex-start; }
+ #admin-data .queue-control-shell>.admin-table-controls { order:1; flex:1 1 0; min-width:0; }
+ #admin-data .queue-control-shell>#queue-advanced { order:2; flex:0 0 auto; width:auto; align-self:flex-start; }
+ #admin-data .queue-control-shell>#queue-advanced[open] { flex:1 0 100%; }
+ #admin-data .queue-control-shell>.queue-saved-views { order:3; flex:1 0 100%; margin:0; }
+ #admin-data .queue-control-shell:has(#queue-advanced:not([open]))>.queue-saved-views { display:none; }
 }
 
 /* Admin review only. The existing student workspace keeps its current layout. */
@@ -565,3 +569,10 @@
 .case-stage-gap { margin:8px 0; padding:10px 12px; border-left:3px solid #c27c0e; background:color-mix(in srgb,#c27c0e 10%,transparent); border-radius:8px; font-size:12px; line-height:1.7; }
 #review-accept-rest { display:inline-block; width:auto; min-height:44px; margin:0 0 4px; padding:10px 0; font-size:13px; font-weight:650; text-align:left; }
 #review-accept-rest-help { margin:0 0 14px; }
+
+/* Phone review: while files are unchecked the next check leads; the decision buttons step back but keep their rules. */
+#case-review-action-footer .review-continue { display:grid; gap:4px; margin:0 0 8px; }
+#case-review-action-footer .review-continue button { width:100%; margin:0; min-height:44px; }
+.review-continue-note { margin:0; font-size:13px; line-height:1.5; color:var(--text-muted); text-align:center; overflow-wrap:anywhere; }
+.review-decision-label { margin:6px 0 0; font-size:13px; font-weight:700; color:var(--heading-color); }
+#case-review-action-footer.has-review-continue .btn-primary:not([data-review-continue]) { background:var(--card-bg); color:var(--heading-color); border:1px solid var(--item-border); box-shadow:none; }

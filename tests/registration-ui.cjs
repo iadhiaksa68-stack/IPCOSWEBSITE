@@ -262,7 +262,8 @@ async function fill(page, type) {
         const editBounds=await page.locator('#'+editField).boundingBox();assert(editBounds&&editBounds.y>=0&&editBounds.y+editBounds.height<=900,'The focused edit field is within the mobile viewport');
         await sameFiles(page,type + ' edit retains input nodes and exact File objects');
         await page.locator('[data-registration-step="service"]').click(); await currentStep(page,'service');
-        assert.equal(await page.evaluate(() => document.activeElement.id), 'reg-jenis-utama');
+        assert.equal(await page.evaluate(() => document.activeElement.dataset.serviceCard), type, 'Returning to the service step focuses the chosen service card, the only visible picker');
+        assert.equal(await page.locator('#reg-jenis-utama').getAttribute('aria-hidden'), 'true', 'The duplicate dropdown is hidden from assistive technology');
         assert.equal(createCalls().length, 0, 'Navigation/review must never submit ' + type);
     }
     pass('All five services show only their requirements; keyboard navigation, summary/edit, and 240 populated details/files/review layouts preserve exact File objects without creating a request');

@@ -44,7 +44,7 @@ function registrationRequirements(type) {
         if (!file && optional) return {id, title, optional, ready:true, hint:uxText('Opsional · lewati jika tidak ada', 'Optional · skip if you do not have it')};
         const problem = fileProblem(file, input.accept);
         const inspection = file && documentInspections.get(file);
-        return {id, title, optional, ready: !problem && inspection?.pending === false, hint: file ? problem || `${file.name} · ${formatFileSize(file.size)} · ${inspection?.pending === false ? uxText('format diperiksa', 'format checked') : uxText('memeriksa format...', 'checking format...')}` : `${input.accept.replaceAll(',', ' / ')} · ${uxText('maks. 10 MB', 'max. 10 MB')}`};
+        return {id, title, optional, ready: !problem && inspection?.pending === false, hint: file ? problem || `${file.name} · ${formatFileSize(file.size)} · ${inspection?.pending === false ? uxText('format diperiksa', 'format checked') : uxText('memeriksa format...', 'checking format...')}` : type === 'Pendadaran' ? uxText('Belum dipilih', 'Not selected yet') : `${input.accept.replaceAll(',', ' / ')} · ${uxText('maks. 10 MB', 'max. 10 MB')}`};
     }));
 }
 
@@ -61,9 +61,12 @@ function renderRegistrationReadiness() {
         const size = total ? formatFileSize(total) : '0 MB';
         let message = '';
         if (type === 'Pendadaran') {
+            // Files are counted apart from the title, which the readiness list counts as one more requirement.
+            const textIds = new Set(registrationTextSpecs(type).map(([id]) => id));
+            const requiredFiles = requirements.filter(item => !textIds.has(item.id) && !item.optional), chosen = requiredFiles.filter(item => item.ready).length;
             message = overLimit
                 ? uxText(`Total berkas ${size} melebihi 20 MB. Perkecil atau ganti berkas.`, `The ${size} total exceeds 20 MB. Reduce or replace files.`)
-                : uxText(`Total berkas: ${size} dari 20 MB`, `Files total: ${size} of 20 MB`);
+                : uxText(`Berkas wajib: ${chosen}/${requiredFiles.length} · Total ${size} dari 20 MB`, `Required files: ${chosen}/${requiredFiles.length} · Total ${size} of 20 MB`);
         }
         if (meter.textContent !== message) meter.textContent = message;
         meter.classList.toggle('field-error', overLimit);

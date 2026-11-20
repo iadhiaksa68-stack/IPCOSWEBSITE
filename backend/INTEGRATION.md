@@ -82,6 +82,7 @@ Perbarui `Features.gs` dan `Next.gs` dengan sumber lokal. `Kode.gs` tidak beruba
 - **Pemantauan kuota.** `get_health` menyertakan `storage` (ukuran Script Properties terhadap batas 500 KB dan jumlah baris sheet pribadi); ditampilkan di Kesehatan Layanan admin.
 - **Batas percobaan login admin.** `admin_login` kini masuk `NEXT_ACTIONS` dan diproses `nextAdminLogin` sebelum `handleAdminLogin`: 5 kegagalan per username mengunci 15 menit, 50 kegagalan total mengunci semua login admin 15 menit. Login sukses mencatat `IPCOS_ADMIN_LAST_LOGIN`. Login mahasiswa (NIM saja) tidak berubah, sesuai desain.
 - **Template instruksi revisi** disimpan sebagai konten `revision_templates` di sheet `KontenWeb` melalui `update_content` yang sudah ada; tidak ada rute baru.
+- **Detail pengumuman** (subjek singkat, layanan terkait, tanggal berlaku, status arsip) disimpan sebagai konten `notice_meta` di sheet `KontenWeb` melalui `update_content` yang sudah ada; tidak ada rute atau kolom baru. Isinya `{"schema":1,"notices":{<kunci>:{subject,service,expires,archived,updatedAt}}}`, dengan kunci = hash teks pengumuman (spasi dirapikan). Sheet `Pengumuman` tidak berubah; pengumuman tanpa detail memakai kalimat pertamanya sebagai subjek. Tanggal berlaku dihitung sampai 23.59 WIB; setelahnya pengumuman pindah ke Arsip di Pusat Notifikasi dan tidak lagi tampil sebagai banner atau pop-up.
 
 Rollback: kembalikan deployment ke versi sebelumnya. Bila migrasi sudah dijalankan, versi lama tidak membaca sheet `IPCOS_DataPribadi`; salin kembali barisnya ke Script Properties sebelum rollback.
 

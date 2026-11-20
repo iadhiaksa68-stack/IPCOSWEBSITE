@@ -17,9 +17,12 @@
             box.setAttribute('role', 'group'); box.setAttribute('aria-label', t('Status layanan', 'Service status'));
             const label = document.querySelector('label[for="reg-jenis-utama"]');
             (label || select).before(box);
+            // The cards are the one service picker; focus sent to the hidden list lands on the chosen card instead.
+            select.addEventListener('focus', () => { if (!student() || box.hidden) return; const card = box.querySelector('[aria-pressed="true"]') || box.querySelector('.service-card'); card?.focus({preventScroll:true}); });
         }
         box.hidden = false;
-        select.classList.add('sr-only'); select.tabIndex = -1; document.querySelector('label[for="reg-jenis-utama"]')?.classList.add('sr-only');
+        select.classList.add('sr-only'); select.tabIndex = -1; select.setAttribute('aria-hidden','true');
+        const selectLabel = document.querySelector('label[for="reg-jenis-utama"]'); selectLabel?.classList.add('sr-only'); selectLabel?.setAttribute('aria-hidden','true');
         const refocus = box.contains(document.activeElement) ? document.activeElement.dataset.serviceCard : '';
         box.innerHTML = [...select.options].filter(option => option.value).map(option => {
             const type = option.value, active = activeSameType(type), reason = serviceAvailability(type);

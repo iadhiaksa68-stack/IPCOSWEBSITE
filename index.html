@@ -417,7 +417,7 @@
             <p id="sync-status" class="sync-status" role="status" hidden></p>
             <!-- Global Search & Notifications -->
             <div class="workspace-utilities" style="display: flex; gap: 15px; align-items: center;">
-              <button class="btn-secondary"
+              <button type="button" class="btn-secondary header-search"
     onclick="openGlobalSearch()"
     aria-label="Cari"
     style="width: 42px; height: 42px; min-height: 42px; padding: 0; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: var(--item-bg); border: 1px solid var(--item-border);">
@@ -723,7 +723,7 @@
                         </div>
                     </div>
                     <div id="req-pendadaran" style="display:none;">
-                        <p id="pendadaran-upload-intro" class="field-helper lang" data-id="Unggah satu berkas untuk setiap dokumen. Tidak perlu menggabungkan ke ZIP/RAR. Total semua berkas maksimal 20 MB. Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin." data-en="Upload one file per document. No need to combine them into a ZIP/RAR. All files together may be up to 20 MB. Check every page and signature; a format check is not admin approval.">Unggah satu berkas untuk setiap dokumen. Tidak perlu menggabungkan ke ZIP/RAR. Total semua berkas maksimal 20 MB. Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin.</p>
+                        <p id="pendadaran-upload-intro" class="field-helper lang" data-id="Unggah satu berkas untuk setiap dokumen: PDF, JPG, atau PNG, maksimal 10 MB per berkas dan 20 MB untuk semua berkas. Tidak perlu menggabungkan ke ZIP/RAR. Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin." data-en="Upload one file per document: PDF, JPG or PNG, up to 10 MB each and 20 MB for all files together. No need to combine them into a ZIP/RAR. Check every page and signature; a format check is not admin approval.">Unggah satu berkas untuk setiap dokumen: PDF, JPG, atau PNG, maksimal 10 MB per berkas dan 20 MB untuk semua berkas. Tidak perlu menggabungkan ke ZIP/RAR. Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin.</p>
                         <p id="pendadaran-upload-total" class="upload-total-meter" role="status" aria-live="polite"></p>
                         <div class="form-group" data-pendadaran-document>
                             <label for="file-pdd-blangko" class="lang" data-id="Blangko Pendadaran *" data-en="Thesis defense form *">Blangko Pendadaran *</label><p id="file-pdd-blangko-hint" class="field-helper lang" data-id="Unduh template di Bantuan › Template &amp; FAQ." data-en="Download the template from Help › Templates &amp; FAQ.">Unduh template di Bantuan › Template &amp; FAQ.</p><p id="file-pdd-blangko-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
@@ -1073,14 +1073,21 @@
             </div>
         </div>
         <div id="notifications" class="tab-content">
-            <header class="notification-heading"><div><h1 id="notifications-title" tabindex="-1">Pusat Notifikasi</h1><p id="notifications-intro">Temukan pembaruan pengajuan dan pengumuman, lalu lanjutkan tindakan yang diperlukan.</p><p id="notification-summary"></p></div><button type="button" class="btn-secondary" id="notification-mark-all" onclick="markAllNotificationsRead()">Tandai Semua Dibaca</button></header>
-            <div class="notification-toolbar"><div><label id="notification-search-label" for="notification-search">Cari Notifikasi</label><input type="search" id="notification-search" autocomplete="off" placeholder="Cari pengajuan atau isi pengumuman…"></div><div><label id="notification-filter-label" for="notification-filter">Tampilkan</label><select id="notification-filter"><option value="all">Semua</option><option value="unread">Belum Dibaca</option><option value="requests">Pengajuan</option><option value="announcements">Pengumuman</option></select></div><button type="button" class="btn-secondary" id="notification-reset" hidden>Reset Filter</button></div>
-            <p id="notification-result-count" role="status" aria-live="polite"></p><div id="notification-center-list"></div><section id="notification-empty" hidden><h2 id="notification-empty-title"></h2><p id="notification-empty-text"></p></section>
+            <header class="notification-heading"><h1 id="notifications-title" tabindex="-1">Pusat Notifikasi</h1><p id="notification-summary"></p></header>
+            <div class="notification-toolbar">
+                <div class="notification-toolbar-row"><div class="notification-read-filter" id="notification-read-filter" role="group" aria-label="Status baca"><button type="button" data-read-filter="all" aria-pressed="true">Semua</button><button type="button" data-read-filter="unread" aria-pressed="false">Belum dibaca</button></div>
+                <details class="notification-more" id="notification-more"><summary id="notification-more-summary">Lainnya</summary><div class="notification-more-panel"><button type="button" class="btn-secondary" id="notification-mark-all">Tandai semua dibaca</button></div></details></div>
+                <div class="notification-toolbar-row notification-find"><div class="notification-search-field"><label id="notification-search-label" class="sr-only" for="notification-search">Cari Notifikasi</label><input type="search" id="notification-search" autocomplete="off" placeholder="Cari notifikasi…"></div><div class="notification-type-field"><label id="notification-filter-label" class="sr-only" for="notification-filter">Jenis notifikasi</label><select id="notification-filter"><option value="all">Semua jenis</option><option value="requests">Pengajuan</option><option value="announcements">Pengumuman</option><option value="archive">Arsip</option></select></div></div>
+            </div>
+            <p id="notification-refresh-error" class="notification-refresh-error" role="alert" hidden><span id="notification-refresh-text"></span> <button type="button" class="btn-secondary" data-sync-retry id="notification-refresh-retry">Coba lagi</button></p>
+            <p id="notification-undo" class="notification-undo" role="status" hidden><span id="notification-undo-text"></span> <button type="button" class="btn-secondary" id="notification-undo-button">Urungkan</button></p>
+            <div class="notification-result-line"><p id="notification-result-count" role="status" aria-live="polite"></p><button type="button" class="btn-secondary" id="notification-reset" hidden>Atur ulang filter</button></div>
+            <ul id="notification-center-list" class="notification-list"></ul><section id="notification-empty" hidden><h2 id="notification-empty-title"></h2><p id="notification-empty-text"></p></section>
         </div>
         <footer class="workspace-copyright">&copy; 2026 Developed by IPCOS Team</footer>
     </main>
 
-    <div id="modal-notification-announcement" class="overlay" style="display:none;z-index:2600" role="dialog" aria-modal="true" aria-labelledby="notification-reader-title"><article class="modal-card notification-reader"><header><h2 id="notification-reader-title">Pengumuman Akademik</h2><span id="notification-reader-date" class="notification-date"></span></header><p id="notification-reader-body"></p><footer><button type="button" id="notification-reader-close" class="btn-secondary" onclick="closeModal('modal-notification-announcement')">Tutup</button></footer></article></div>
+    <div id="modal-notification-announcement" class="overlay" style="display:none;z-index:2600" role="dialog" aria-modal="true" aria-labelledby="notification-reader-title"><article class="modal-card notification-reader"><header><p id="notification-reader-kind" class="notification-reader-kind"></p><h2 id="notification-reader-title" data-preserve-case>Pengumuman Akademik</h2><span id="notification-reader-date" class="notification-date"></span></header><p id="notification-reader-body"></p><footer><button type="button" id="notification-reader-close" class="btn-secondary" onclick="closeModal('modal-notification-announcement')">Tutup</button></footer></article></div>
 
     <!-- Confetti Canvas untuk Status Selesai 100% -->
     <canvas id="confetti-canvas"
@@ -1122,7 +1129,6 @@
     <script src="references-ui.js" defer></script>
     <script src="global-search.js" defer></script>
     <script src="preparation-ui.js" defer></script>
-    <script src="content-studio.js" defer></script>
     <script src="upgrades.js" defer></script>
     <script src="guidance.js" defer></script>
     <script src="admin-tools.js" defer></script>

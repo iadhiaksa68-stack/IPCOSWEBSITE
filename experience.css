@@ -18,6 +18,8 @@
 .workspace-profile:not([open]) #student-header { display:none!important; }
 .workspace-profile .user-greeting-text { font-size:17px; line-height:1.5; }
 .workspace-profile .student-info-actions { display:flex; gap:8px; }
+.profile-preferences { display:none; gap:8px; margin:0 0 8px; }
+.profile-preferences button { width:100%; margin:0; min-height:44px; justify-content:flex-start; text-align:left; white-space:normal; }
 .workspace-profile .student-info-actions button { flex:1; margin:0; min-height:44px; }
 .workspace-profile[open]>#student-header { animation:workspace-reveal var(--motion-panel) ease-out; }
 .nav-group { list-style:none; margin-top:12px; }
@@ -69,7 +71,7 @@ button:active:not(:disabled) { filter:brightness(.96); }
     body.workspace-authenticated .mobile-nav-toggle { display:flex; position:absolute; left:16px; top:18px; width:44px; height:44px; padding:10px; z-index:1100; background:var(--item-bg); }
     .mobile-nav-toggle>span { display:none; }
     .workspace-utilities { grid-column:2; grid-row:1; justify-content:flex-end; }
-    .workspace-toolbar .sync-status { grid-column:1 / -1; grid-row:2; font-size:11px; }
+    .workspace-toolbar .sync-status { grid-column:1 / -1; grid-row:2; font-size:13px; }
     #profile-summary-name,.profile-chevron { display:none; }
     .workspace-profile>summary { padding:2px 5px; }
     .workspace-profile #student-header { right:0; }
@@ -81,6 +83,12 @@ button:active:not(:disabled) { filter:brightness(.96); }
     body.workspace-authenticated:has(#student-bottom-nav:not([hidden]), #admin-bottom-nav:not([hidden])) .context-actions { bottom:64px; }
     .context-actions>button { flex:1; }
     .notification-toggle,#notif-wrapper { flex-shrink:0; }
+    /* With the bottom bar, its Menu button opens the drawer; the top bar keeps search, alerts and the account. */
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .mobile-nav-toggle,
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-quick-toggles { display:none; }
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-toolbar { grid-template-columns:minmax(0,1fr); }
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-utilities { grid-column:1; }
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .profile-preferences { display:grid; }
     #notif-dropdown { position:fixed!important; top:72px!important; right:16px!important; width:min(320px,calc(100vw - 32px))!important; }
 }
 @media(max-width:380px) { .workspace-utilities { gap:6px!important; } }

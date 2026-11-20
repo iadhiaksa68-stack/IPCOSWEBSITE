@@ -116,7 +116,7 @@ const interfaceEnglish = {
     'Cari menu, form, atau panduan (Ketik di sini)...':'Search menus, forms or guides...',
     'Misal: Saya sudah mengupload transkrip baru...':'Example: I have uploaded the corrected transcript...',
     'Misal: Transkrip belum terstempel resmi...':'Example: The transcript needs an official stamp...',
-    'Buka menu navigasi':'Open navigation menu', 'Cari':'Search', 'Notifikasi':'Notifications',
+    'Buka menu navigasi':'Open navigation menu', 'Navigasi utama':'Main navigation', 'Status antrean pengajuan':'Request queue status', 'Jenis layanan':'Service type', 'Status pengajuan':'Request status', 'Pencarian dan urutan pengajuan':'Request search and order', 'Cari layanan, nomor, atau judul...':'Search service, number or title...', 'Pencarian template dan FAQ':'Template and FAQ search', 'Cari dokumen atau pertanyaan...':'Search documents or questions...', 'Tutup studio konten':'Close content studio', 'IPCOS Portal Akademik':'IPCOS Academic Portal', 'Status baca':'Read state', 'Cari':'Search', 'Notifikasi':'Notifications',
     'Tutup detail pengajuan':'Close request details', 'Tutup Modal':'Close dialog',
     'Outline':'Thesis outline', 'Proposal':'Proposal seminar', 'Pendadaran':'Thesis defense (Pendadaran)',
     'Skripsi Jurnal':'Journal-based thesis', 'Pergantian Pembimbing':'Supervisor change',
@@ -306,7 +306,7 @@ function initInterfaceLanguage() {
 }
 function applyStaticLanguage() {
     document.documentElement.lang = currentLang;
-    document.title = uxText('IPCOS UMY — Portal Akademik', 'IPCOS UMY — Academic Portal');
+    document.title = (typeof portalPageTitle === 'function' && portalPageTitle()) || uxText('IPCOS UMY — Portal Akademik', 'IPCOS UMY — Academic Portal');
     staticLanguageBindings.forEach(binding => {
         if (binding.node?.isConnected) binding.node.textContent = binding[currentLang];
         if (binding.el?.isConnected) binding.el.setAttribute(binding.attribute,binding[currentLang]);

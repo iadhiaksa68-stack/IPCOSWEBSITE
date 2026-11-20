@@ -112,7 +112,7 @@ await cloud.route('**/script.google.com/macros/**',async route=>{
  return route.fallback();
 });
 await cloud.goto('http://127.0.0.1:8766/');await cloud.fill('#input-nim','TEST123');await cloud.click('#form-mhs button');await cloud.waitForSelector('#welcome-modal',{state:'hidden'});await textHas(cloud,'[data-student-home-action]','New Request');
-releaseCloud();await textHas(cloud,'[data-student-home-action]','Continue Draft');await cloud.click('[data-student-home-action]');assert.equal(await cloud.inputValue('#reg-jenis-utama'),'Outline');assert.equal(await cloud.inputValue('#reg-judul'),'Cloud draft title');
+releaseCloud();await textHas(cloud,'[data-student-home-action]','Continue to files');await cloud.click('[data-student-home-action]');assert.equal(await cloud.inputValue('#reg-jenis-utama'),'Outline');assert.equal(await cloud.inputValue('#reg-judul'),'Cloud draft title');await cloud.waitForFunction(()=>window.IPCOSRegistration?.current()==='files');
 await cloud.close();passed('A cloud draft arriving after the dashboard updates the same primary button and resumes the stored fields');
 assert.deepEqual(errors,[]);passed('No JavaScript runtime errors in both roles');
 require('node:fs').writeFileSync(path.join(__dirname, '../test-results','transactions-results.json'),JSON.stringify({checks,errors,createRequests:calls.filter(c=>c.action==='create').length,updateRequests:calls.filter(c=>c.action==='update').length},null,2));

@@ -16,7 +16,7 @@ const measure = code => ({raw:Buffer.byteLength(code),gzip:gzipSync(code).length
 // HTML handlers and deferred scripts share globals. Preserve their names and
 // execution order; do not tree-shake or wrap the portal in a module/IIFE.
 const options = {target:'es2022',charset:'utf8',minifyWhitespace:true,minifySyntax:true,minifyIdentifiers:false,treeShaking:false,legalComments:'eof'};
-const manifest = {}, lazy = ['sop.js','admin-export.js','internationalization.js'];
+const manifest = {}, lazy = ['sop.js','admin-export.js','internationalization.js','content-studio.js','notice-admin.js'];
 for (const name of lazy) {
     const code = transformSync(read(name),{...options,loader:'js'}).code;
     const emitted = name.replace('.js','-'+hash(code)+'.js'); manifest[name]=emitted;
@@ -42,10 +42,11 @@ for (const name of allowed) {
 const report = {initialRequests:{before:scripts.length+styles.length,after:2},js:{before:measure(source),after:measure(js)},css:{before:measure(cssSource),after:measure(css)},manifest:{...manifest,js:jsName,css:cssName}};
 mkdirSync(path.join(root,'test-results'),{recursive:true});
 writeFileSync(path.join(root,'test-results/build-report.json'),JSON.stringify(report,null,2));
-// Release budget: the 20 Nov 2026 baseline (209,476 B Brotli for the initial JS+CSS) plus a small patch allowance.
-// Growth past it fails the build, so larger features move to on-demand modules instead of the first download.
-const INITIAL_BROTLI_BUDGET = 215 * 1024;
-const initialBrotli = report.js.after.brotli + report.css.after.brotli;
+// Release budget (UI/UX upgrade PRD, 20 Nov 2026): the published baseline is the cap. Initial first-party
+// JS+CSS may not exceed 211,203 bytes Brotli, and HTML+JS+CSS 229,647 bytes (Node's default brotliCompressSync).
+// Growth past either fails the build, so larger features move to on-demand modules instead of the first download.
+const INITIAL_BROTLI_BUDGET = 211203, PAGE_BROTLI_BUDGET = 229647;
+const initialBrotli = report.js.after.brotli + report.css.after.brotli, pageBrotli = initialBrotli + brotliCompressSync(html).length;
 if (initialBrotli > INITIAL_BROTLI_BUDGET) { console.error(`FAIL Initial JS+CSS is ${initialBrotli} bytes Brotli, over the ${INITIAL_BROTLI_BUDGET}-byte release budget.`); process.exit(1); }
-console.log(`PASS Initial JS+CSS ${initialBrotli} bytes Brotli, within the ${INITIAL_BROTLI_BUDGET}-byte release budget.`);
-console.log(`PASS Production assets: ${report.initialRequests.before} → 2 local CSS/JS requests. JS ${report.js.before.raw} → ${report.js.after.raw} bytes; CSS ${report.css.before.raw} → ${report.css.after.raw} bytes. Tests/backend/source maps are excluded.`);
+if (pageBrotli > PAGE_BROTLI_BUDGET) { console.error(`FAIL HTML+JS+CSS is ${pageBrotli} bytes Brotli, over the ${PAGE_BROTLI_BUDGET}-byte release budget.`); process.exit(1); }
+console.log(`PASS Initial JS+CSS ${initialBrotli} bytes Brotli (budget ${INITIAL_BROTLI_BUDGET}); HTML+JS+CSS ${pageBrotli} bytes (budget ${PAGE_BROTLI_BUDGET}).`);

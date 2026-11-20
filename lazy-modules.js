@@ -149,6 +149,15 @@
       window.IPCOSInternational.open();
   });
   window.addEventListener("ipcos:logout", () => internationalPlaceholder.reset());
+  // Admin-only tools stay out of the first download: the content studio and the notice editor.
+  window.loadContentStudio = () => load("content-studio.js", () => !!window.IPCOSContentStudio);
+  window.loadNoticeAdmin = () => {
+    if (currentUser.role !== "admin") return Promise.resolve(false);
+    const epoch = sessionEpoch;
+    return load("notice-admin.js", () => !!window.IPCOSNoticeAdmin)
+      .then(() => { if (epoch === sessionEpoch && currentUser.role === "admin") window.IPCOSNoticeAdmin.render(); return true; })
+      .catch(() => false);
+  };
   window.exportAdminDataCSV = async (selection = null) => {
     if (currentUser.role !== "admin") return;
     const epoch = sessionEpoch;

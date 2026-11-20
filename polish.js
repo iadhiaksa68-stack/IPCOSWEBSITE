@@ -6,7 +6,7 @@
     function setup() {
         const page=el('admin-data'), card=page.querySelector('.card'), controls=card.querySelector('.admin-table-controls');
         const advanced=document.createElement('details');advanced.id='queue-advanced';advanced.className='queue-advanced';
-        advanced.innerHTML='<summary id="queue-advanced-summary" class="lang" data-id="Filter Lanjutan" data-en="Advanced Filters">Filter Lanjutan</summary><div class="advanced-filters" aria-labelledby="queue-advanced-summary"></div>';
+        advanced.innerHTML='<summary id="queue-advanced-summary" class="lang" data-id="Filter & Urutkan" data-en="Filter & Sort">Filter & Urutkan</summary><div class="advanced-filters" aria-labelledby="queue-advanced-summary"></div>';
         const shell=document.createElement('div');shell.className='queue-control-shell';controls.before(shell);shell.append(controls,advanced);const fields=advanced.querySelector('div');
         fields.append(el('admin-status-filter'),el('admin-type-filter'),card.querySelector('.overdue-filter'),card.querySelector('.queue-extra-controls'),el('queue-date-error'));
         for(const [id,key] of [['admin-search-input','search'],['admin-status-filter','status'],['admin-type-filter','type']]) {

@@ -190,27 +190,23 @@ test('returning to registration keeps a prepared review and selected files', () 
 
 test('notification and search respect a rejected leave-form confirmation', () => {
   let navigated = false;
-  const reads = [], opened = [], closed = [], dropdown = {style: {display: 'block'}};
+  const delegated = [], closed = [], dropdown = {style: {display: 'block'}};
+  // The inbox module owns opening a notice; it reports whether the destination accepted the move.
   const context = vm.createContext({
-    switchTab: () => navigated, getReadNotificationIds: () => [], saveReadNotificationIds: values => reads.push(values),
-    renderNotifications() {}, document: {getElementById: () => dropdown}, openCaseDetail: id => opened.push(id),
-    closeModal: id => closed.push(id),
+    switchTab: () => navigated, document: {getElementById: () => dropdown}, closeModal: id => closed.push(id),
+    window: {IPCOSNotifications: {open: key => { delegated.push(key); return navigated; }}},
   });
   vm.runInContext(section('function openNotification(', 'function toggleNotifDropdown('), context);
   vm.runInContext(section('function executeSearchNavigation(', '// ==========================================\n// 4.'), context);
-  context.openNotification('unread', 'case-a', 'student-status');
+  assert.equal(context.openNotification('unread'), false, 'A refused move reports failure');
   context.executeSearchNavigation('dashboard');
-  assert.equal(reads.length, 0);
-  assert.equal(opened.length, 0);
   assert.equal(closed.length, 0);
   assert.equal(dropdown.style.display, 'block');
   navigated = true;
-  context.openNotification('unread', 'case-a', 'student-status');
+  assert.equal(context.openNotification('unread'), true);
   context.executeSearchNavigation('dashboard');
-  assert.equal(reads.length, 1);
-  assert.deepEqual(opened, ['case-a']);
+  assert.deepEqual(delegated, ['unread', 'unread']);
   assert.deepEqual(closed, ['modal-global-search']);
-  assert.equal(dropdown.style.display, 'none');
 });
 
 function homeActionContext() {
@@ -226,6 +222,9 @@ function homeActionContext() {
     switchTab: (event, tab) => {calls.push(['navigate', tab]); return navigationAllowed;},
     openCaseDetail: id => {calls.push(['case', id]); context.selectedCaseId = id; modal.style.display = 'flex';},
     caseDetailAction: action => calls.push(['action', action]), document: {getElementById: () => modal, querySelectorAll: () => []},
+    registrationTextSpecs: type => type === 'Pergantian Pembimbing' ? [['reg-dosen-lama'], ['reg-dosen-baru'], ['reg-alasan-ganti']] : [['reg-judul']],
+    registrationFilesTotal: () => 0, REGISTRATION_TOTAL_LIMIT: 20 * 1024 * 1024, registrationRequirements: () => [{ready: false}],
+    window: {IPCOSRegistration: {navigate: step => calls.push(['step', step])}},
   });
   vm.runInContext(section('function displayDate(', 'function formatDate('), context);
   vm.runInContext(section('function isStudentOwner(', 'function renderTaskHome('), context);
@@ -244,7 +243,14 @@ test('student home prioritizes own corrections, then an owned valid draft, then 
   assert.equal(context.studentHomeAction().label, 'Lanjutkan Revisi');
   fixture.records([{id: 'pending', nim: 'A', jenis: 'Proposal', status: 'Pending', date: '2026-10-02T00:00:00Z'}]);
   assert.equal(context.studentHomeAction().kind, 'draft');
-  assert.equal(context.studentHomeAction().label, 'Lanjutkan Draf');
+  assert.equal(context.studentHomeAction().step, 'data', 'A draft without its title resumes at the details step');
+  assert.equal(context.studentHomeAction().label, 'Lanjutkan isian');
+  fixture.draft({ownerNim: 'A', 'reg-jenis-utama': 'Pendadaran', 'reg-judul': 'Judul tersimpan'});
+  assert.equal(context.studentHomeAction().step, 'files', 'Saved details resume at the files, which a reload cannot keep');
+  assert.equal(context.studentHomeAction().label, 'Lanjutkan ke berkas');
+  context.currentLang = 'en'; assert.equal(context.studentHomeAction().label, 'Continue to files'); context.currentLang = 'id';
+  fixture.draft({ownerNim: 'A', 'reg-jenis-utama': 'Pergantian Pembimbing', 'reg-dosen-lama': 'Dr. A', 'reg-dosen-baru': 'Dr. B'});
+  assert.equal(context.studentHomeAction().step, 'data', 'Every required detail must be present before the files step');
   fixture.draft({ownerNim: 'B', 'reg-jenis-utama': 'Pendadaran'});
   assert.equal(context.studentHomeAction().id, 'pending');
   fixture.draft({ownerNim: 'A', 'reg-jenis-utama': 'Unknown'});
@@ -273,6 +279,12 @@ test('student home actions honor navigation and case guards and recheck the late
   fixture.records([{id: 'revision', nim: 'A', jenis: 'Outline', status: 'Accepted'}]);
   context.continueStudentHome();
   assert.deepEqual(calls, [['navigate','pendaftaran']], 'A status update removes the obsolete correction action');
+  calls.length = 0; fixture.draft({ownerNim: 'A', 'reg-jenis-utama': 'Pendadaran', 'reg-judul': 'Judul tersimpan'});
+  assert.equal(context.continueStudentHome(), true);
+  assert.deepEqual(calls, [['navigate','pendaftaran'],['step','files']], 'Resuming a draft opens its next unfinished step');
+  calls.length = 0; fixture.allow(false);
+  assert.equal(context.continueStudentHome(), false);
+  assert.deepEqual(calls, [['navigate','pendaftaran']], 'A refused navigation never moves the wizard'); fixture.allow(true); fixture.draft({});
   calls.length = 0; context.currentUser.role = 'admin';
   assert.equal(context.continueStudentHome(), false);
   assert.equal(calls.length, 0);

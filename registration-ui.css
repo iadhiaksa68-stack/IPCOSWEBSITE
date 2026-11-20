@@ -106,3 +106,6 @@
 #req-pendadaran .upload-total-meter.field-error { color:var(--status-revision,#ab314a); }
 #req-pendadaran .form-group > .field-helper { margin:2px 0 4px; }
 #req-pendadaran .form-group { margin-bottom:12px; }
+
+/* Pendadaran states its shared format and size limits once above the list; each slot keeps its own hint. */
+#req-pendadaran .upload-format { display:none; }
