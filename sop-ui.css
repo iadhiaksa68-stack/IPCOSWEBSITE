@@ -123,3 +123,5 @@ body.dark-mode .sop-reader-tools :is(button,select):focus-visible{outline-color:
 @media (prefers-reduced-motion: reduce) {
     .sop-toc a,.sop-fold-icon { transition: none; }
 }
+.sop-empty-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.sop-empty-actions button{width:auto;min-height:44px}
+@media(max-width:600px){.sop-empty-actions button{width:100%}}

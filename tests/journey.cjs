@@ -45,20 +45,20 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     await page.screenshot({path:path.join(__dirname,'../test-results/stage-overview-desktop.png'),fullPage:true});
     await page.click('[data-start-service="Outline"]');
     assert.equal(await page.inputValue('#reg-jenis-utama'),'Outline');
-    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'0/3 siap');
+    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'0/3 syarat wajib siap');
     await page.click('[data-requirement-field="reg-judul"]'); assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-judul');
     await page.fill('#reg-judul','Judul yang dipulihkan');
     await page.setInputFiles('#file-transkrip',pdf); await page.setInputFiles('#file-proposal',pdf);
-    await page.waitForFunction(()=>document.querySelector('#registration-readiness .stage-progress').textContent==='3/3 siap');
+    await page.waitForFunction(()=>document.querySelector('#registration-readiness .stage-progress').textContent==='3/3 syarat wajib siap');
     await page.evaluate(()=>clearSelectedFile('file-transkrip','name-transkrip-badge'));
-    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'2/3 siap');
+    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'2/3 syarat wajib siap');
     await page.reload(); await page.waitForSelector('#welcome-modal',{state:'hidden'});
     await page.evaluate(()=>switchTab(null,'pendaftaran'));
     assert.equal(await page.inputValue('#reg-judul'),'Judul yang dipulihkan');
-    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'1/3 siap','Draft restore should refresh readiness while files are missing');
+    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'1/3 syarat wajib siap','Draft restore should refresh readiness while files are missing');
     console.log('PASS Stage shortcut, field focus, file removal and draft restore keep readiness accurate');
 
-    const types = [['Outline',3],['Proposal',2],['Pendadaran',13],['Skripsi Jurnal',3],['Pergantian Pembimbing',4]];
+    const types = [['Outline',3],['Proposal',2],['Pendadaran',12],['Skripsi Jurnal',3],['Pergantian Pembimbing',4]];
     for (const [type,total] of types) {
         await selectService(page,type);
         if (type==='Pergantian Pembimbing') {
@@ -68,7 +68,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
         } else await page.fill('#reg-judul','Judul uji');
         const fileIds = await page.evaluate(type=>registrationSpecs(type).map(([id])=>id),type);
         for (const id of fileIds) await page.setInputFiles('#'+id,pdf);
-        await page.waitForFunction(total=>document.querySelector('#registration-readiness .stage-progress').textContent===`${total}/${total} siap`,total);
+        await page.waitForFunction(total=>document.querySelector('#registration-readiness .stage-progress').textContent===`${total}/${total} syarat wajib siap`,total);
         await reviewRequest(page);assert(await page.locator('#registration-review').isVisible());
         if(type==='Outline') {
             const title=await page.inputValue('#reg-judul');
@@ -83,7 +83,7 @@ const pdf = {name:'berkas-uji.pdf',mimeType:'application/pdf',buffer:Buffer.from
     }
     await selectService(page,'Proposal');
     await page.setInputFiles('#file-acc-sempro',{name:'kosong.pdf',mimeType:'application/pdf',buffer:Buffer.alloc(0)});
-    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'1/2 siap');
+    assert.equal(await page.locator('#registration-readiness .stage-progress').textContent(),'1/2 syarat wajib siap');
     await reviewRequest(page); assert(await page.locator('#registration-fields').isVisible());
     assert.equal(calls.filter(c=>c.action==='create').length,0);
     console.log('PASS All five services share validated readiness; missing/empty documents cannot reach submission');

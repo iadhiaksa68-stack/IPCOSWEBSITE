@@ -284,18 +284,24 @@ function readStoredJSON(storage, key, fallback) {
         return value;
     } catch (_) { storage.removeItem(key); return fallback; }
 }
+// One deadline covers the whole exchange: connecting, headers and reading the JSON body.
+let API_TIMEOUT_MS = 120000;
 function apiPost(url, options) {
     const payload = JSON.parse(options.body || '{}');
     const context = { token: getSessionToken(), epoch: sessionEpoch, action: payload.action };
     payload.token = context.token;
-    const controller=new AbortController();let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;controller.abort();},120000);
+    const controller=new AbortController();let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;controller.abort();},API_TIMEOUT_MS);
     const abort=()=>controller.abort();if(options.signal?.aborted)abort();else options.signal?.addEventListener('abort',abort,{once:true});
-    return fetch(url, { ...options, signal:controller.signal, body: JSON.stringify(payload) }).then(response => { apiRequestContexts.set(response, context); return response; }).catch(error=>{if(context.epoch===sessionEpoch)window.IPCOSNext?.report(timedOut?'api_timeout':'network',context.action);throw error;}).finally(()=>{clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);});
+    const done=()=>{clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);};context.done=done;context.timedOut=()=>timedOut;
+    return fetch(url, { ...options, signal:controller.signal, body: JSON.stringify(payload) }).then(response => { apiRequestContexts.set(response, context); return response; }).catch(error=>{done();if(context.epoch===sessionEpoch)window.IPCOSNext?.report(timedOut?'api_timeout':'network',context.action);throw error;});
 }
+// Fire-and-forget calls that never read the result release their deadline as soon as headers arrive.
+function releaseApiRequest(response) { apiRequestContexts.get(response)?.done?.(); return response; }
 async function readApiResult(response) {
     const context = apiRequestContexts.get(response);let result;
     try {result=await response.json();if(!result||typeof result!=='object'||Array.isArray(result))throw Error('Invalid API response');}
-    catch(error){if(context&&context.epoch===sessionEpoch)window.IPCOSNext?.report('api_response',context.action);throw error;}
+    catch(error){if(context&&context.epoch===sessionEpoch)window.IPCOSNext?.report(context.timedOut?.()?'api_timeout':'api_response',context.action);throw error;}
+    finally{context?.done?.();}
     if (context && !['student_login', 'admin_login', 'logout'].includes(context.action)) {
         if (context.epoch !== sessionEpoch || context.token !== getSessionToken()) throw staleRequestError();
         if (result.status === 'error' && /sesi|session|token/i.test(result.message || '')) expireSession();
@@ -319,6 +325,10 @@ async function apiRead() {
     }));
     if (version !== readVersion) throw staleRequestError();
     if (data.status === 'error') throw new Error(data.message || 'Akses data ditolak.');
+    if (data.status !== 'success' || !Array.isArray(data.registrations) ||
+        data.registrations.some(row => !row || typeof row !== 'object' || Array.isArray(row))) {
+        throw new Error('Data pengajuan belum dapat dibaca.');
+    }
     contentResponseVersions.set(data,publicationVersion);
     return data;
     } catch (error) { if (epoch === sessionEpoch && version === readVersion && getSessionToken() && !error.staleSession) setSyncPhase('error'); throw error; }
@@ -330,6 +340,7 @@ function expireSession() {
     clearPrivateCache();
     document.getElementById('student-header').style.display = 'none';
     switchTab(null, 'dashboard');
+    clearSectionUrl();
     document.getElementById('welcome-modal').style.display = 'flex';
     document.getElementById('welcome-modal').style.opacity = '1';
     resetLoginButtons();
@@ -495,7 +506,6 @@ function applyDatabaseSnapshot(data) {
             serviceSettings = Array.isArray(data.services) ? data.services : [];
             renderServiceSettings();
             if (data.backup && currentUser.role === 'admin') renderBackupStatus(data.backup);
-            if (!Array.isArray(data.registrations || [])) throw new Error('Data pengajuan belum dapat dibaca.');
             data.registrations = normalizeData(data.registrations);
 
             sessionStorage.setItem('ipcos_registrations', JSON.stringify(data.registrations || []));
@@ -670,7 +680,11 @@ document.querySelectorAll('#form-mhs input, #form-admin input').forEach(input =>
 function finalizeLogin(displayName, displayNim, role, token) {
     sessionEpoch++;
     currentUser = { nim: displayNim, nama: displayName, role: role, token: token };
-    switchTab(null, 'dashboard');
+    const requestedSection = sectionFromUrl();
+    historyNavigating = true; try { switchTab(null, 'dashboard'); } finally { historyNavigating = false; }
+    try { history.replaceState({ipcosTab:'dashboard'}, '', '#dashboard'); } catch (_) {}
+    // A reload returns to the section the user was on, if this role may open it.
+    if (requestedSection && requestedSection !== 'dashboard' && canAccessTab(requestedSection)) switchTab(null, requestedSection);
     const loginEpoch = sessionEpoch;
     const firstName = displayName.split(' ')[0];
 
@@ -741,7 +755,7 @@ function logoutUser() {
     if (confirm(msg + ((registrationDirty || caseEditorDirty() || contentEditorDirty() || window.IPCOSInternational?.dirty() || isSubmittingRegistration || isPreparingCorrection) ? uxText(' Isian yang belum dikirim akan ditinggalkan.',' Unsent inputs will be discarded.') : ''))) {
         loginAttempt++; loginBusy = false; resetLoginButtons();
         sessionStorage.removeItem('ipcos_session');
-        apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(() => {});
+        apiPost(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'logout' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).then(releaseApiRequest).catch(() => {});
         currentUser = { nim: '', nama: '', role: '', token: '' };
         clearPrivateCache();
         renderTaskHome();
@@ -749,6 +763,7 @@ function logoutUser() {
         selectedCaseId = '';
         if (document.getElementById('student-header')) document.getElementById('student-header').style.display = 'none';
         switchTab({ currentTarget: document.querySelector('.nav-tabs li') }, 'dashboard');
+        clearSectionUrl();
         const modal = document.getElementById('welcome-modal');
         modal.style.display = 'flex';
             setTimeout(() => { modal.style.opacity = '1'; }, 10);
@@ -997,10 +1012,26 @@ function fileToBase64(file) {
 // ==========================================
 // AUTO-SAVE DRAFT FORMULIR PENDAFTARAN
 // ==========================================
+const REGISTRATION_DRAFT_FIELDS = ['reg-jenis-utama', 'reg-judul', 'reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'];
+
+function registrationHasSelectedFiles() {
+    return Array.from(document.querySelectorAll('#registration-fields input[type="file"]')).some(input => input.files.length);
+}
+
+function registrationTextMatchesSavedDraft() {
+    try {
+        const draft = JSON.parse(sessionStorage.getItem('ipcos_form_draft') || 'null');
+        return draft?.ownerNim === currentUser.nim && REGISTRATION_DRAFT_FIELDS.every(id =>
+            (draft[id] || '') === document.getElementById(id).value
+        );
+    } catch (_) {
+        return false;
+    }
+}
+
 function saveFormDraft() {
-    const fields = ['reg-jenis-utama', 'reg-judul', 'reg-dosen-lama', 'reg-dosen-baru', 'reg-alasan-ganti'];
     const draft = { ownerNim: currentUser.nim, savedAt: new Date().toISOString() };
-    fields.forEach(id => { draft[id] = document.getElementById(id)?.value || ''; });
+    REGISTRATION_DRAFT_FIELDS.forEach(id => { draft[id] = document.getElementById(id)?.value || ''; });
     sessionStorage.setItem('ipcos_form_draft', JSON.stringify(draft));
     const indicator = document.getElementById('form-draft-status');
     if (indicator && !window.IPCOSNext) indicator.textContent = systemText('Draf isian tersimpan di tab ini.');
@@ -1009,7 +1040,7 @@ function saveFormDraft() {
 
 function loadFormDraft() {
     // Returning from a guide preserves the live form, including its review step.
-    if (!document.getElementById('registration-review').hidden || [...document.querySelectorAll('#registration-fields input[type="file"]')].some(input => input.files.length)) return;
+    if (!document.getElementById('registration-review').hidden || registrationHasSelectedFiles()) return;
     const saved = sessionStorage.getItem('ipcos_form_draft');
     if (!saved) return;
     try {
@@ -1399,7 +1430,7 @@ function caseDetailAction(action) {
     let html = '';
     if (action === 'revision') {
         const files = caseDocumentOptions(item);
-        html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label></fieldset>
+        html = `<h3>${uxText('Minta perbaikan', 'Request Corrections')}</h3><fieldset class="revision-file-options"><legend>${uxText('Pilih berkas yang perlu diperbaiki', 'Select files needing corrections')}</legend>${files.map(label => `<label class="check-row"><input type="checkbox" name="revision-document" value="${escapeHtml(label)}"><span>${escapeHtml(systemText(label))}</span></label>`).join('')}<label class="check-row"><input type="checkbox" name="revision-document" value="Isian pengajuan"><span>${uxText('Isian pengajuan', 'Request details')}</span></label>${files.length > 5 ? `<p id="revision-file-limit" class="field-helper" role="status">${revisionFileLimitText(0)}</p>` : ''}</fieldset>
         ${revisionTemplateHtml()}<label for="case-revision-note">${uxText('Apa yang harus diperbaiki?','What needs correcting?')}</label><textarea id="case-revision-note" rows="4" placeholder="${uxText('Contoh: Unggah transkrip yang sudah disahkan.','Example: Upload an officially certified transcript.')}"></textarea>`;
     } else if (action === 'dospem') {
         html = `<h3>${uxText('Tunjuk Dosen & Setujui', 'Assign Supervisor & Approve')}</h3><label for="case-supervisor">${uxText('Dosen pembimbing', 'Supervisor')}</label><select id="case-supervisor">${supervisorOptions()}</select><p>${uxText('Dosen terpilih akan dicatat saat pengajuan disetujui.','The selected supervisor will be recorded when this request is approved.')}</p>`;
@@ -1440,6 +1471,19 @@ function cancelCaseAction() {
     window.IPCOSReview?.actionsChanged();
 }
 let isPreparingCorrection = false;
+// Students can send at most five replacement files at once, so one correction round asks for at most five.
+const REVISION_FILE_LIMIT = 5;
+function revisionFileLimitText(count) {
+    return count > REVISION_FILE_LIMIT
+        ? uxText(`${count} berkas dipilih · maksimal ${REVISION_FILE_LIMIT} per putaran. Minta sisanya pada putaran berikutnya.`, `${count} files selected · at most ${REVISION_FILE_LIMIT} per round. Request the rest in the next round.`)
+        : uxText(`${count} dari maksimal ${REVISION_FILE_LIMIT} berkas dipilih untuk putaran ini.`, `${count} of at most ${REVISION_FILE_LIMIT} files selected for this round.`);
+}
+document.addEventListener('change', event => {
+    if (!event.target.matches('#case-action-panel [name="revision-document"]')) return;
+    const note = document.getElementById('revision-file-limit'); if (!note) return;
+    const count = [...document.querySelectorAll('#case-action-panel [name="revision-document"]:checked')].filter(input => input.value !== 'Isian pengajuan').length;
+    note.textContent = revisionFileLimitText(count); note.classList.toggle('field-error', count > REVISION_FILE_LIMIT);
+});
 let isPreparingReviewDecision = false;
 async function submitCaseAction(event) {
     if(event?.detail>1)return;
@@ -1458,7 +1502,7 @@ async function submitCaseAction(event) {
         const selected = [...panel.querySelectorAll('[name="revision-document"]:checked')].map(input => input.value);
         const instruction = document.getElementById('case-revision-note').value.trim();
         if (!selected.length) return fail(uxText('Pilih minimal satu berkas atau isian yang perlu diperbaiki.', 'Select at least one file or field needing corrections.'),panel.querySelector('[name="revision-document"]'));
-        if (selected.filter(label => label !== 'Isian pengajuan').length > 5) return fail(uxText('Pilih maksimal 5 berkas per putaran revisi, karena mahasiswa dapat mengirim hingga 5 berkas sekaligus. Minta berkas lainnya pada putaran berikutnya.', 'Choose at most 5 files per correction round, because students can send up to 5 files at once. Request the others in the next round.'),panel.querySelector('[name="revision-document"]:checked'));
+        if (selected.filter(label => label !== 'Isian pengajuan').length > REVISION_FILE_LIMIT) return fail(uxText('Pilih maksimal 5 berkas per putaran revisi, karena mahasiswa dapat mengirim hingga 5 berkas sekaligus. Minta berkas lainnya pada putaran berikutnya.', 'Choose at most 5 files per correction round, because students can send up to 5 files at once. Request the others in the next round.'),panel.querySelector('[name="revision-document"]:checked'));
         if (!instruction) return fail(uxText('Tulis instruksi perbaikan untuk mahasiswa.', 'Write correction instructions for the student.'),document.getElementById('case-revision-note'));
         note = `Berkas yang perlu diperbaiki:\n${selected.map(label => '- ' + label).join('\n')}\n\nInstruksi:\n${instruction}`;
         newStatus = 'Revision';
@@ -2271,6 +2315,7 @@ function toggleLanguage() {
     window.IPCOSSop?.languageChanged();
     window.IPCOSAcademic?.languageChanged();
     window.IPCOSInternational?.languageChanged();
+    window.IPCOSAdminTools?.languageChanged?.();
     refreshContentEditorLanguage();
     refreshServiceAvailability();
     document.querySelectorAll('#registration-fields .dz-remove-btn').forEach(button=>button.textContent=uxText('Hapus File','Remove file'));
@@ -2904,6 +2949,36 @@ function canAccessTab(tabId) {
     if (['admin-data','admin-dosen','admin-master'].includes(tabId)) return currentUser.role === 'admin';
     return true;
 }
+// Browser Back and Forward move between portal sections. The URL only ever carries a section name,
+// never a student number, request ID or document link; access is still checked by canAccessTab.
+let historyNavigating = false;
+try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (_) {}
+function sectionFromUrl() {
+    let id = '';
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch (_) { return ''; }
+    return /^[a-z-]{2,40}$/.test(id) && document.getElementById(id)?.classList.contains('tab-content') ? id : '';
+}
+function syncSectionUrl(tabId) {
+    if (historyNavigating || !getSessionToken()) return;
+    try {
+        if (!history.state?.ipcosTab) history.replaceState({ipcosTab:tabId}, '', '#' + tabId);
+        else if (history.state.ipcosTab !== tabId || location.hash !== '#' + tabId) history.pushState({ipcosTab:tabId}, '', '#' + tabId);
+    } catch (_) {}
+}
+function clearSectionUrl() {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
+}
+window.addEventListener('popstate', event => {
+    if (!getSessionToken()) return;
+    // In-page anchors (SOP contents, sections) also fire popstate; only section entries move the portal.
+    const tab = event.state?.ipcosTab || sectionFromUrl(), active = document.querySelector('.tab-content.active')?.id;
+    if (!tab || !active || tab === active) return;
+    // Back never closes an open dialog behind the user's back; finish or close it first.
+    const dialogOpen = [...document.querySelectorAll('.overlay,.overlay-dialog')].some(node => !['welcome-modal','loader'].includes(node.id) && getComputedStyle(node).display !== 'none');
+    let moved = false;
+    if (!dialogOpen) { historyNavigating = true; try { moved = switchTab(null, tab); } finally { historyNavigating = false; } }
+    if (!moved) { try { history.pushState({ipcosTab:active}, '', '#' + active); } catch (_) {} }
+});
 function switchTab(event, tabId) {
     const target = document.getElementById(tabId);
     if (!target || !canAccessTab(tabId)) return false;
@@ -2939,6 +3014,7 @@ function switchTab(event, tabId) {
             form.dataset.draftBound = 'true';
         }
     }
+    syncSectionUrl(tabId);
     return true;
 }
 

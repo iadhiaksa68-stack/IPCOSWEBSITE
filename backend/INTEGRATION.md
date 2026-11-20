@@ -93,3 +93,33 @@ Rollback: kembalikan deployment ke versi sebelumnya. Bila migrasi sudah dijalank
 - Versi 41: `handleAdminLogin` di `Kode.gs` tidak lagi memuat password; fungsinya selalu menolak. Login admin hanya melalui hash `IPCOS_ADMIN_AUTH`. Bila hash hilang, pemilik proyek dapat membuatnya ulang dengan menjalankan `adminAuthWrite('username','password-baru')` sekali dari editor, lalu menghapus baris tersebut dari riwayat eksekusi.
 - Versi 42: `delete_all_registrations` ditutup. Aksi ini masuk `NEXT_ACTIONS` sehingga `doPost` meneruskannya ke `nextDispatch`, yang selalu menolak sebelum kode di `Kode.gs` berjalan. Tidak ada layar yang memakainya.
 - Versi 43: Pendadaran memakai satu berkas per dokumen (12 dokumen, Berita Acara Proposal opsional; PDF/JPG/PNG). `Features.gs` menambah `featureSubmissionCount`, `featureSubmissionLabel` dan `featureRowLabels`; `Next.gs` memakai `featureRowLabels` untuk versi berkas perbaikan. Dua baris `handleRegistration` di `Kode.gs` diganti: jumlah berkas wajib memakai `featureSubmissionCount(data.jenis, data.files)` dan label memakai `featureSubmissionLabel(data.jenis, files, index)`. Pengajuan Pendadaran lama yang berisi satu arsip "Berkas Pendadaran" tetap dapat diperbaiki dengan label lamanya.
+
+## Catatan rilis dan modul terpasang (20 November 2026)
+
+Setiap rilis frontend dipasangkan dengan satu versi backend. Isi tabel ini setiap kali salah satu berubah.
+
+| Bagian | Versi aktif | Pemilik |
+| --- | --- | --- |
+| Frontend Vercel (`ipcoswebsite.vercel.app`) | commit `main` yang memuat catatan ini | Pemelihara rilis |
+| Apps Script, deployment endpoint lama | Versi 43 ("Pendadaran satu berkas per dokumen") | Pemilik Apps Script |
+
+Proyek Apps Script hanya berisi tiga modul. File lain di folder `backend/` adalah salinan referensi yang sudah tergabung di dalamnya, sehingga setiap fungsi bersama hanya punya satu implementasi:
+
+| Modul terpasang | Berisi salinan dari | Diperiksa oleh |
+| --- | --- | --- |
+| `Kode.gs` (tidak di repo, berisi kredensial) | Login, `handleRegistration`, `handleUpdate`, `auditFiles`, `getDataForSession` (referensi: `SessionData.gs`) | `tests/backend-create.fixture.cjs`, `tests/backend-transactions.fixture.cjs` |
+| `Features.gs` | `document-checks.js`, `Journey.gs`, `Sop.gs` | `tests/backend-journey.cjs` (akhir file harus sama persis) |
+| `Next.gs` | `Academic.gs`, `International.gs` | `tests/backend-academic-international.cjs` |
+
+Sebelum menerbitkan versi Apps Script baru: bandingkan hash SHA-256 isi editor dengan file repo untuk `Features.gs` dan `Next.gs`, ubah `Kode.gs` hanya pada baris yang tercatat di bagian versi di atas, simpan, lalu terbitkan **versi baru pada deployment yang sama** agar URL endpoint tidak berubah. Terbitkan backend segera setelah frontend pasangannya tayang di Vercel.
+
+## Latihan pemulihan (belum dijalankan)
+
+Usulan target: pemulihan selesai dalam 4 jam, kehilangan data maksimal 24 jam (sesuai cadangan harian 04.00 WIB). Pemilik Apps Script perlu mengonfirmasi angka ini.
+
+1. Buat spreadsheet, folder Drive dan deployment Apps Script uji yang terpisah. Jangan memakai data mahasiswa asli.
+2. Pulihkan cadangan terbaru ke spreadsheet uji mengikuti `recovery-guide.html`.
+3. Cocokkan jumlah baris `Registrasi`, jumlah berkas lampiran dan isi `IPCOS_DataPribadi` dengan manifest cadangan.
+4. Buka beberapa lampiran dari spreadsheet uji untuk memastikan izin dan isinya terbaca.
+5. Uji cadangan berstatus `partial`: portal harus tetap menandainya tidak lengkap.
+6. Catat waktu mulai dan selesai, hasil tiap langkah, serta siapa yang menerima peringatan bila cadangan gagal.

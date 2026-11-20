@@ -161,7 +161,7 @@
             ${currentUser.role === 'admin' && doc ? `<button type="button" class="btn-primary" data-sop-action="edit" data-sop-type="${type}">${t('Edit SOP','Edit SOP')}</button>` : ''}</div></div>
             ${busy ? `<p class="sop-notice" role="status">${t('Memuat SOP terbaru…','Loading the latest SOP…')}</p>` : ''}
             ${error ? `<p class="sop-notice field-error" role="alert">${escapeHtml(errorText(error))} ${doc?t('Versi terakhir ditampilkan.','Showing the last loaded version.'):''}</p>` : ''}
-            ${doc && !readable(doc) ? `<div class="card sop-empty"><h2>${doc.intro||doc.introEn?t('Isi SOP pada bahasa ini belum tersedia','SOP content is unavailable in this language'):t('SOP belum diterbitkan','SOP not published yet')}</h2><p>${currentUser.role === 'admin'?t('Pilih Edit SOP untuk menambahkan section, teks, tautan, dan lampiran.','Choose Edit SOP to add sections, text, links and attachments.'):t('Silakan periksa kembali panduan yang diterbitkan admin.','Please check the admin-published guide again later.')}</p></div>` : doc ? bodyHtml(doc) : ''}`;
+            ${doc && !readable(doc) ? `<div class="card sop-empty"><h2>${doc.intro||doc.introEn?t('Isi SOP pada bahasa ini belum tersedia','SOP content is unavailable in this language'):t('SOP belum diterbitkan','SOP not published yet')}</h2><p>${currentUser.role === 'admin'?t('Pilih Edit SOP untuk menambahkan section, teks, tautan, dan lampiran.','Choose Edit SOP to add sections, text, links and attachments.'):t('Sementara SOP ini belum terbit, gunakan template dan FAQ yang sudah disetujui, atau tanyakan langsung ke admin lewat Pusat Bantuan.','Until this SOP is published, use the approved templates and FAQ, or ask the admin through the Help Center.')}</p>${currentUser.role === 'admin' ? '' : `<div class="sop-empty-actions"><button type="button" class="btn-secondary" data-sop-fallback="templates-faq">${t('Lihat Template & FAQ','View Templates & FAQ')}</button><button type="button" class="btn-secondary" data-sop-fallback="feedback">${t('Tanya Admin di Pusat Bantuan','Ask Admin in the Help Center')}</button></div>`}</div>` : doc ? bodyHtml(doc) : ''}`;
         readerRefresh(type,position);
     }
     async function request(payload) {
@@ -458,6 +458,7 @@
             } catch (_) { /* A failed read cannot overwrite the currently loaded SOP or editor. */ }
         }
     }
+    document.addEventListener('click',event=>{const fallback=event.target.closest('[data-sop-fallback]');if(fallback&&getSessionToken()){if(window.IPCOSNext?.continueGuide)window.IPCOSNext.continueGuide(fallback.dataset.sopFallback);else switchTab(null,fallback.dataset.sopFallback);}});
     document.addEventListener('click',event=> {
         const button = event.target.closest('.sop-page [data-sop-action]'); if (!button || button.disabled || button.closest('#modal-sop-editor')) return;
         const type = button.dataset.sopType;

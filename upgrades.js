@@ -39,10 +39,10 @@
         const tile = (value, label, extra = '', tone = '') => `<div class="admin-today-tile${tone ? ' ' + tone : ''}"><strong>${value}</strong><span>${label}</span>${extra ? `<small>${extra}</small>` : ''}</div>`;
         const avg = s.average === null ? '—' : (s.average < 10 ? s.average.toFixed(1) : Math.round(s.average)) + ' ' + t('hari', 'days');
         panel.toggleAttribute('data-loading', loading);
-        if (loading) { const wait = label => tile('…', label); panel.innerHTML = wait(t('Masuk hari ini', 'Received today')) + wait(t('Selesai hari ini', 'Completed today')) + wait(t('Rata-rata waktu proses', 'Average processing time')) + wait(t('Lewat target', 'Past target')) + wait(t('Kuota dosen kritis', 'Supervisors near capacity')); return; }
+        if (loading) { const wait = label => tile('…', label); panel.innerHTML = wait(t('Masuk hari ini', 'Received today')) + wait(t('Selesai hari ini', 'Completed today')) + wait(t('Rata-rata kirim → disetujui', 'Average send → approval')) + wait(t('Lewat target', 'Past target')) + wait(t('Kuota dosen kritis', 'Supervisors near capacity')); return; }
         panel.innerHTML = tile(s.incoming, t('Masuk hari ini', 'Received today'))
             + tile(s.doneToday, t('Selesai hari ini', 'Completed today'))
-            + tile(avg, t('Rata-rata waktu proses', 'Average processing time'), s.durations ? t(`${s.durations} pengajuan · 30 hari`, `${s.durations} requests · 30 days`) : t('Belum ada data 30 hari', 'No data in 30 days'))
+            + tile(avg, t('Rata-rata kirim → disetujui', 'Average send → approval'), s.durations ? t(`${s.durations} pengajuan · 30 hari · termasuk waktu perbaikan mahasiswa`, `${s.durations} requests · 30 days · includes student correction time`) : t('Belum ada data 30 hari', 'No data in 30 days'))
             + tile(s.overdue, t('Lewat target', 'Past target'), t(`dari ${s.waiting} menunggu`, `of ${s.waiting} waiting`), s.overdue ? 'alert' : '')
             + `<button type="button" class="admin-today-tile${s.critical.length ? ' alert' : ''}" onclick="switchTab(null,'admin-dosen')"><strong>${s.critical.length}</strong><span>${t('Kuota dosen kritis', 'Supervisors near capacity')}</span><small>${s.critical.length ? escapeHtml(s.critical.slice(0, 2).map(row => String(row.Nama || row.nama || '').split(',')[0]).join(', ')) + (s.critical.length > 2 ? '…' : '') : t('Semua masih tersedia', 'All have capacity')}</small></button>`;
     }
@@ -118,9 +118,11 @@
         const map = byId(), chosen = [...selected].map(id => map.get(id)).filter(Boolean);
         node.hidden = !chosen.length && !message;
         const canApprove = chosen.filter(approvable).length, canArchive = chosen.filter(archivable).length;
+        // Selected rows that do not qualify are skipped, never changed, and stay selected so the admin can open them.
+        const skipNote = count => count ? ' ' + t(`${count} dilewati karena tidak memenuhi syarat.`, `${count} skipped because they do not qualify.`) : '';
         node.innerHTML = `<strong>${chosen.length} ${t('dipilih', 'selected')}</strong>`
             + (confirming === 'approve'
-                ? `<span class="bulk-confirm">${t(`Setujui ${canApprove} pengajuan tanpa membuka satu per satu?`, `Approve ${canApprove} requests without opening each one?`)}</span><button type="button" class="btn-primary" data-bulk="approve-confirm" ${busy ? 'disabled' : ''}>${t('Ya, setujui', 'Yes, approve')}</button><button type="button" class="btn-secondary" data-bulk="cancel" ${busy ? 'disabled' : ''}>${t('Batal', 'Cancel')}</button>`
+                ? `<span class="bulk-confirm">${t(`Setujui ${canApprove} pengajuan tanpa membuka satu per satu?`, `Approve ${canApprove} requests without opening each one?`)}${escapeHtml(skipNote(chosen.length - canApprove))}</span><button type="button" class="btn-primary" data-bulk="approve-confirm" ${busy ? 'disabled' : ''}>${t('Ya, setujui', 'Yes, approve')}</button><button type="button" class="btn-secondary" data-bulk="cancel" ${busy ? 'disabled' : ''}>${t('Batal', 'Cancel')}</button>`
                 : confirming === 'archive'
                 ? `<label class="bulk-confirm" for="bulk-archive-reason">${t('Alasan arsip', 'Archive reason')}</label><input id="bulk-archive-reason" type="text" maxlength="500" value="${escapeHtml(t('Arsip massal oleh admin.', 'Bulk archive by admin.'))}"><button type="button" class="btn-primary" data-bulk="archive-confirm" ${busy ? 'disabled' : ''}>${t(`Arsipkan ${canArchive}`, `Archive ${canArchive}`)}</button><button type="button" class="btn-secondary" data-bulk="cancel" ${busy ? 'disabled' : ''}>${t('Batal', 'Cancel')}</button>`
                 : `<button type="button" class="btn-primary" data-bulk="approve" ${busy || !canApprove ? 'disabled' : ''} title="${escapeHtml(t('Hanya pengajuan menunggu admin yang berkas lengkap dan tidak perlu dosen pembimbing.', 'Only waiting requests with files that do not need a supervisor.'))}">${t('Setujui', 'Approve')} (${canApprove})</button><button type="button" class="btn-secondary" data-bulk="archive" ${busy || !canArchive || window.IPCOSReviewTools?.supported?.() !== true ? 'disabled' : ''}>${t('Arsipkan', 'Archive')} (${canArchive})</button><button type="button" class="btn-secondary" data-bulk="export" ${busy || !chosen.length ? 'disabled' : ''}>${t('Ekspor CSV', 'Export CSV')}</button><button type="button" class="btn-secondary" data-bulk="clear" ${busy ? 'disabled' : ''}>${t('Batal pilih', 'Clear')}</button>`)
@@ -138,7 +140,7 @@
         }
     }
     async function bulkApprove() {
-        const map = byId(), targets = [...selected].map(id => map.get(id)).filter(approvable), epoch = sessionEpoch;
+        const map = byId(), chosen = [...selected].map(id => map.get(id)).filter(Boolean), targets = chosen.filter(approvable), skipped = chosen.length - targets.length, epoch = sessionEpoch;
         if (!targets.length) return;
         busy = true; let done = 0; const failed = [];
         renderBar(t('Memproses…', 'Processing…'));
@@ -154,13 +156,14 @@
         busy = false; confirming = '';
         await syncDatabase();
         if (epoch !== sessionEpoch) return;
-        const message = failed.length ? t(`${done} disetujui. Gagal: ${failed.join(', ')}. Buka pengajuan untuk memeriksa.`, `${done} approved. Failed: ${failed.join(', ')}. Open the requests to check.`) : t(`${done} pengajuan disetujui.`, `${done} requests approved.`);
+        const skippedText = skipped ? ' ' + t(`${skipped} dilewati karena perlu dosen pembimbing, berkas, atau sudah diproses.`, `${skipped} skipped because they need a supervisor, files, or were already processed.`) : '';
+        const message = (failed.length ? t(`${done} disetujui. Gagal: ${failed.join(', ')}. Buka pengajuan untuk memeriksa.`, `${done} approved. Failed: ${failed.join(', ')}. Open the requests to check.`) : t(`${done} pengajuan disetujui.`, `${done} requests approved.`)) + skippedText;
         showToast(message, failed.length ? 'error' : 'success'); renderBar(message);
     }
     async function bulkArchive() {
         const reason = (el('bulk-archive-reason')?.value || '').trim();
         if (!reason) { renderBar(t('Isi alasan arsip.', 'Enter an archive reason.')); return; }
-        const map = byId(), targets = [...selected].map(id => map.get(id)).filter(archivable), epoch = sessionEpoch;
+        const map = byId(), chosen = [...selected].map(id => map.get(id)).filter(Boolean), targets = chosen.filter(archivable), skipped = chosen.length - targets.length, epoch = sessionEpoch;
         busy = true; let done = 0; const failed = [];
         renderBar(t('Mengarsipkan…', 'Archiving…'));
         for (const item of targets) {
@@ -176,7 +179,8 @@
         busy = false; confirming = '';
         await syncDatabase();
         if (epoch !== sessionEpoch) return;
-        const message = failed.length ? t(`${done} diarsipkan. Gagal: ${failed.join(', ')}.`, `${done} archived. Failed: ${failed.join(', ')}.`) : t(`${done} pengajuan diarsipkan. Dapat dipulihkan dari Arsip.`, `${done} requests archived. They can be restored from the Archive.`);
+        const skippedText = skipped ? ' ' + t(`${skipped} dilewati karena belum selesai.`, `${skipped} skipped because they are not finished.`) : '';
+        const message = (failed.length ? t(`${done} diarsipkan. Gagal: ${failed.join(', ')}.`, `${done} archived. Failed: ${failed.join(', ')}.`) : t(`${done} pengajuan diarsipkan. Dapat dipulihkan dari Arsip.`, `${done} requests archived. They can be restored from the Archive.`)) + skippedText;
         showToast(message, failed.length ? 'error' : 'success'); renderBar(message);
     }
     document.addEventListener('change', event => {

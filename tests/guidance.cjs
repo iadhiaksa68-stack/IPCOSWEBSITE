@@ -17,7 +17,7 @@ const records = [
     {id:'Q4', date:day(20), nim:'444', nama:'Antrean Empat', jenis:'Outline', detail:'<b>Judul:</b> 4', link:link('q6', 'T'), status:'Accepted', note:'[]'},
     {id:'Q3', date:day(3), nim:'333', nama:'Antrean Tiga', jenis:'Skripsi Jurnal', detail:'<b>Judul:</b> 3', link:link('q4', 'L')+'<br>'+link('q5', 'D'), status:'Resubmitted', note:'[]'}
 ];
-const services = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'].map(type => ({type, enabled:type !== 'Pendadaran', open:type === 'Pendadaran' ? '2099-01-15' : '', close:'', adminDays:3, studentDays:7}));
+const services = ['Outline','Proposal','Pendadaran','Skripsi Jurnal','Pergantian Pembimbing'].map(type => ({type, enabled:type !== 'Pendadaran', open:type === 'Pendadaran' ? '2099-01-15' : '', close:type === 'Proposal' ? '2099-12-31' : '', adminDays:3, studentDays:7}));
 async function mock(context) {
     await context.route('**/*', async route => {
         const url = route.request().url();
@@ -31,6 +31,7 @@ async function mock(context) {
                     dosens:[{Nama:'Dr. Alfa', Terpakai:4, Maksimal:5}, {Nama:'Dr. Beta', Terpakai:1, Maksimal:5}, {Nama:'Dr. Gamma', Terpakai:5, Maksimal:5}]};
                 if (!nim) Object.assign(result, {academicSupported:true, academicByNim:{'222':{exists:false, level:0, revision:0, updatedAt:''}, '444':{exists:false, level:0, revision:0, updatedAt:''}}});
             } else if (data.action === 'get_journey') result = {status:'success', journey:{checks:{}, revision:1}};
+            else if (data.action === 'get_sop') result = {status:'success', document:{schema:1, type:data.type, revision:0, title:'', titleEn:'', intro:'', introEn:'', updatedAt:'', sections:[]}};
             else if (data.action === 'save_academic_progress') result = {status:'success', academic:{exists:true, level:data.level, revision:data.revision + 1, updatedAt:new Date().toISOString(), events:[]}};
             else if (data.action === 'save_progress') result = {status:'success', journey:{checks:data.changes || {}, revision:2}};
             else if (data.action === 'get_document_review') result = {status:'success', version:'', reviews:[], archived:false};
@@ -108,6 +109,7 @@ async function login(page, role) {
     assert.equal(cards.find(card => card[0] === 'Pendadaran')[1], 'blocked', 'a closed service shows why before it is chosen');
     assert.match(cards.find(card => card[0] === 'Pendadaran')[2], /ditutup.*dibuka kembali/i, 'a closed service says when it reopens');
     assert.equal(cards.find(card => card[0] === 'Proposal')[1], 'open');
+    assert.match(cards.find(card => card[0] === 'Proposal')[2], /^Tersedia · ditutup 31 Des 2099, 23\.59 WIB$/, 'the closing date and time zone are shown before choosing');
     assert.equal(await page.locator('#reg-jenis-utama').evaluate(node => node.getBoundingClientRect().width <= 1), true, 'the old dropdown no longer duplicates the cards');
     assert.equal(await page.locator('label[for="reg-jenis-utama"]').evaluate(node => node.getBoundingClientRect().width <= 1), true);
     assert.equal(await page.locator('#registration-companion').isVisible(), false, 'no side panel before a service is chosen');
@@ -136,12 +138,21 @@ async function login(page, role) {
     assert.equal(await choose.evaluate(node => document.getElementById(node.dataset.uploadInput).getBoundingClientRect().width <= 1), true, 'the browser file control with English text is not shown');
     const chooser = page.waitForEvent('filechooser'); await choose.click(); await (await chooser).setFiles([]);
     await page.setViewportSize({width:390, height:844});
-    assert.match(await page.locator('#registration-readiness-jump').textContent(), /^Persyaratan: \d\/\d siap/i, 'phones show requirement progress above the form');
+    assert.match(await page.locator('#registration-readiness-jump').textContent(), /^Persyaratan wajib: \d\/\d siap/i, 'phones show required-item progress above the form');
     await page.locator('#registration-readiness-jump').click();
     assert.equal(await page.evaluate(() => document.activeElement.id), 'readiness-heading');
     await page.setViewportSize({width:1365, height:900});
     assert.equal(await page.locator('#registration-readiness-jump').isVisible(), false, 'wide screens already show the checklist beside the form');
     pass('File fields use an Indonesian button, and phones show requirement progress at the top');
+    await page.locator('#file-acc-sempro-guidance [data-guide="sop-tugas-akhir"]').click();
+    await page.waitForSelector('#sop-tugas-akhir [data-sop-fallback="templates-faq"]');
+    assert.match(await page.locator('#sop-tugas-akhir').textContent(), /SOP belum diterbitkan/);
+    await page.locator('#sop-tugas-akhir [data-sop-fallback="templates-faq"]').click();
+    assert.equal(await page.evaluate(() => document.querySelector('.tab-content.active').id), 'templates-faq', 'an unpublished SOP offers the approved templates instead');
+    await page.locator('#templates-faq [data-guide-return]').click();
+    assert.equal(await page.evaluate(() => document.querySelector('.tab-content.active').id), 'pendaftaran');
+    assert.equal(await page.inputValue('#reg-judul'), 'Judul uji', 'the draft is waiting when the student returns');
+    pass('An unpublished SOP points to approved templates or the Help Center, and Back to Request still returns to the draft');
 
     await page.evaluate(() => switchTab(null, 'student-status'));
     assert.equal(await page.locator('#student-status .case-tracker.compact:visible').first().locator('li').count(), 4, 'list shows a compact tracker');
@@ -179,6 +190,43 @@ async function login(page, role) {
     assert.equal(await page.locator('.file-center-card').first().locator('[data-state=revision]').count(), 1, 'it is listed first');
     pass('Checklist checkboxes no longer overlap their text, and Pusat Berkas counts documents the admin asked to fix');
 
+    await page.evaluate(() => switchTab(null, 'dashboard'));
+    await page.evaluate(() => switchTab(null, 'student-status'));
+    await page.evaluate(() => switchTab(null, 'notifications'));
+    assert.equal(new URL(page.url()).hash, '#notifications', 'the URL names only the section');
+    await page.goBack(); await page.waitForFunction(() => document.querySelector('.tab-content.active').id === 'student-status');
+    await page.goBack(); await page.waitForFunction(() => document.querySelector('.tab-content.active').id === 'dashboard');
+    await page.goForward(); await page.waitForFunction(() => document.querySelector('.tab-content.active').id === 'student-status');
+    assert.match(new URL(page.url()).hash, /^#[a-z-]+$/);
+    await page.evaluate(() => { history.pushState({ipcosTab:'admin-data'}, '', '#admin-data'); history.back(); });
+    await page.waitForTimeout(200); await page.evaluate(() => history.forward()); await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(() => document.querySelector('.tab-content.active').id), 'student-status', 'a student cannot reach an admin section through history');
+    assert.equal(new URL(page.url()).hash, '#student-status', 'the address goes back to the section actually shown');
+    pass('Browser Back and Forward move between sections, keep role limits, and the URL carries only the section name');
+
+    const rowsBefore = await page.evaluate(() => JSON.parse(sessionStorage.getItem('ipcos_registrations')).length);
+    await page.evaluate(() => {
+        window.__realFetch = window.fetch; API_TIMEOUT_MS = 400;
+        window.fetch = (url, options = {}) => {
+            if (!String(url).includes('script.google.com') || !String(options.body || '').includes('"get_data"')) return window.__realFetch(url, options);
+            // Headers arrive at once, then the body never finishes, like a stalled Apps Script response.
+            let controller; const body = new ReadableStream({start(c) { controller = c; }});
+            options.signal?.addEventListener('abort', () => controller.error(new DOMException('aborted', 'AbortError')));
+            return Promise.resolve(new Response(body, {headers:{'Content-Type':'application/json'}}));
+        };
+    });
+    const started = Date.now();
+    await page.evaluate(() => syncDatabase().catch(() => {}));
+    await page.waitForFunction(() => syncPhase === 'error', null, {timeout:5000});
+    assert(Date.now() - started < 5000, 'a stalled body is cut off by the same deadline as stalled headers');
+    assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('ipcos_registrations')).length), rowsBefore, 'the last good requests stay on screen');
+    assert.match(await page.locator('#sync-status').textContent(), /Pembaruan gagal · data terakhir \d{2}\.\d{2} WIB/);
+    await page.evaluate(() => { window.fetch = window.__realFetch; API_TIMEOUT_MS = 120000; });
+    await page.locator('#sync-status [data-sync-retry]').click();
+    await page.waitForFunction(() => syncPhase === 'success');
+    assert.equal(await page.locator('#sync-status [data-sync-retry]').count(), 0);
+    pass('A read that stalls after its headers times out, keeps the last good data, and the status line offers a retry with the last WIB time');
+
     // ---------- Admin ----------
     const admin = await context.newPage();
     admin.on('pageerror', error => errors.push(error.message)); admin.on('dialog', dialog => dialog.accept());
@@ -200,10 +248,12 @@ async function login(page, role) {
     pass('Admins on phones reach Home, the queue, notifications and the menu from a bottom bar');
     await admin.locator('[data-nav-target="admin-data"]').click();
     await admin.waitForSelector('#queue-saved-views [data-queue-view]');
-    await admin.locator('[data-queue-view="resubmitted"]').click();
+    assert.deepEqual(await admin.locator('#queue-saved-views [data-queue-view]').evaluateAll(nodes => nodes.map(node => node.dataset.queueView)), ['overdue', 'oldest'], 'shortcuts never repeat a counted status tab');
+    await admin.locator('#admin-queue-summary [data-queue-status="Resubmitted"]').click();
     assert.deepEqual(await admin.locator('#table-admin-reg tr[data-queue-case]').evaluateAll(rows => rows.map(row => row.dataset.queueCase)), ['Q3']);
     await admin.locator('[data-queue-view="overdue"]').click();
-    assert.deepEqual(await admin.locator('#table-admin-reg tr[data-queue-case]').evaluateAll(rows => rows.map(row => row.dataset.queueCase)), ['Q1', 'Q3']);
+    assert.deepEqual(await admin.locator('#table-admin-reg tr[data-queue-case]').evaluateAll(rows => rows.map(row => row.dataset.queueCase)), ['Q1'], 'a request at exactly its target day is not yet late');
+    assert.match(await admin.locator('#table-admin-reg tr[data-queue-case="Q1"]').textContent(), /6 hari · 3 hari lewat target \(target 3 hari\)/, 'the label spells out age, days late and the target');
     await admin.fill('#admin-search-input', 'Antrean Satu'); await admin.evaluate(() => filterAdminData());
     await admin.locator('[data-queue-new]').click(); await admin.fill('#queue-view-name', 'Satu saja'); await admin.locator('#queue-view-name').press('Enter');
     await admin.evaluate(() => setAdminQueueFilter('ALL')); await admin.fill('#admin-search-input', ''); await admin.evaluate(() => filterAdminData());
@@ -279,10 +329,16 @@ async function login(page, role) {
     assert.equal(await boxes.count(), 13, 'admin can pick any of the 12 documents or the request details');
     for (let i = 0; i < 6; i++) await boxes.nth(i).check();
     await admin.fill('#case-revision-note', 'Scan ulang.');
+    assert.match(await admin.locator('#revision-file-limit').textContent(), /6 berkas dipilih · maksimal 5 per putaran/, 'the limit shows while files are being chosen');
+    assert.equal(await admin.locator('#revision-file-limit').evaluate(node => node.classList.contains('field-error')), true);
+    const limitColors = await admin.locator('#revision-file-limit').evaluate(node => ({ note: getComputedStyle(node).color, maroon: getComputedStyle(node).getPropertyValue('--umy-maroon').trim() }));
+    assert.equal(limitColors.note, 'rgb(159, 36, 66)', `the over-limit note must render in the warning maroon (${limitColors.maroon}), not the muted helper grey`);
     await admin.locator('#btn-case-submit').click();
     assert.match(await admin.locator('#case-action-feedback').textContent(), /maksimal 5 berkas/);
     assert.equal(calls.filter(c => c.action === 'update' && c.id === 'PDD').length, 0);
-    await boxes.nth(5).uncheck(); await admin.locator('#btn-case-submit').click();
+    await boxes.nth(5).uncheck();
+    assert.match(await admin.locator('#revision-file-limit').textContent(), /5 dari maksimal 5 berkas/);
+    await admin.locator('#btn-case-submit').click();
     await admin.waitForSelector('#admin-decision-summary');
     await admin.evaluate(() => { document.getElementById('case-action-panel').dataset.dirty = 'false'; cancelCaseAction(); closeModal('modal-case-detail', true); const list = JSON.parse(sessionStorage.getItem('ipcos_registrations')).filter(r => r.id !== 'PDD'); sessionStorage.setItem('ipcos_registrations', JSON.stringify(list)); });
     pass('Admins can request up to 5 defense documents per correction round, matching what a student can send');

@@ -24,7 +24,8 @@
         box.innerHTML = [...select.options].filter(option => option.value).map(option => {
             const type = option.value, active = activeSameType(type), reason = serviceAvailability(type);
             const kind = active ? 'active' : reason ? 'blocked' : 'open';
-            const note = active ? t('Sedang berjalan · lanjutkan pengajuan ini', 'In progress · continue this request') : reason || t('Tersedia', 'Available');
+            const close = serviceSetting(type).close;
+            const note = active ? t('Sedang berjalan · lanjutkan pengajuan ini', 'In progress · continue this request') : reason || (close ? t(`Tersedia · ditutup ${formatDate(close)}, 23.59 WIB`, `Available · closes ${formatDate(close)}, 23:59 WIB`) : t('Tersedia', 'Available'));
             return `<button type="button" class="service-card ${kind}" data-service-card="${escapeHtml(type)}" data-preserve-case aria-pressed="${select.value === type}"><strong>${escapeHtml(option.textContent.trim())}</strong><span>${escapeHtml(note)}</span></button>`;
         }).join('');
         if (refocus) box.querySelector(`[data-service-card="${CSS.escape(refocus)}"]`)?.focus({preventScroll:true});
@@ -97,7 +98,7 @@
         const key = sessionEpoch + '|' + service + '|' + step;
         if (reported.has(key)) return;
         reported.add(key);
-        apiPost(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'report_funnel', service, step})}).then(response => response.json()).catch(() => {});
+        apiPost(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'report_funnel', service, step})}).then(response => releaseApiRequest(response).json()).catch(() => {});
     }
     window.IPCOSFunnel = Object.freeze({step:funnelStep});
 

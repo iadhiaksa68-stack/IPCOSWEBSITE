@@ -17,7 +17,7 @@
         previousType=type;
         const requirements=selected?registrationRequirements(type):[],dataIds=new Set(selected?registrationTextSpecs(type).map(([id])=>id):[]);
         const dataReady=selected&&requirements.filter(item=>dataIds.has(item.id)).every(item=>item.ready);
-        const filesReady=selected&&requirements.filter(item=>!dataIds.has(item.id)).every(item=>item.ready);
+        const filesReady=selected&&registrationFilesTotal(type)<=REGISTRATION_TOTAL_LIMIT&&requirements.filter(item=>!dataIds.has(item.id)).every(item=>item.ready);
         const status=el('form-submit-status');
         if(status.dataset.registrationValidation&&(activeStep==='service'||activeStep==='data'&&dataReady||activeStep==='files'&&dataReady&&filesReady)){
             status.textContent='';delete status.dataset.registrationValidation;
@@ -60,9 +60,10 @@
         setText(el('registration-companion-help'),help[activeStep]);
         let jump=el('registration-readiness-jump');
         if(!jump){jump=document.createElement('button');jump.type='button';jump.id='registration-readiness-jump';jump.className='registration-readiness-jump';nav.after(jump);}
-        const readyCount=requirements.filter(item=>item.ready).length;
+        const required=requirements.filter(item=>!item.optional);
+        const readyCount=required.filter(item=>item.ready).length;
         jump.hidden=!selected||review||activeStep==='service'||!requirements.length;
-        setText(jump,t(`Persyaratan: ${readyCount}/${requirements.length} siap · Lihat daftar ↓`,`Requirements: ${readyCount}/${requirements.length} ready · View list ↓`));
+        setText(jump,t(`Persyaratan wajib: ${readyCount}/${required.length} siap · Lihat daftar ↓`,`Required items: ${readyCount}/${required.length} ready · View list ↓`));
     }
     function focusField(field){
         if(!field)return;

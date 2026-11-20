@@ -152,6 +152,18 @@
         if(tab==='templates-faq')window.IPCOSResources?.context({service,field,label:requirement[1]});
         else window.IPCOSResources?.clearContext?.();
     }
+    // From an unpublished SOP, move the same detour to another approved source; "Back to Request" follows.
+    function continueGuide(tab) {
+        if(!['templates-faq','feedback'].includes(tab))return false;
+        if(!currentGuide()||isSubmittingRegistration||preflightBusy)return switchTab(null,tab);
+        const dirty=registrationDirty;let switched=false;registrationDirty=false;
+        try{switched=switchTab(null,tab);}finally{registrationDirty=dirty;}
+        if(!switched||!document.getElementById(tab).classList.contains('active'))return false;
+        guideContext.tab=tab;renderGuideBack();
+        const requirement=registrationSpecs(guideContext.service).find(([id])=>id===guideContext.field);
+        if(tab==='templates-faq'&&requirement)window.IPCOSResources?.context({service:guideContext.service,field:guideContext.field,label:requirement[1]});
+        return true;
+    }
     function returnToRequest() {
         if(!currentGuide()||isSubmittingRegistration||preflightBusy)return;
         const field=guideContext.field;
@@ -243,7 +255,7 @@
     window.addEventListener('online',()=>{if(draft.error){draft.error=false;flushDraft();}});
     window.addEventListener('beforeunload',event=>{if(owner()&&draft.intent&&Object.values(draft.intent).some(value=>value)&&(draft.saving||draft.generation>draft.confirmed)){event.preventDefault();event.returnValue='';}});
     let labelQueued=false;new MutationObserver(()=>{if(labelQueued)return;labelQueued=true;queueMicrotask(()=>{labelQueued=false;labels();});}).observe(document.body,{childList:true,subtree:true});
-    window.IPCOSNext={clearGuide,refresh,reset,startDraft,changed,flushDraft,revisionFields,wantsFields,correctionPayload,fieldHistory,report,health};
+    window.IPCOSNext={clearGuide,continueGuide,refresh,reset,startDraft,changed,flushDraft,revisionFields,wantsFields,correctionPayload,fieldHistory,report,health};
     window.addEventListener('load',()=>{interfaceReady=true;refresh();});
     refresh();
 })();

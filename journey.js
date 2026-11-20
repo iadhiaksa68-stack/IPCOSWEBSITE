@@ -40,11 +40,11 @@ function registrationRequirements(type) {
         return {id, title, ready: !registrationTextIssue(id), hint: sameSupervisor ? uxText('Pilih dosen yang berbeda.', 'Choose a different supervisor.') : value ? registrationTextIssue(id) || uxText('Sudah diisi', 'Completed field') : uxText('Wajib diisi', 'Required field')};
     });
     return fields.concat(registrationSpecs(type).map(([id, title]) => {
-        const input = document.getElementById(id), file = input.files[0];
-        if (!file && registrationOptional(id)) return {id, title, optional:true, ready:true, hint:uxText('Opsional · lewati jika tidak ada', 'Optional · skip if you do not have it')};
+        const input = document.getElementById(id), file = input.files[0], optional = registrationOptional(id);
+        if (!file && optional) return {id, title, optional, ready:true, hint:uxText('Opsional · lewati jika tidak ada', 'Optional · skip if you do not have it')};
         const problem = fileProblem(file, input.accept);
         const inspection = file && documentInspections.get(file);
-        return {id, title, ready: !problem && inspection?.pending === false, hint: file ? problem || `${file.name} · ${formatFileSize(file.size)} · ${inspection?.pending === false ? uxText('format diperiksa', 'format checked') : uxText('memeriksa format...', 'checking format...')}` : `${input.accept.replaceAll(',', ' / ')} · ${uxText('maks. 10 MB', 'max. 10 MB')}`};
+        return {id, title, optional, ready: !problem && inspection?.pending === false, hint: file ? problem || `${file.name} · ${formatFileSize(file.size)} · ${inspection?.pending === false ? uxText('format diperiksa', 'format checked') : uxText('memeriksa format...', 'checking format...')}` : `${input.accept.replaceAll(',', ' / ')} · ${uxText('maks. 10 MB', 'max. 10 MB')}`};
     }));
 }
 
@@ -54,18 +54,36 @@ function renderRegistrationReadiness() {
     const type = document.getElementById('reg-jenis-utama').value;
     const requirements = currentUser.role === 'mhs' ? registrationRequirements(type) : [];
     panel.hidden = !requirements.length;
+    const total = registrationFilesTotal(type);
+    const overLimit = total > REGISTRATION_TOTAL_LIMIT;
     const meter = document.getElementById('pendadaran-upload-total');
-    if (meter) { const total = type === 'Pendadaran' ? registrationFilesTotal(type) : 0; meter.textContent = total ? uxText(`Total berkas: ${formatFileSize(total)} dari 20 MB`, `Files total: ${formatFileSize(total)} of 20 MB`) : ''; meter.classList.toggle('field-error', total > REGISTRATION_TOTAL_LIMIT); }
+    if (meter) {
+        const size = total ? formatFileSize(total) : '0 MB';
+        let message = '';
+        if (type === 'Pendadaran') {
+            message = overLimit
+                ? uxText(`Total berkas ${size} melebihi 20 MB. Perkecil atau ganti berkas.`, `The ${size} total exceeds 20 MB. Reduce or replace files.`)
+                : uxText(`Total berkas: ${size} dari 20 MB`, `Files total: ${size} of 20 MB`);
+        }
+        if (meter.textContent !== message) meter.textContent = message;
+        meter.classList.toggle('field-error', overLimit);
+    }
     window.IPCOSRegistration?.refresh();
     if (!requirements.length) { panel.textContent = ''; delete panel.dataset.signature; return; }
-    const complete = requirements.filter(item => item.ready).length;
-    const allReady = complete === requirements.length;
+    const required = requirements.filter(item => !item.optional);
+    const complete = required.filter(item => item.ready).length;
+    const allReady = !overLimit && requirements.every(item => item.ready);
+    const status = overLimit
+        ? uxText('Perkecil atau ganti berkas hingga totalnya maksimal 20 MB.', 'Reduce or replace files until the total is 20 MB or less.')
+        : allReady
+            ? uxText('Isian dan berkas siap diperiksa. Pilih Periksa Ringkasan sebelum mengirim.', 'Fields and files are ready for review. Select Review Summary before sending.')
+            : uxText('Lengkapi poin berikut sebelum memeriksa ringkasan.', 'Complete the following items before reviewing the summary.');
     // Keep keyboard focus while typing and only rebuild when readiness changes.
-    const signature = JSON.stringify([currentLang, type, requirements]);
+    const signature = JSON.stringify([currentLang, type, requirements, overLimit]);
     if (panel.dataset.signature === signature) return;
     panel.dataset.signature = signature;
-    panel.innerHTML = `<div class="readiness-heading"><h3 id="readiness-heading">${uxText('Persyaratan pengajuan', 'Request requirements')}</h3><span class="stage-progress ${allReady ? 'is-ready' : ''}">${complete}/${requirements.length} ${uxText('siap', 'ready')}</span></div>
-        <p class="readiness-status" role="status">${allReady ? uxText('Isian dan berkas siap diperiksa. Pilih Periksa Ringkasan sebelum mengirim.', 'Fields and files are ready for review. Select Review Summary before sending.') : uxText('Lengkapi poin berikut sebelum memeriksa ringkasan.', 'Complete the following items before reviewing the summary.')}</p>
+    panel.innerHTML = `<div class="readiness-heading"><h3 id="readiness-heading">${uxText('Persyaratan pengajuan', 'Request requirements')}</h3><span class="stage-progress ${allReady ? 'is-ready' : ''}">${complete}/${required.length} ${uxText('syarat wajib siap', 'required items ready')}</span></div>
+        <p class="readiness-status" role="status">${status}</p>
         <ul class="requirement-list">${requirements.map(item => `<li class="${item.ready ? 'requirement-ready' : ''}"><span class="requirement-state">${item.optional ? uxText('Opsional', 'Optional') : item.ready ? uxText('Siap', 'Ready') : uxText('Belum', 'Missing')}</span><button type="button" data-requirement-field="${item.id}"><strong>${escapeHtml(systemText(item.title))}</strong><span>${escapeHtml(item.hint)}</span></button></li>`).join('')}</ul>
         ${registrationWarnings().map(message=>`<p class="preflight-warning">${escapeHtml(message)}</p>`).join('')}<p class="form-helper">${uxText('Pemeriksaan format tidak menilai isi atau tanda tangan. Kelengkapan akademik diperiksa admin setelah dikirim.', 'Format checks do not verify contents or signatures. Admin will verify academic requirements after submission.')}</p>`;
 }

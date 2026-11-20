@@ -49,7 +49,8 @@
             const remove=button(t('Hapus','Remove'),'remove',input,index);remove.setAttribute('aria-label',t('Hapus ','Remove ')+file.name);actions.append(remove);item.append(actions);fragment.append(item);
         });
         const help=document.createElement('p');help.className='field-helper upload-local-note';help.textContent=t('Periksa seluruh halaman dan tanda tangan. Pemeriksaan format bukan persetujuan admin.','Review every page and signature. A format check is not admin approval.');
-        if(files.length)fragment.append(help);
+        // Pendadaran has twelve slots; its shared reminder sits once above them instead of under every file.
+        if(files.length&&!input.closest('#req-pendadaran'))fragment.append(help);
         panel.replaceChildren(fragment);input.disabled=busy(input);
         // Keep the original validation nodes and handlers as the source of truth.
         group.querySelectorAll('.dz-file-badge').forEach(node=>node.hidden=true);

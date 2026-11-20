@@ -124,8 +124,13 @@ async function fill(page, type) {
         return route.abort();
     });
     const page = await context.newPage();
+    const navigationDialogs = [];
+    let acceptDialog = true;
     page.on('pageerror', error => errors.push(error.message));
-    page.on('dialog', dialog => dialog.accept());
+    page.on('dialog', dialog => {
+        navigationDialogs.push(dialog.message());
+        return acceptDialog ? dialog.accept() : dialog.dismiss();
+    });
     await page.goto(origin); await page.fill('#input-nim','A'); await page.locator('#input-nim').press('Enter');
     await page.waitForSelector('#welcome-modal',{state:'hidden'}); await page.waitForFunction(() => syncPhase === 'success');
     await page.evaluate(() => switchTab(null,'pendaftaran'));
@@ -145,6 +150,49 @@ async function fill(page, type) {
     assert.equal(await page.inputValue('#reg-jenis-utama'),'Outline');assert.equal(createCalls().length,0);
     pass('Selecting a service stays on its panel; explicit Continue and Enter advance one stage, and Back retains the title without sending');
     pass('Empty registration exposes four accessible steps and requires service selection in all 16 screen/language/theme combinations');
+
+    const dialogsBefore = navigationDialogs.length;
+    assert(await page.evaluate(() => switchTab(null, 'student-status')));
+    assert(await page.locator('#student-status').isVisible());
+    assert.equal(navigationDialogs.length, dialogsBefore, 'Leaving a saved text draft needs no dialog');
+    await page.evaluate(() => switchTab(null, 'pendaftaran'));
+    assert.equal(await page.inputValue('#reg-judul'), title);
+    acceptDialog = false;
+    assert.equal(await page.evaluate(() => {
+        document.getElementById('reg-judul').value += ' — latest edit';
+        return switchTab(null, 'student-status');
+    }), false, 'Keep a warning when the live fields differ from the saved draft');
+    assert.match(navigationDialogs.at(-1), /belum tersimpan|not been saved/);
+    assert.equal(await page.inputValue('#reg-judul'), title + ' — latest edit');
+    acceptDialog = true;
+    pass('Saved text can stay in the tab without a leave warning; cancelling a warning preserves unsaved inputs');
+
+    await mode(page, 390, 'id', false);
+    await selectService(page, 'Pendadaran');
+    await page.fill('#reg-judul', title);
+    await showFiles(page);
+    const totalMeter = page.locator('#pendadaran-upload-total');
+    assert.match(await totalMeter.textContent(), /0 MB dari 20 MB/);
+    assert.match(await page.locator('#registration-readiness-jump').textContent(), /1\/12 siap/i);
+    const sample = pdf('padded document');
+    const size = 7 * 1024 * 1024;
+    const buffer = Buffer.concat([sample.subarray(0, 9), Buffer.alloc(size - sample.length, 32), sample.subarray(9)]);
+    const optional = '#file-pdd-ba-proposal';
+    for (const id of [optional, '#file-pdd-blangko', '#file-pdd-kkn']) {
+        await page.setInputFiles(id, {name: id.slice(1) + '.pdf', mimeType: 'application/pdf', buffer});
+    }
+    assert.match(await totalMeter.textContent(), /21 MB melebihi 20 MB/);
+    assert.match(await page.locator('#registration-readiness .readiness-status').textContent(), /Perkecil atau ganti berkas/);
+    await page.waitForFunction(() => ['file-pdd-blangko', 'file-pdd-kkn'].every(id =>
+        documentInspections.get(document.getElementById(id).files[0])?.pending === false
+    ));
+    const progressWithOptional = await page.locator('#registration-readiness-jump').textContent();
+    assert.match(progressWithOptional, /3\/12 siap/i, 'The optional file uses space but adds no required-item credit');
+    await page.setInputFiles(optional, []);
+    assert.match(await totalMeter.textContent(), /14 MB dari 20 MB/);
+    assert.match(await page.locator('#registration-readiness-jump').textContent(), /3\/12 siap/i);
+    assert.equal(createCalls().length, 0);
+    pass('Pendadaran shows size from zero, warns above 20 MB before review, and keeps optional files out of required readiness');
 
     for (const type of Object.keys(services)) {
         await mode(page,1365,'id',false); await selectService(page,type);

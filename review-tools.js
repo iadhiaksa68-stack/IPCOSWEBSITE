@@ -99,7 +99,7 @@
         if(el('review-accept-rest')){const pending=draft.some(review=>review.status==='pending');el('review-accept-rest').hidden=!pending;el('review-accept-rest').disabled=saving;if(el('review-accept-rest-help'))el('review-accept-rest-help').hidden=!pending;}
         if(el('review-historical'))el('review-historical').hidden=!file||active>=0;
         if(el('review-save-actions'))el('review-save-actions').hidden=active<0||!canEdit;
-        const next=el('review-save-next');if(next){next.disabled=saving;next.textContent=saving?t('Menyimpan…','Saving…'):nextPending(active)<0?t('Simpan & Selesai','Save & Finish'):t('Simpan & Lanjut','Save & Continue');}
+        const next=el('review-save-next');if(next){next.disabled=saving;next.textContent=saving?t('Menyimpan…','Saving…'):nextPending(active)<0?t('Simpan & Akhiri Pemeriksaan','Save & Finish Review'):t('Simpan & Lanjut','Save & Continue');}
         root.querySelectorAll('select,textarea,[data-save-document-review],[data-review-start],[data-review-latest]').forEach(node=>node.disabled=saving);
         document.querySelectorAll('#case-detail-content [data-preview-index]').forEach(button=>{
             const doc=files[Number(button.dataset.previewIndex)],review=draft.find(entry=>entry.url===doc?.url),row=button.closest('.case-file-row');

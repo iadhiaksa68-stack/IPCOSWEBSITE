@@ -42,4 +42,10 @@ for (const name of allowed) {
 const report = {initialRequests:{before:scripts.length+styles.length,after:2},js:{before:measure(source),after:measure(js)},css:{before:measure(cssSource),after:measure(css)},manifest:{...manifest,js:jsName,css:cssName}};
 mkdirSync(path.join(root,'test-results'),{recursive:true});
 writeFileSync(path.join(root,'test-results/build-report.json'),JSON.stringify(report,null,2));
+// Release budget: the 20 Nov 2026 baseline (209,476 B Brotli for the initial JS+CSS) plus a small patch allowance.
+// Growth past it fails the build, so larger features move to on-demand modules instead of the first download.
+const INITIAL_BROTLI_BUDGET = 215 * 1024;
+const initialBrotli = report.js.after.brotli + report.css.after.brotli;
+if (initialBrotli > INITIAL_BROTLI_BUDGET) { console.error(`FAIL Initial JS+CSS is ${initialBrotli} bytes Brotli, over the ${INITIAL_BROTLI_BUDGET}-byte release budget.`); process.exit(1); }
+console.log(`PASS Initial JS+CSS ${initialBrotli} bytes Brotli, within the ${INITIAL_BROTLI_BUDGET}-byte release budget.`);
 console.log(`PASS Production assets: ${report.initialRequests.before} → 2 local CSS/JS requests. JS ${report.js.before.raw} → ${report.js.after.raw} bytes; CSS ${report.css.before.raw} → ${report.css.after.raw} bytes. Tests/backend/source maps are excluded.`);

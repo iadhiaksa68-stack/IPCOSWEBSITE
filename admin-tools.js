@@ -35,11 +35,10 @@
 
     /* ---------- Saved queue views ---------- */
     const STORE = 'ipcos_admin_views';
+    // Status tabs above already count each status; shortcuts here only add a filter or change the order.
     const builtIn = () => [
-        {id:'overdue', name:t('Lewat target', 'Past target'), view:{status:'ACTION_REQUIRED', overdue:true, order:'overdue'}},
-        {id:'resubmitted', name:t('Perbaikan masuk', 'Corrections received'), view:{status:'Resubmitted', order:'oldest'}},
-        {id:'oldest', name:t('Terlama dulu', 'Oldest first'), view:{status:'ACTION_REQUIRED', order:'oldest'}},
-        {id:'waiting-student', name:t('Menunggu mahasiswa', 'Awaiting students'), view:{status:'Revision', order:'oldest'}}
+        {id:'overdue', name:t('Lewat target dulu', 'Past target first'), view:{status:'ACTION_REQUIRED', overdue:true, order:'overdue'}},
+        {id:'oldest', name:t('Terlama dulu', 'Oldest first'), view:{status:'ACTION_REQUIRED', order:'oldest'}}
     ];
     const saved = () => { try { const list = JSON.parse(localStorage.getItem(STORE) || '[]'); return Array.isArray(list) ? list.filter(item => item && typeof item.name === 'string' && item.view) : []; } catch (_) { return []; } };
     const store = list => { try { localStorage.setItem(STORE, JSON.stringify(list.slice(0, 8))); return true; } catch (_) { return false; } };
@@ -65,7 +64,7 @@
             controls.after(bar);
         }
         const custom = saved();
-        bar.innerHTML = `<span class="queue-saved-label">${t('Tampilan:', 'Views:')}</span>`
+        bar.innerHTML = `<span class="queue-saved-label">${t('Pintasan:', 'Shortcuts:')}</span>`
             + builtIn().map(item => `<button type="button" class="queue-view-chip" data-queue-view="${item.id}">${escapeHtml(item.name)}</button>`).join('')
             + custom.map((item, index) => `<span class="queue-view-custom"><button type="button" class="queue-view-chip custom" data-queue-custom="${index}">${escapeHtml(item.name)}</button><button type="button" class="queue-view-remove" data-queue-remove="${index}" aria-label="${escapeHtml(t('Hapus tampilan ', 'Remove view ') + item.name)}">×</button></span>`).join('')
             + (naming ? `<input id="queue-view-name" type="text" maxlength="40" placeholder="${escapeHtml(t('Nama tampilan', 'View name'))}" aria-label="${escapeHtml(t('Nama tampilan', 'View name'))}"><button type="button" class="queue-view-chip" data-queue-save>${t('Simpan', 'Save')}</button><button type="button" class="queue-view-chip" data-queue-cancel>${t('Batal', 'Cancel')}</button>`
@@ -137,5 +136,12 @@
     renderPasswordCard(); document.addEventListener('DOMContentLoaded', renderPasswordCard);
     window.addEventListener('ipcos:logout', () => { passwordSaving = false; el('admin-password-form')?.reset(); const feedback = el('admin-pw-feedback'); if (feedback) feedback.textContent = ''; });
 
-    window.IPCOSAdminTools = Object.freeze({applyView, currentView, renderViews});
+    // Labels built once in the current language are rebuilt on a switch; typed input is never thrown away.
+    function languageChanged() {
+        if (!admin()) return;
+        if (el('queue-saved-views') && !naming) renderViews();
+        const card = el('admin-password-card');
+        if (card && ![...card.querySelectorAll('input')].some(input => input.value) && !passwordSaving) { const open = card.open, parent = card.parentNode, next = card.nextSibling; card.remove(); renderPasswordCard(); const fresh = el('admin-password-card'); if (fresh) { fresh.open = open; if (parent && fresh.parentNode === parent) parent.insertBefore(fresh, next); } }
+    }
+    window.IPCOSAdminTools = Object.freeze({applyView, currentView, renderViews, languageChanged});
 })();

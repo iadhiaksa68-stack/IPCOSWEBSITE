@@ -66,7 +66,11 @@ test('internal overdue filtering uses a WIB timestamp at the 24-hour boundary', 
   assert.equal(context.caseWaiting(item).overdue, false);
   clock = Date.parse('2026-10-14T04:30:00Z');
   assert.equal(context.caseWaiting(item).days, 1);
+  assert.equal(context.caseWaiting(item).overdue, false, 'on the target day itself the request is not yet late');
+  clock = Date.parse('2026-10-15T04:30:00Z');
+  assert.equal(context.caseWaiting(item).days, 2);
   assert.equal(context.caseWaiting(item).overdue, true);
+  assert.equal(context.caseWaiting(item).late, 1, 'days late are counted past the target');
 });
 
 test('Yudisium countdown follows the next calendar deadline and closes each date in WIB', () => {
@@ -175,7 +179,7 @@ test('returning to registration keeps a prepared review and selected files', () 
     sessionStorage: {getItem: () => {reads++; return JSON.stringify({'reg-jenis-utama': 'Proposal'});}},
     toggleExamForm: () => resets++,
   });
-  vm.runInContext(section('function loadFormDraft(', 'function clearFormDraft('), context);
+  vm.runInContext(section('function registrationHasSelectedFiles(', 'function clearFormDraft('), context);
   context.loadFormDraft();
   review.hidden = true;
   context.loadFormDraft();

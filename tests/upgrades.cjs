@@ -84,7 +84,7 @@ async function noOverflow(page, label) { assert.equal(await page.evaluate(() => 
     await admin.locator('[data-nav-target="admin-data"]').click();
     await admin.evaluate(() => setAdminQueueFilter('ALL'));
     const age = admin.locator('#table-admin-reg tr[data-queue-case="OLD-PROP"] .request-wait');
-    assert.match(await age.textContent(), /9 hari · lewat target 3 hari/);
+    assert.match(await age.textContent(), /9 hari · 6 hari lewat target \(target 3 hari\)/);
     assert.equal(await age.evaluate(node => node.classList.contains('overdue')), true);
     assert.match(await admin.locator('#table-admin-reg tr[data-queue-case="NEW-JOURNAL"] .request-wait').textContent(), /Hari ini/);
     assert.equal(await admin.locator('#admin-table-main').evaluate(table => { const wrap = table.closest('.responsive-table-wrapper'); return wrap.scrollWidth <= wrap.clientWidth + 2; }), true, 'selection column does not push the table sideways');

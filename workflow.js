@@ -7,8 +7,14 @@ function renderSyncStatus() {
     el.hidden = !getSessionToken();
     const time = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString(currentLang === 'id' ? 'id-ID' : 'en-GB', {hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}) : '';
     el.dataset.state = syncPhase;
+    if (!isOffline && syncPhase === 'error') {
+        const message = time ? uxText('Pembaruan gagal · data terakhir ','Update failed · last data ')+time+' WIB' : uxText('Pembaruan gagal · data belum dimuat','Update failed · no data loaded yet');
+        el.innerHTML = `<span class="sync-status-text">${escapeHtml(message)}</span> <button type="button" class="sync-retry" data-sync-retry>${uxText('Coba lagi','Try again')}</button>`;
+        return;
+    }
     el.textContent = isOffline ? uxText('Offline · data terakhir ditampilkan','Offline · showing cached data') : syncPhase === 'syncing' ? uxText('Sedang memperbarui…','Updating…') : syncPhase === 'error' ? uxText('Pembaruan gagal · gunakan Segarkan Data','Update failed · use Refresh Data') : time ? uxText('Terakhir diperbarui ','Last updated ')+time+' WIB' : uxText('Belum tersinkron','Not synced yet');
 }
+document.addEventListener('click', event => { if (event.target.closest('[data-sync-retry]') && getSessionToken() && syncPhase !== 'syncing') syncDatabase(); });
 function setSyncPhase(phase) {
     syncPhase = phase;
     if (phase === 'success') { lastSyncTime = new Date().toISOString(); sessionStorage.setItem('ipcos_last_sync',lastSyncTime); }
@@ -97,7 +103,17 @@ function confirmLeaveCase() {
 }
 function confirmLeaveRegistration() {
     if (isSubmittingRegistration) { showToast(uxText('Tunggu konfirmasi pengiriman sebelum berpindah.','Wait for submission confirmation before leaving.'),'error');return false; }
-    return !registrationDirty || confirm(uxText('Pengajuan belum dikirim. Draf isian tetap ada di tab ini, tetapi berkas harus dipilih ulang setelah halaman dimuat ulang. Tetap berpindah?','The request has not been sent. Draft text remains in this tab, but files must be selected again after a reload. Leave anyway?'));
+    if (!registrationDirty) return true;
+    if (registrationHasSelectedFiles()) {
+        return confirm(uxText(
+            'Berkas belum dikirim. Pilihan berkas tetap ada selama tab ini tidak dimuat ulang atau ditutup. Pindah halaman?',
+            'Files have not been sent. Your selection stays until you reload or close this tab. Leave this page?'
+        ));
+    }
+    return registrationTextMatchesSavedDraft() || confirm(uxText(
+        'Isian terbaru belum tersimpan di tab ini. Pindah halaman?',
+        'Your latest changes have not been saved in this tab. Leave this page?'
+    ));
 }
 function resetWorkflowSession() {
     queueRestored=false;registrationDirty=false;syncPhase='idle';lastSyncTime='';

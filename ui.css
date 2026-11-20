@@ -493,3 +493,6 @@ details[open]>summary::after { transform:rotate(225deg); }
     .sop-editor-footer button { flex:1 1 120px; }
     .sop-editor-footer #sop-save { flex-basis:100%; }
 }
+.sync-status .sync-retry { width:auto; min-height:32px; margin:0 0 0 6px; padding:4px 10px; border:1px solid currentColor; border-radius:999px; background:transparent; color:inherit; font:inherit; font-weight:700; cursor:pointer; }
+@media(max-width:600px) { .sync-status .sync-retry { min-height:40px; } }
+.revision-file-options #revision-file-limit.field-error { color:var(--umy-maroon); font-weight:600; }

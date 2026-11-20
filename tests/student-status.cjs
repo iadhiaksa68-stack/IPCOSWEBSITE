@@ -22,7 +22,7 @@ let records = [
 ];
 const activity = ['CASE-RESUB','CASE-REV','CASE-SUPERVISOR','CASE-PENDING','CASE-DONE','CASE-INVALID'];
 const submitted = ['CASE-SUPERVISOR','CASE-PENDING','CASE-DONE','CASE-RESUB','CASE-REV','CASE-INVALID'];
-let nextRead = null, failRead = false;
+let nextRead = null, nextResponse = null, failRead = false;
 function gate() { let enter,release; return {entered:new Promise(resolve=>enter=resolve),wait:new Promise(resolve=>release=resolve),enter:()=>enter(),release:()=>release()}; }
 async function mode(page,width,lang,dark) {
     await page.setViewportSize({width,height:900});
@@ -87,7 +87,8 @@ async function login(page,nim='A') {
             else if (data.action==='get_data') {
                 const held=nextRead;nextRead=null;if(held){held.enter();await held.wait;}
                 // Deliberately include foreign records to exercise the client role filter.
-                if(failRead){failRead=false;result={status:'error',message:'Gangguan refresh pengujian.'};}
+                if(nextResponse){result=nextResponse;nextResponse=null;}
+                else if(failRead){failRead=false;result={status:'error',message:'Gangguan refresh pengujian.'};}
                 else result={status:'success',registrations:structuredClone(records),students:[],dosens:[],contents:[],announcements:[],services:[]};
             } else if (data.action==='get_journey') result={status:'success',journey:{checks:{},revision:1}};
             else if (data.action==='logout') result={status:'success'};
@@ -147,6 +148,13 @@ async function login(page,nim='A') {
     records.push(row('CASE-NEW','Outline','Pending','2026-10-15T01:00:00Z'));pending.release();await page.evaluate(()=>window.studentStatusSync);
     await expectedRows(page,['CASE-NEW','CASE-SUPERVISOR','CASE-PENDING','CASE-RESUB','CASE-INVALID']);assert.equal(await page.evaluate(()=>document.activeElement.id),'student-request-search');assert.equal(await page.locator('#student-request-search').evaluate(node=>node.selectionStart),caret);
     assert.equal(await page.inputValue('#student-request-order'),'submitted');await selected(page,'processing');
+    for (const malformed of [{status:'success'}, {status:'success', registrations:[null]}]) {
+        nextResponse = malformed;
+        await page.evaluate(() => syncDatabase());
+        assert.equal(await page.evaluate(() => syncPhase), 'error');
+        await expectedRows(page, ['CASE-NEW','CASE-SUPERVISOR','CASE-PENDING','CASE-RESUB','CASE-INVALID']);
+    }
+    pass('A success envelope with missing or malformed registrations retains the last valid rows and reports a refresh failure');
     failRead=true;await page.evaluate(()=>syncDatabase());assert.equal(await page.evaluate(()=>syncPhase),'error');
     await expectedRows(page,['CASE-NEW','CASE-SUPERVISOR','CASE-PENDING','CASE-RESUB','CASE-INVALID']);
     assert.equal(await page.inputValue('#student-request-search'),' eCommerce  partisipasi ');assert.equal(await page.inputValue('#student-request-order'),'submitted');await selected(page,'processing');
