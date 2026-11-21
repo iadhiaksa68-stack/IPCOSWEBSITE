@@ -3,7 +3,7 @@
     'use strict';
     const el=id=>document.getElementById(id),t=(id,en)=>uxText(id,en);
     const statuses=['all','revision','processing','completed'];
-    let owner='',status='all',query='',order='activity',renderKey='';
+    let owner='',status='all',query='',order='activity',renderKey='',toolsOpen=false;
     const normalize=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().trim().replace(/\s+/g,' ');
     const state=item=>String(item.status||'').trim().toLowerCase();
     function time(value){const number=displayDate(value).getTime();return Number.isFinite(number)?number:-Infinity;}
@@ -27,11 +27,18 @@
         // Preserve the live search node, value and caret during sync/language changes.
         const names=labels();el('student-request-summary').setAttribute('aria-label',t('Status pengajuan','Request status'));
         el('student-request-search').placeholder=t('Cari layanan, nomor, atau judul...','Search service, ID, or title...');
-        el('student-status').querySelector('.student-request-toolbar').setAttribute('aria-label',t('Pencarian dan urutan pengajuan','Request search and ordering'));
+        const toolbar=el('student-status').querySelector('.student-request-toolbar');toolbar.setAttribute('aria-label',t('Pencarian dan urutan pengajuan','Request search and ordering'));
+        // Phones: search and sort open on demand, and stay open while they are in use.
+        let tools=el('student-request-tools-toggle');
+        if(!tools){toolbar.id='student-request-toolbar';tools=document.createElement('button');tools.type='button';tools.id='student-request-tools-toggle';tools.className='btn-secondary student-request-tools-toggle';tools.setAttribute('aria-controls',toolbar.id);toolbar.before(tools);}
+        const toolsShown=toolsOpen||!!query||order!=='activity';el('student-status').dataset.tools=toolsShown?'open':'closed';tools.setAttribute('aria-expanded',String(toolsShown));text(tools,t('Cari & Urutkan','Search & Sort'));
         const all=owned(),searched=all.filter(matches),filtered=searched.filter(item=>matchStatus(item,status));
         filtered.sort((a,b)=>{const ta=order==='submitted'?time(a.date):activity(a),tb=order==='submitted'?time(b.date):activity(b);return (ta===tb?0:ta>tb?-1:1)||String(a.id).localeCompare(String(b.id));});
         el('student-request-summary').querySelectorAll('[data-student-status]').forEach(button=>{const filter=button.dataset.studentStatus,count=searched.filter(item=>matchStatus(item,filter)).length;text(button.querySelector('[data-student-status-label]'),names[filter]);text(button.querySelector('[data-student-status-count]'),String(count));button.setAttribute('aria-pressed',String(filter===status));button.setAttribute('aria-label',names[filter]+': '+count);});
         el('student-status').querySelector('.student-requests-heading [data-student-new-request]').hidden=!all.length;
+        // A failed refresh is explained beside the list, with the time of the last good data and a retry.
+        const failed=syncPhase==='error'&&!isOffline,last=lastSyncTime?new Date(lastSyncTime).toLocaleTimeString(currentLang==='id'?'id-ID':'en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'})+' WIB':'';
+        el('student-request-refresh').hidden=!failed;text(el('student-request-refresh-text'),failed?(last?t(`Pembaruan gagal · data terakhir ${last}`,`Update failed · last data ${last}`):t('Pembaruan gagal','Update failed')):'');text(el('student-request-refresh-retry'),t('Coba Lagi','Try Again'));
         text(el('student-request-count'),t(`${filtered.length} dari ${all.length} pengajuan ditampilkan`,`${filtered.length} of ${all.length} requests shown`));
         text(el('student-request-date-title'),order==='submitted'?t('Tanggal Dikirim','Submitted On'):t('Pembaruan Terakhir','Last Updated'));
         el('student-request-reset').hidden=status==='all'&&!query&&order==='activity';
@@ -48,9 +55,9 @@
     function reveal(id){if(currentUser.role!=='mhs'||!owned().some(item=>String(item.id)===String(id)))return;
         const item=owned().find(item=>String(item.id)===String(id));if(!matches(item)||!matchStatus(item,status)){status='all';query='';controls();render();}
         const target=[...el('student-status').querySelectorAll('[data-case-id]')].find(node=>node.dataset.caseId===String(id)&&node.getClientRects().length);target?.focus({preventScroll:true});}
-    function reset(){owner='';status='all';query='';order='activity';renderKey='';if(!el('student-request-summary'))return;controls();el('table-my-status').replaceChildren();el('student-mobile-list').replaceChildren();el('student-request-empty').replaceChildren();el('student-request-empty').hidden=true;text(el('student-request-count'),'');el('student-request-summary').querySelectorAll('[data-student-status]').forEach(button=>{text(button.querySelector('[data-student-status-count]'),'0');button.setAttribute('aria-label',labels()[button.dataset.studentStatus]+': 0');});el('student-request-reset').hidden=true;}
+    function reset(){owner='';status='all';query='';order='activity';renderKey='';toolsOpen=false;if(!el('student-request-summary'))return;controls();el('table-my-status').replaceChildren();el('student-mobile-list').replaceChildren();el('student-request-empty').replaceChildren();el('student-request-empty').hidden=true;text(el('student-request-count'),'');el('student-request-summary').querySelectorAll('[data-student-status]').forEach(button=>{text(button.querySelector('[data-student-status-count]'),'0');button.setAttribute('aria-label',labels()[button.dataset.studentStatus]+': 0');});el('student-request-reset').hidden=true;}
     document.addEventListener('input',event=>{if(event.target.id==='student-request-search'&&currentUser.role==='mhs'){query=event.target.value;render();}});
     document.addEventListener('change',event=>{if(event.target.id==='student-request-order'&&currentUser.role==='mhs'){order=['activity','submitted'].includes(event.target.value)?event.target.value:'activity';render();}});
-    document.addEventListener('click',event=>{if(currentUser.role!=='mhs'||!getSessionToken())return;const filter=event.target.closest('[data-student-status]');if(filter){status=statuses.includes(filter.dataset.studentStatus)?filter.dataset.studentStatus:'all';render();}if(event.target.closest('#student-request-reset,[data-student-clear]'))clearFilters();if(event.target.closest('[data-student-new-request]'))switchTab(null,'pendaftaran');});
+    document.addEventListener('click',event=>{if(currentUser.role!=='mhs'||!getSessionToken())return;if(event.target.closest('#student-request-tools-toggle')){toolsOpen=el('student-status').dataset.tools!=='open';render();if(toolsOpen)el('student-request-search').focus();return;}const filter=event.target.closest('[data-student-status]');if(filter){status=statuses.includes(filter.dataset.studentStatus)?filter.dataset.studentStatus:'all';render();}if(event.target.closest('#student-request-reset,[data-student-clear]'))clearFilters();if(event.target.closest('[data-student-new-request]'))switchTab(null,'pendaftaran');});
     window.IPCOSStudentRequests=Object.freeze({render,reset,reveal});
 })();

@@ -111,6 +111,7 @@
         });
         el('case-file-preview')?.querySelectorAll('[data-compare-side]').forEach(control=>control.disabled=saving);
         const actions=el('case-file-preview')?.querySelector('.case-preview-context .button-row');
+        if(actions&&currentUser.role==='admin'){let change=actions.querySelector('[data-change-file]');if(!change){change=document.createElement('button');change.type='button';change.className='btn-secondary';change.dataset.changeFile='';actions.prepend(change);}setText(change,t('Ganti Berkas','Change File'));change.setAttribute('aria-controls','admin-file-navigation');change.setAttribute('aria-expanded',String(el('modal-case-detail').dataset.mobileFiles!=='hidden'));}
         if(actions){let button=actions.querySelector('[data-open-active-review]');if(!button){button=document.createElement('button');button.type='button';button.className='btn-secondary';button.dataset.openActiveReview='';actions.append(button);}button.hidden=active<0;button.disabled=saving;button.textContent=canEdit?t('Catat Hasil Pemeriksaan','Record Review Result'):t('Lihat Hasil Pemeriksaan','View Review Results');}
         syncPageControls();
     }
@@ -208,31 +209,38 @@
     }
     function opened(item,{languageRefresh=false}={}) {
         if(languageRefresh)window.IPCOSDocuments?.languageChanged();
+        else delete el('modal-case-detail').dataset.mobileFiles;
         renderReviews(item,languageRefresh&&editingId===String(item.id));if(!languageRefresh)window.IPCOSAdminDrafts?.offer(item);if(currentUser.role==='admin'&&!el('modal-case-detail').classList.contains('admin-review-mode')&&el('modal-case-detail').classList.contains('has-document-preview'))document.querySelector('.case-action-column')?.prepend(el('document-review-tools'));renderArchives();
         let toggle=el('workspace-view-toggle');if(!toggle){toggle=document.createElement('div');toggle.id='workspace-view-toggle';toggle.className='workspace-view-toggle';el('case-detail-content').before(toggle);}
         toggle.innerHTML=`<button type="button" data-workspace-view="documents">${t('Dokumen','Documents')}</button><button type="button" data-workspace-view="review">${currentUser.role==='mhs'?t('Tindak Lanjut','Follow-up'):t('Pemeriksaan','Review')}</button>`;
         toggle.hidden=currentUser.role!=='admin'&&!el('modal-case-detail').classList.contains('has-document-preview');syncToggle();
     }
     function syncToggle(){const modal=el('modal-case-detail');el('workspace-view-toggle')?.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.workspaceView===(modal.dataset.workspaceView||'documents'))));syncContinue();}
-    // On a phone, while files are still unchecked on the Documents pane, continuing the check leads the footer.
-    // The decision buttons stay in their own labelled group with their usual eligibility and confirmation.
-    const phoneReview=matchMedia('(max-width:850px)');
+    // Single-pane review keeps the Documents pane for reading: its footer offers the next unchecked file and
+    // one route to Pemeriksaan, where the decision group lives with its usual eligibility and confirmation.
+    const wideReview=matchMedia('(min-width:901px)');
+    function nextPending(){
+        const active=activeReviewIndex(),open=draft.map((review,index)=>review.status==='pending'&&index!==active?index:-1).filter(index=>index>=0);
+        return open.find(index=>index>active)??open[0]??-1;
+    }
     function syncContinue(){
         const modal=el('modal-case-detail'),footer=el('case-review-action-footer'),item=currentCase();if(!modal)return;
-        const pending=currentUser.role==='admin'&&supported===true&&item&&editable(item)&&editingId===String(item.id)?draft.filter(review=>review.status==='pending'):[];
-        const show=!!footer&&pending.length>0&&modal.style.display==='flex'&&modal.classList.contains('admin-review-mode')&&phoneReview.matches&&(modal.dataset.workspaceView||'documents')==='documents';
+        const admin=currentUser.role==='admin',editableCase=admin&&!!item&&editable(item);
         const row=footer&&[...footer.children].find(node=>node.id!=='review-continue');
-        if(row&&currentUser.role==='admin'&&item&&editable(item)){row.setAttribute('role','group');row.setAttribute('aria-label',t('Keputusan pengajuan','Request decision'));}
+        if(row&&editableCase){row.setAttribute('role','group');row.setAttribute('aria-label',t('Keputusan pengajuan','Request decision'));}
+        const show=!!footer&&admin&&modal.style.display==='flex'&&modal.classList.contains('admin-review-mode')&&!wideReview.matches&&(modal.dataset.workspaceView||'documents')==='documents';
         footer?.classList.toggle('has-review-continue',show);
         let bar=el('review-continue');if(!show){bar?.remove();return;}
         if(!bar){bar=document.createElement('div');bar.id='review-continue';bar.className='review-continue';}
-        const html=`<button type="button" class="btn-primary" data-review-continue>${t('Lanjutkan Pemeriksaan','Continue Review')}</button><p class="review-continue-note">${escapeHtml(t(`Berikutnya: ${documentText(pending[0].label||'')} · ${pending.length} belum diperiksa`,`Next: ${documentText(pending[0].label||'')} · ${pending.length} not reviewed`))}</p><p class="review-decision-label">${t('Keputusan pengajuan','Request decision')}</p>`;
+        const next=supported===true&&editableCase&&editingId===String(item.id)?nextPending():-1,pending=next<0?0:draft.filter(review=>review.status==='pending').length;
+        const html=`${next>=0?`<button type="button" class="btn-secondary" data-review-continue="${next}" aria-label="${escapeHtml(t(`Berkas berikutnya yang belum diperiksa: ${documentText(draft[next].label||'')} · ${pending} belum diperiksa`,`Next unreviewed file: ${documentText(draft[next].label||'')} · ${pending} not reviewed`))}">${t('Berkas Berikutnya','Next File')}</button>`:''}<button type="button" class="btn-primary" data-review-pane>${editableCase?t('Periksa & Putuskan','Review & Decide'):t('Ke Pemeriksaan','Go to Review')}</button>`;
         if(bar.dataset.signature!==html){bar.innerHTML=html;bar.dataset.signature=html;}
         if(bar.parentNode!==footer)footer.prepend(bar);
     }
-    phoneReview.addEventListener('change',syncContinue);
+    wideReview.addEventListener('change',syncContinue);
     const reviewCard=el('modal-case-detail')?.querySelector('.case-detail-card');if(reviewCard)new MutationObserver(syncContinue).observe(reviewCard,{childList:true});
-    function previewReady(){syncSelection();const modal=el('modal-case-detail');modal.classList.add('has-document-preview');if(!modal.dataset.workspaceView)modal.dataset.workspaceView='documents';if(el('workspace-view-toggle'))el('workspace-view-toggle').hidden=false;syncToggle();const panel=el('case-file-preview'),content=el('case-detail-content');if(panel&&content&&!modal.classList.contains('admin-review-mode')&&modal.dataset.workspaceView==='documents')content.scrollTop+=panel.getBoundingClientRect().top-content.getBoundingClientRect().top;const review=el('document-review-tools');if(currentUser.role==='admin'&&review&&!modal.classList.contains('admin-review-mode'))document.querySelector('.case-action-column')?.prepend(review);}
+    function previewReady(){syncSelection();const modal=el('modal-case-detail');
+        if(currentUser.role==='admin'&&modal.classList.contains('admin-review-mode')&&!wideReview.matches&&(modal.dataset.workspaceView||'documents')==='documents'){const fromList=el('admin-file-navigation')?.contains(document.activeElement);modal.dataset.mobileFiles='hidden';syncSelection();if(fromList){const title=el('case-file-preview')?.querySelector('.case-preview-context h4');if(title){title.tabIndex=-1;title.focus({preventScroll:true});}}requestAnimationFrame(()=>{if(modal.dataset.mobileFiles==='hidden'&&(modal.dataset.workspaceView||'documents')==='documents')el('case-file-preview')?.scrollIntoView({block:'start',behavior:'instant'});});}modal.classList.add('has-document-preview');if(!modal.dataset.workspaceView)modal.dataset.workspaceView='documents';if(el('workspace-view-toggle'))el('workspace-view-toggle').hidden=false;syncToggle();const panel=el('case-file-preview'),content=el('case-detail-content');if(panel&&content&&!modal.classList.contains('admin-review-mode')&&modal.dataset.workspaceView==='documents')content.scrollTop+=panel.getBoundingClientRect().top-content.getBoundingClientRect().top;const review=el('document-review-tools');if(currentUser.role==='admin'&&review&&!modal.classList.contains('admin-review-mode'))document.querySelector('.case-action-column')?.prepend(review);}
     function archiveCandidates(){
         const from=el('archive-from')?.value||'',to=el('archive-to')?.value||'',type=el('archive-service')?.value||'';
         if(!from||!to||from>to)return [];
@@ -285,7 +293,10 @@
         const usePage=event.target.closest('[data-use-pdf-page]'),removePage=event.target.closest('[data-remove-pdf-page]');
         if(usePage){const index=Number(usePage.dataset.usePdfPage),reference=currentPageReference(index);if(reference&&!samePage(reference,draft[index]?.pageRef)){draft[index].pageRef=reference;markChanged();}}
         if(removePage){const index=Number(removePage.dataset.removePdfPage);if(noteReferences&&!saving&&!isPreparingReviewDecision&&!isPreparingCorrection&&!activeUpdateIds.size&&editable(currentCase())&&editingId===String(currentCase()?.id)&&activeReviewIndex()===index&&draft[index]?.pageRef){delete draft[index].pageRef;markChanged();}}
-        if(event.target.closest('[data-review-continue]')){const index=draft.findIndex(review=>review.status==='pending');if(index>=0)openReview(index);return;}
+        const continueButton=event.target.closest('[data-review-continue]');
+        if(continueButton){const index=Number(continueButton.dataset.reviewContinue);if(draft[index]?.status==='pending')openReview(index);return;}
+        if(event.target.closest('[data-review-pane]')){reviewView();el('case-detail-content').scrollTop=0;const pane=el('admin-review-pane'),heading=pane?.querySelector('h3,h2');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}return;}
+        if(event.target.closest('[data-change-file]')){const modal=el('modal-case-detail');modal.dataset.mobileFiles='shown';syncSelection();const nav=el('admin-file-navigation');nav?.scrollIntoView({block:'start',behavior:'instant'});(nav?.querySelector('.case-file-row.is-selected button')||nav?.querySelector('.case-file-row button'))?.focus({preventScroll:true});return;}
         if(event.target.closest('[data-review-start]'))openReview(draft.findIndex(review=>review.status==='pending')<0?0:draft.findIndex(review=>review.status==='pending'));
         if(event.target.closest('[data-review-accept-rest]')&&!saving&&editable(currentCase())&&editingId===String(currentCase()?.id)){
             let changed=0;draft.forEach((review,index)=>{if(review.status==='pending'){review.status='accepted';changed++;const status=el('document-review-status-'+index);if(status)status.value='accepted';}});

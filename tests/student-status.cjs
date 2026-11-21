@@ -1,3 +1,5 @@
+// On phones search and sort open behind Search & Sort; desktop always shows them.
+async function tools(page){if(!(await page.locator('#student-request-search').isVisible())&&await page.locator('#student-request-tools-toggle').isVisible())await page.locator('#student-request-tools-toggle').click();return page;}
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {chromium, reportFailure} = require('./browser.cjs');
@@ -114,12 +116,12 @@ async function login(page,nim='A') {
         const button=page.locator('[data-student-status="'+status+'"]');await button.focus();await button.press('Enter');await selected(page,status);await expectedRows(page,ids);await counts(page,[6,1,4,1]);
     }
     await page.locator('[data-student-status=all]').click();
-    await page.selectOption('#student-request-order','submitted');await expectedRows(page,submitted);
-    await page.selectOption('#student-request-order','activity');await expectedRows(page,activity);
+    await (await tools(page)).selectOption('#student-request-order','submitted');await expectedRows(page,submitted);
+    await (await tools(page)).selectOption('#student-request-order','activity');await expectedRows(page,activity);
     for(const [query,ids] of [['  UJIAN   SEMINAR PROPOSAL  ',['CASE-REV','CASE-INVALID']],['  proposal   SEMINAR  ',['CASE-REV','CASE-INVALID']],['case-resub',['CASE-RESUB']],[' eCommerce   partisipasi ',activity]]){
-        await page.fill('#student-request-search',query);await expectedRows(page,ids);
+        await (await tools(page)).fill('#student-request-search',query);await expectedRows(page,ids);
     }
-    await page.fill('#student-request-search','PROPOSAL seminar');await page.locator('[data-student-status=processing]').click();await expectedRows(page,['CASE-INVALID']);await counts(page,[2,1,1,0]);
+    await (await tools(page)).fill('#student-request-search','PROPOSAL seminar');await page.locator('[data-student-status=processing]').click();await expectedRows(page,['CASE-INVALID']);await counts(page,[2,1,1,0]);
     await page.evaluate(()=>toggleLanguage());await selected(page,'processing');await expectedRows(page,['CASE-INVALID']);assert.equal(await page.inputValue('#student-request-search'),'PROPOSAL seminar');
     await page.locator('#student-request-reset').click();await expectedRows(page,activity);await selected(page,'all');assert.equal(await page.inputValue('#student-request-search'),'');assert.equal(await page.inputValue('#student-request-order'),'activity');
     pass('Keyboard status filters, both date orders, bilingual service/title/ID search, combined counts and reset use the same truthful dataset');
@@ -138,7 +140,7 @@ async function login(page,nim='A') {
     await page.waitForFunction(()=>document.activeElement?.dataset.caseId==='CASE-PENDING');
     pass('Each status has one clear CTA that opens the correct owned record, returns keyboard focus, and never submits a request or decision');
 
-    await page.fill('#student-request-search',' eCommerce  partisipasi ');await page.selectOption('#student-request-order','submitted');await page.locator('[data-student-status=processing]').click();
+    await (await tools(page)).fill('#student-request-search',' eCommerce  partisipasi ');await (await tools(page)).selectOption('#student-request-order','submitted');await page.locator('[data-student-status=processing]').click();
     await page.locator('#student-request-search').focus();await page.locator('#student-request-search').press('End');
     const caret=await page.locator('#student-request-search').evaluate(node=>node.selectionStart);
     await page.evaluate(()=>syncDatabase());await expectedRows(page,['CASE-SUPERVISOR','CASE-PENDING','CASE-RESUB','CASE-INVALID']);
@@ -168,10 +170,10 @@ async function login(page,nim='A') {
     assert(await page.evaluate(()=>!!document.activeElement?.closest('#student-status')&&document.activeElement.getClientRects().length>0&&!document.activeElement.closest('[hidden],[inert]')),'Closing a filtered-away record restores focus to a visible request control');
     pass('Unchanged, pending and failed sync retain rows, filters, order, search focus/caret; language and closing a filtered-away record preserve usable controls');
 
-    await page.locator('[data-student-status=all]').click();await page.fill('#student-request-search','nothing matches this request');await expectedRows(page,[]);
+    await page.locator('[data-student-status=all]').click();await (await tools(page)).fill('#student-request-search','nothing matches this request');await expectedRows(page,[]);
     await matrix(page,'no matching requests',[]);assert(await page.locator('#student-request-reset').isVisible());
     await page.locator('#student-request-reset').click();assert((await page.locator('#student-status [data-case-id]:visible').count())>0);
-    await page.fill('#student-request-search','remember only within this account');await page.locator('[data-student-status=completed]').click();await page.selectOption('#student-request-order','submitted');
+    await (await tools(page)).fill('#student-request-search','remember only within this account');await page.locator('[data-student-status=completed]').click();await (await tools(page)).selectOption('#student-request-order','submitted');
     await page.evaluate(()=>logoutUser());await page.waitForSelector('#welcome-modal',{state:'visible'});await login(page,'C');
     await selected(page,'all');assert.equal(await page.inputValue('#student-request-search'),'');assert.equal(await page.inputValue('#student-request-order'),'activity');await expectedRows(page,[]);await counts(page,[0,0,0,0]);
     await matrix(page,'no request history',[]);

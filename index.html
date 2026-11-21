@@ -53,13 +53,11 @@
     <link rel="stylesheet" href="resources-ui.css">
     <link rel="stylesheet" href="help-ui.css">
     <link rel="stylesheet" href="notifications-ui.css">
-    <link rel="stylesheet" href="supervisor-ui.css">
     <link rel="stylesheet" href="master-ui.css">
     <link rel="stylesheet" href="calendar-ui.css">
     <link rel="stylesheet" href="references-ui.css">
     <link rel="stylesheet" href="global-search.css">
     <link rel="stylesheet" href="preparation-ui.css">
-    <link rel="stylesheet" href="content-studio.css">
     <link rel="stylesheet" href="student-files.css">
     <link rel="stylesheet" href="portal-alignment.css">
     <link rel="stylesheet" href="revision-history.css">
@@ -332,8 +330,8 @@
                 <p id="error-msg-mhs" class="error-msg" role="alert"></p>
                 <label for="input-nim"
                     style="font-size:12px; font-weight:bold; display:block; text-align:left; margin-bottom:4px;"
-                    class="lang" data-id="NIM / Student ID" data-en="NIM / Student ID">NIM / Student ID</label>
-                <input type="text" id="input-nim" enterkeyhint="go" placeholder="Masukkan NIM / Student ID" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="error-msg-mhs"
+                    class="lang" data-id="Nomor Induk Mahasiswa (NIM)" data-en="Student ID number (NIM)">Nomor Induk Mahasiswa (NIM)</label>
+                <input type="text" id="input-nim" inputmode="numeric" enterkeyhint="go" placeholder="Masukkan NIM / Student ID" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="error-msg-mhs"
                     required>
                 <button type="submit" class="btn-primary lang" data-id="Masuk Portal" data-en="Enter Portal">Masuk
                     Portal</button>
@@ -416,6 +414,7 @@
 
             <p id="sync-status" class="sync-status" role="status" hidden></p>
             <!-- Global Search & Notifications -->
+            <span class="workspace-mark" aria-hidden="true"><img src="/favicon.svg?v=2" alt="" width="32" height="32"></span>
             <div class="workspace-utilities" style="display: flex; gap: 15px; align-items: center;">
               <button type="button" class="btn-secondary header-search"
     onclick="openGlobalSearch()"
@@ -454,8 +453,8 @@
         </div>
 
         <div id="announcement-banner" class="announcement-banner" style="display: none;">
-            <div><span id="announcement-text">Pengumuman penting
-                    di sini...</span></div>
+            <div><span id="announcement-text" lang="id">Pengumuman penting
+                    di sini...</span><button type="button" id="announcement-read" class="btn-secondary announcement-read">Baca Panduan</button></div>
             <button type="button" class="announcement-dismiss" aria-label="Tutup Pengumuman"
                 onclick="dismissAnnouncementBanner()">×</button>
         </div>
@@ -723,8 +722,7 @@
                         </div>
                     </div>
                     <div id="req-pendadaran" style="display:none;">
-                        <p id="pendadaran-upload-intro" class="field-helper lang" data-id="Unggah satu berkas untuk setiap dokumen: PDF, JPG, atau PNG, maksimal 10 MB per berkas dan 20 MB untuk semua berkas. Tidak perlu menggabungkan ke ZIP/RAR. Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin." data-en="Upload one file per document: PDF, JPG or PNG, up to 10 MB each and 20 MB for all files together. No need to combine them into a ZIP/RAR. Check every page and signature; a format check is not admin approval.">Unggah satu berkas untuk setiap dokumen: PDF, JPG, atau PNG, maksimal 10 MB per berkas dan 20 MB untuk semua berkas. Tidak perlu menggabungkan ke ZIP/RAR. Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin.</p>
-                        <p id="pendadaran-upload-total" class="upload-total-meter" role="status" aria-live="polite"></p>
+                        <div id="pendadaran-upload-summary" class="pendadaran-upload-summary"><p id="pendadaran-upload-total" class="upload-total-meter" role="status" aria-live="polite"></p><p id="pendadaran-upload-intro" class="field-helper lang" data-id="PDF, JPG, atau PNG · maksimal 10 MB per berkas · 20 MB untuk semua berkas. Satu berkas per dokumen, tanpa ZIP/RAR." data-en="PDF, JPG or PNG · up to 10 MB per file · 20 MB for all files. One file per document, no ZIP/RAR.">PDF, JPG, atau PNG · maksimal 10 MB per berkas · 20 MB untuk semua berkas. Satu berkas per dokumen, tanpa ZIP/RAR.</p></div>
                         <div class="form-group" data-pendadaran-document>
                             <label for="file-pdd-blangko" class="lang" data-id="Blangko Pendadaran *" data-en="Thesis defense form *">Blangko Pendadaran *</label><p id="file-pdd-blangko-hint" class="field-helper lang" data-id="Unduh template di Bantuan › Template &amp; FAQ." data-en="Download the template from Help › Templates &amp; FAQ.">Unduh template di Bantuan › Template &amp; FAQ.</p><p id="file-pdd-blangko-format" class="upload-format lang" data-id="PDF / JPG / PNG · Maks. 10 MB" data-en="PDF / JPG / PNG · max. 10 MB">PDF / JPG / PNG · Maks. 10 MB</p>
                             <input type="file" id="file-pdd-blangko" aria-describedby="file-pdd-blangko-hint file-pdd-blangko-format" accept=".pdf,.jpg,.jpeg,.png"
@@ -797,6 +795,7 @@
                                 onchange="validateFile(this, 'file-pdd-proofread-badge')">
                             <div id="file-pdd-proofread-badge"></div>
                         </div>
+                        <p id="pendadaran-upload-note" class="field-helper lang" data-id="Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin." data-en="Check every page and signature; a format check is not admin approval.">Periksa seluruh halaman dan tanda tangan; pemeriksaan format bukan persetujuan admin.</p>
                     </div>
                     <div id="req-jurnal-only" style="display:none;">
                         <div class="form-group">
@@ -855,6 +854,7 @@
                 <button type="button" data-student-status="completed" aria-pressed="false"><span data-student-status-label>Selesai</span><strong data-student-status-count>0</strong></button>
             </div>
             <section class="card student-request-toolbar" aria-label="Pencarian dan urutan pengajuan"><div class="student-request-search-field"><label for="student-request-search" class="lang" data-id="Cari pengajuan" data-en="Search requests">Cari pengajuan</label><input type="search" id="student-request-search" autocomplete="off" placeholder="Cari layanan, nomor, atau judul..."></div><div><label for="student-request-order" class="lang" data-id="Urutkan" data-en="Sort by">Urutkan</label><select id="student-request-order"><option value="activity" class="lang" data-id="Pembaruan Terbaru" data-en="Latest Update">Pembaruan Terbaru</option><option value="submitted" class="lang" data-id="Dikirim Terbaru" data-en="Newest Submission">Dikirim Terbaru</option></select></div><button type="button" id="student-request-reset" class="btn-secondary lang" data-id="Reset Filter" data-en="Reset Filters">Reset Filter</button></section>
+            <p id="student-request-refresh" class="notification-refresh-error" role="alert" hidden><span id="student-request-refresh-text"></span> <button type="button" class="btn-secondary" data-sync-retry id="student-request-refresh-retry">Coba Lagi</button></p>
             <p id="student-request-count" class="student-request-count" role="status" aria-live="polite" aria-atomic="true"></p>
             <div id="student-mobile-list" class="case-mobile-list"></div>
             <div id="student-request-table-panel" class="card student-request-table-panel">
@@ -939,10 +939,10 @@
     </dl>
     <section class="supervisor-toolbar">
         <div><label for="supervisor-search">Cari Dosen</label><input id="supervisor-search" type="search" autocomplete="off"></div>
-        <div><label for="supervisor-availability">Ketersediaan</label><select id="supervisor-availability"><option value="all">Semua Dosen</option><option value="available">Masih Tersedia</option><option value="near">Hampir Penuh</option><option value="full">Penuh / Melebihi Kuota</option><option value="review">Data Perlu Dicek</option></select></div>
+        <div><label for="supervisor-availability">Ketersediaan</label><select id="supervisor-availability"><option value="all">Semua Dosen</option><option value="available">Masih Tersedia</option><option value="near">Hampir Penuh</option><option value="full">Penuh / Melebihi Kuota</option><option value="review">Data Perlu Dicek</option><option value="critical">Kuota Kritis (sisa 1 atau kurang)</option></select></div>
         <button id="supervisor-reset" type="button" class="btn-secondary" hidden>Reset Filter</button>
     </section>
-    <p id="supervisor-result-count" role="status" aria-live="polite" aria-atomic="true"></p>
+    <p id="supervisor-result-count" role="status" aria-live="polite" aria-atomic="true"></p><button type="button" id="supervisor-show-all" class="btn-secondary" hidden></button>
     <section id="supervisor-list-panel" class="card"><div class="responsive-table-wrapper"><table><caption class="sr-only">Kapasitas bimbingan dosen</caption><thead><tr><th scope="col">Dosen</th><th scope="col">Terpakai / Maksimal</th><th scope="col">Sisa Kuota</th><th scope="col">Ketersediaan</th><th scope="col">Tindakan</th></tr></thead><tbody id="table-admin-dosen"></tbody></table></div></section>
     <div id="supervisor-mobile-list"></div>
     <section id="supervisor-empty" class="card" hidden></section>
@@ -1123,7 +1123,6 @@
     <script src="help-ui.js" defer></script>
     <script src="student-files.js" defer></script>
     <script src="notifications-ui.js" defer></script>
-    <script src="supervisor-ui.js" defer></script>
     <script src="master-ui.js" defer></script>
     <script src="calendar-ui.js" defer></script>
     <script src="references-ui.js" defer></script>

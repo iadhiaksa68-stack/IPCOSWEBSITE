@@ -125,7 +125,7 @@ const rowFor=(page,body)=>page.locator(`#notification-center-list [data-notifica
  assert.equal(await student.inputValue('#reg-judul'),'Analisis Diplomasi Digital');assert.equal(await student.evaluate(()=>document.activeElement.id),'file-pdd-blangko','The next missing file has focus');
  assert.match(await student.locator('#pendadaran-upload-total').textContent(),/Berkas wajib: 0\/11 · Total 0 MB dari 20 MB/,'Required files are counted apart from the title-inclusive readiness');
  assert.match(await student.locator('#registration-readiness .stage-progress').textContent(),/1\/12 syarat wajib siap/);
- assert.match(await student.locator('#pendadaran-upload-intro').textContent(),/PDF, JPG, atau PNG, maksimal 10 MB per berkas dan 20 MB/,'Shared format and size limits are stated once');
+ assert.match(await student.locator('#pendadaran-upload-intro').textContent(),/PDF, JPG, atau PNG · maksimal 10 MB per berkas · 20 MB untuk semua berkas/,'Shared format and size limits are stated once');
  assert.equal(await student.locator('#req-pendadaran .upload-format:visible').count(),0,'Slots no longer repeat the shared format line');
  assert.equal(await student.locator('#reg-jenis-utama').getAttribute('aria-hidden'),'true','The service cards are the only picker');
  await student.evaluate(()=>{registrationDirty=false;});
@@ -146,7 +146,8 @@ const rowFor=(page,body)=>page.locator(`#notification-center-list [data-notifica
  assert(firstCase<=await barTop(admin),'The first case and its full review target sit above the bottom bar');
  await admin.locator('#queue-advanced>summary').click();assert(await admin.locator('#queue-saved-views').isVisible());await admin.locator('#queue-advanced>summary').click();
  await admin.locator('#admin-mobile-list [data-queue-case="Q1"] .queue-open-request').click();await admin.waitForSelector('#case-review-action-footer [data-review-continue]');
- assert.match(await admin.locator('#review-continue .review-continue-note').textContent(),/Berikutnya: Blangko Pendadaran · 3 belum diperiksa/);
+ assert.match(await admin.locator('[data-review-continue]').getAttribute('aria-label'),/Blangko Pendadaran · 3 belum diperiksa/);
+ assert.equal(await admin.locator('#case-detail-actions').isVisible(),false,'On the Documents pane the decision waits in Pemeriksaan');
  assert.equal(await admin.locator('#case-review-action-footer [role=group][aria-label="Keputusan pengajuan"]').count(),1,'The decision buttons keep their own labelled group');
  assert.equal(calls.filter(call=>call.action==='update'&&call.id==='Q1').length,0,'Opening a case never commits a decision');
  await admin.locator('[data-review-continue]').click();await admin.waitForFunction(()=>document.getElementById('case-detail-content').dataset.activeDocumentIndex==='0');

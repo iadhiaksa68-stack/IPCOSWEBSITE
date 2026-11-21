@@ -37,7 +37,8 @@
         const clean = collapse(body), sentence = clean.match(/^(.{8,90}?[.!?:])(?=\s|$)/)?.[1];
         if (sentence) return {subject: sentence.replace(/[.:]$/,''), rest: clean.slice(sentence.length).trim()};
         if (clean.length <= 80) return {subject: clean, rest: ''};
-        return {subject: (clean.slice(0,80).replace(/\s+\S*$/,'') || clean.slice(0,80)) + '…', rest: clean};
+        // A long first sentence becomes one clipped excerpt; the full text stays in the reader, never repeated below.
+        return {subject: (clean.slice(0,80).replace(/\s+\S*$/,'') || clean.slice(0,80)) + '…', rest: ''};
     }
     function eventDate(rec){
         let logs=[];try{logs=JSON.parse(rec.note || '[]');}catch(_){}
@@ -183,7 +184,7 @@
         const item=collect().find(entry=>entry.key===key);if(!item)return false;
         if(item.type==='broadcast'){
             const reader=el('modal-notification-announcement');
-            readerOrigin={epoch:sessionEpoch,key:item.key,scope:document.activeElement?.closest('#notification-center-list')?'notification-center-list':'notif-list-container'};
+            readerOrigin={epoch:sessionEpoch,key:item.key,scope:document.activeElement?.id==='announcement-read'?'announcement-read':document.activeElement?.closest('#notification-center-list')?'notification-center-list':'notif-list-container'};
             fillReader(item);
             clearTimeout(modalCloseTimers.get(reader.id));modalCloseTimers.delete(reader.id);
             el('notif-dropdown').style.display='none';reader.style.display='flex';reader.style.opacity='1';mark(key);return true;
@@ -209,13 +210,14 @@
         if(el('notif-badge')){el('notif-badge').textContent='';el('notif-badge').style.display='none';}
     }
     function setup(){
-        new MutationObserver(()=>{const reader=el('modal-notification-announcement');if(reader.style.display!=='none'||!readerOrigin)return;const origin=readerOrigin;readerOrigin=null;if(origin.epoch!==sessionEpoch||!authorized())return;const node=[...el(origin.scope).querySelectorAll('[data-notification-key]')].find(row=>row.dataset.notificationKey===origin.key)?.querySelector('[data-notification-action="open"]');const target=node?.getClientRects().length?node:document.querySelector('.notification-toggle');target?.focus({preventScroll:true});}).observe(el('modal-notification-announcement'),{attributes:true,attributeFilter:['style']});
+        new MutationObserver(()=>{const reader=el('modal-notification-announcement');if(reader.style.display!=='none'||!readerOrigin)return;const origin=readerOrigin;readerOrigin=null;if(origin.epoch!==sessionEpoch||!authorized())return;const node=origin.scope==='announcement-read'?el('announcement-read'):[...el(origin.scope).querySelectorAll('[data-notification-key]')].find(row=>row.dataset.notificationKey===origin.key)?.querySelector('[data-notification-action="open"]');const target=node?.getClientRects().length?node:document.querySelector('.notification-toggle');target?.focus({preventScroll:true});}).observe(el('modal-notification-announcement'),{attributes:true,attributeFilter:['style']});
         el('notification-search').addEventListener('input',event=>{query=event.target.value;render();});
         el('notification-filter').addEventListener('change',event=>{filter=event.target.value;render();});
         el('notification-reset').addEventListener('click',()=>{query='';filter='all';readFilter='all';el('notification-search').value='';el('notification-filter').value='all';render();el('notification-search').focus();});
         el('notification-mark-all').addEventListener('click',markVisible);
         el('notification-undo-button').addEventListener('click',undoMark);
         document.addEventListener('click',event=>{
+            const banner=event.target.closest('#announcement-read');if(banner&&authorized()){open(banner.dataset.announcementKey);return;}
             const readButton=event.target.closest('[data-read-filter]');
             if(readButton&&authorized()){readFilter=readButton.dataset.readFilter;render();readButton.focus();return;}
             // One row menu at a time; a click elsewhere closes it, as the account menu does.

@@ -56,13 +56,67 @@
         group.querySelectorAll('.dz-file-badge').forEach(node=>node.hidden=true);
         if(input.id==='case-reply-files'){const old=el('case-reply-file-list');if(old)old.hidden=true;}
     }
-    function refresh(){document.querySelectorAll(selector).forEach(render);}
+    /* Pendadaran: one working list. Each document is a row with its name and state. On entry the first missing
+       required document opens with its instruction, template and picker; a failed file opens its own row; any row
+       opens on demand. Selected File objects never move: rows only show or hide the existing controls. */
+    const rowOpen=new Map();
+    const rows=()=>[...document.querySelectorAll('#req-pendadaran [data-pendadaran-document]')];
+    function rowState(input){
+        const file=input.files[0];
+        // A rejected file (too large, wrong type) is cleared by the validator and leaves the field marked invalid.
+        if(!file&&input.getAttribute('aria-invalid')==='true')return ['error',t('Perlu diganti','Needs replacing')];
+        if(!file)return registrationOptional(input.id)?['optional',t('Opsional','Optional')]:['missing',t('Belum dipilih','Not chosen')];
+        if(fileProblem(file,input.accept))return ['error',t('Perlu diganti','Needs replacing')];
+        return documentInspections.get(file)?.pending===false?['ready',t('Siap','Ready')]:['checking',t('Memeriksa…','Checking…')];
+    }
+    function renderRows(){
+        for(const group of rows()){
+            const input=group.querySelector('input[type="file"]'),label=input&&group.querySelector(`label[for="${input.id}"]`);if(!input)continue;
+            let head=group.querySelector(':scope > .upload-row-toggle');
+            if(!head){head=document.createElement('button');head.type='button';head.className='upload-row-toggle';head.innerHTML='<span class="upload-row-name"></span><span class="upload-row-state"></span>';group.id=input.id+'-row';head.setAttribute('aria-controls',group.id);group.prepend(head);label?.classList.add('upload-row-label','sr-only');}
+            const [state,text]=rowState(input),open=rowOpen.get(input.id)===true||state==='error';
+            const name=(label?.textContent||'').replace(/\s*\*\s*$/,'').trim(),shown=open&&['missing','optional'].includes(state)?(registrationOptional(input.id)?t('Opsional','Optional'):t('Wajib','Required')):text;
+            const nameNode=head.querySelector('.upload-row-name'),stateNode=head.querySelector('.upload-row-state');
+            if(nameNode.textContent!==name)nameNode.textContent=name;if(stateNode.textContent!==shown)stateNode.textContent=shown;
+            head.dataset.state=state;head.setAttribute('aria-expanded',String(open));group.classList.toggle('is-collapsed',!open);
+        }
+    }
+    // Entering the files step opens the first required document that still needs a file.
+    function enterFiles(){
+        if(el('reg-jenis-utama')?.value!=='Pendadaran')return null;
+        rowOpen.clear();
+        const first=rows().map(group=>group.querySelector('input[type="file"]')).find(input=>input&&!registrationOptional(input.id)&&['missing','error'].includes(rowState(input)[0]));
+        if(first)rowOpen.set(first.id,true);renderRows();return first||null;
+    }
+    // Any route that focuses a file (checklist, validation, return from help) first opens its row.
+    function reveal(field){
+        const group=field?.closest?.('#req-pendadaran [data-pendadaran-document]');if(!group)return;
+        const input=group.querySelector('input[type="file"]');if(input&&rowOpen.get(input.id)!==true){rowOpen.set(input.id,true);renderRows();}
+    }
+    function toggleTemplate(link){
+        const field=link.dataset.guideField,existing=el(field+'-template');
+        if(existing){existing.remove();link.setAttribute('aria-expanded','false');link.focus();return;}
+        const label=(registrationSpecs('Pendadaran').find(([id])=>id===field)||[])[1]||'',match=window.IPCOSResources?.bestTemplate?.({service:'Pendadaran',field,label});
+        const panel=document.createElement('div');panel.id=field+'-template';panel.className='upload-template-panel';panel.setAttribute('role','region');panel.setAttribute('aria-label',t('Template: ','Template: ')+systemText(label));
+        panel.innerHTML=`<p class="upload-template-title" data-preserve-case>${match?escapeHtml(match.title):t('Template khusus untuk dokumen ini belum tersedia.','No specific template is available for this document yet.')}</p><div class="button-row">${match?`<a class="btn-primary" href="${escapeHtml(match.url)}" target="_blank" rel="noopener noreferrer">${t('Buka Template','Open Template')}</a>`:''}<button type="button" class="btn-secondary" data-guide="templates-faq" data-guide-field="${escapeHtml(field)}">${t('Semua Template & FAQ','All Templates & FAQ')}</button><button type="button" class="btn-secondary" data-template-close="${escapeHtml(field)}">${t('Tutup','Close')}</button></div>`;
+        link.closest('.upload-guidance').after(panel);link.setAttribute('aria-controls',panel.id);link.setAttribute('aria-expanded','true');(panel.querySelector('a')||panel.querySelector('button')).focus();
+    }
+    document.addEventListener('click',event=>{
+        // The template link in a Pendadaran row opens the exact template in place; the full library stays one tap away.
+        const template=event.target.closest('#req-pendadaran .upload-guidance [data-guide="templates-faq"]');
+        if(template&&currentUser.role==='mhs'){event.preventDefault();event.stopPropagation();toggleTemplate(template);return;}
+        const close=event.target.closest('[data-template-close]');
+        if(close){const field=close.dataset.templateClose;el(field+'-template')?.remove();const link=document.querySelector(`#${CSS.escape(field)}-guidance [data-guide="templates-faq"]`);link?.setAttribute('aria-expanded','false');link?.focus();return;}
+        const head=event.target.closest('#req-pendadaran .upload-row-toggle');
+        if(head){const input=head.parentElement.querySelector('input[type="file"]');if(!input)return;const open=head.getAttribute('aria-expanded')!=='true';rowOpen.set(input.id,open);renderRows();}
+    },true);
+    function refresh(){document.querySelectorAll(selector).forEach(render);renderRows();}
     async function inspect(input){
         const epoch=sessionEpoch,files=[...input.files];
         const tasks=files.filter(file=>!fileProblem(file,input.accept)).map(inspectDocument);
-        render(input);await Promise.all(tasks);
+        render(input);renderRows();await Promise.all(tasks);
         if(epoch!==sessionEpoch||!input.isConnected||files.length!==input.files.length||files.some((file,index)=>file!==input.files[index]))return;
-        render(input);
+        render(input);renderRows();
     }
     document.addEventListener('change',event=>{const input=event.target;if(input.matches(selector))inspect(input);});
     document.addEventListener('click',event=>{
@@ -76,5 +130,5 @@
     },true);
     // The correction form is created on demand; observe only its host, not the whole page.
     const host=el('case-action-panel');if(host)new MutationObserver(()=>{const input=el('case-reply-files');if(input&&!el(input.id+'-selection'))render(input);}).observe(host,{childList:true});
-    window.IPCOSUploads=Object.freeze({refresh});refresh();
+    window.IPCOSUploads=Object.freeze({refresh,enterFiles,reveal});refresh();
 })();

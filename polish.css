@@ -74,6 +74,16 @@
  .login-story-footer { margin:10px 0 0; }
  .login-panel { padding:22px 24px!important; }
  .login-panel-intro h2 { margin-top:8px; }
+ /* Phones: the mark and one short line, so the NIM field starts high on the screen. */
+ .login-story-body { display:none; }
+ .login-story-footer { margin:8px 0 0; font-size:12px; }
+ .login-panel { position:relative; padding-top:18px!important; }
+ .login-appearance { position:absolute; top:14px; right:20px; margin:0!important; }
+ .login-panel-intro h2 { margin:6px 0 0; font-size:24px; padding-right:112px; }
+ .login-panel-intro p { display:none; }
+ .login-tabs { margin:16px 0; }
+ #welcome-modal { align-items:flex-start!important; padding-top:16px!important; }
+ #welcome-modal .login-shell { margin-top:0!important; }
  .last-request-card { align-items:stretch; flex-direction:column; padding:16px; gap:12px; }
  .last-request-card>button { width:100%; }
  #admin-data .admin-table-controls,.advanced-filters { grid-template-columns:1fr; }
@@ -140,3 +150,6 @@ body.modal-overlay-open { overflow:hidden; }
  .service-management>form { margin-inline:8px; }
  .service-setting { padding:12px; }
 }
+
+#announcement-banner #announcement-text { display:block; font-weight:700; }
+#announcement-banner .announcement-read { display:inline-flex; width:auto; min-height:44px; margin:8px 0 0; padding:8px 14px; }

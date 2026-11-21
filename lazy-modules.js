@@ -150,7 +150,28 @@
   });
   window.addEventListener("ipcos:logout", () => internationalPlaceholder.reset());
   // Admin-only tools stay out of the first download: the content studio and the notice editor.
-  window.loadContentStudio = () => load("content-studio.js", () => !!window.IPCOSContentStudio);
+  // An on-demand module's stylesheet arrives first, so its page never renders unstyled.
+  const styles = new Map();
+  function style(file) {
+    if (!styles.has(file)) styles.set(file, new Promise((resolve) => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet"; link.href = file;
+      link.onload = link.onerror = () => resolve();
+      // A stalled stylesheet never blocks the module itself.
+      setTimeout(resolve, 8000);
+      document.head.append(link);
+    }));
+    return styles.get(file);
+  }
+  window.loadContentStudio = () => style("content-studio.css").then(() => load("content-studio.js", () => !!window.IPCOSContentStudio));
+  // The supervisor capacity page loads when an admin opens it; the Beranda tile then shows its critical records.
+  window.loadSupervisors = () => currentUser.role === "admin" ? style("supervisor-ui.css").then(() => load("supervisor-ui.js", () => !!window.IPCOSSupervisors)) : Promise.reject(Error("admin"));
+  window.openCriticalSupervisors = () => {
+    if (currentUser.role !== "admin" || !switchTab(null, "admin-dosen")) return;
+    const epoch = sessionEpoch;
+    window.loadSupervisors().then(() => { if (epoch === sessionEpoch && document.getElementById("admin-dosen").classList.contains("active")) window.IPCOSSupervisors.showCritical(); })
+      .catch((error) => { if (epoch === sessionEpoch && error.message !== "admin") showToast(error.message, "error"); });
+  };
   window.loadNoticeAdmin = () => {
     if (currentUser.role !== "admin") return Promise.resolve(false);
     const epoch = sessionEpoch;

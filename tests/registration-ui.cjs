@@ -213,7 +213,7 @@ async function fill(page, type) {
         }
         await fill(page,type);
         await page.locator('[data-registration-step="files"]').click(); await currentStep(page,'files');
-        const visibleFiles=await page.locator('#registration-fields input[type=file]').evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&!node.closest('[hidden]')).map(node=>node.id).sort());
+        const visibleFiles=await page.locator('#registration-fields input[type=file]').evaluateAll(nodes=>nodes.filter(node=>(node.closest('.form-group')||node).getClientRects().length&&!node.closest('[hidden]')).map(node=>node.id).sort());
         assert.deepEqual(visibleFiles,allFiles(type),type+' shows exactly its own file fields');
         if(type==='Outline') {
             await page.evaluate(()=>{serviceSettings.find(item=>item.type==='Outline').enabled=false;refreshServiceAvailability();});

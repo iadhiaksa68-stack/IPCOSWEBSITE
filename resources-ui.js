@@ -146,6 +146,13 @@
     document.addEventListener('change',event=>{if(event.target.id==='resource-category'&&authenticated()){category=event.target.value;render();}if(event.target.id==='reg-jenis-utama'&&requestContext&&event.target.value!==requestContext.service)clearContext();});
     document.addEventListener('click',event=>{if(event.target.closest('#resource-reset')&&authenticated())clearFilters();});
     document.addEventListener('toggle',event=>{if(event.target.matches?.('#faq-content-container [data-resource-faq]'))faqOpen.set(event.target.dataset.resourceFaq,event.target.open);},true);
-    window.IPCOSResources=Object.freeze({render,reset,context,clearContext,entries,reveal});
+    // The exact approved template for one upload slot, used by the in-place template panel on the files step.
+    function bestTemplate(value){
+        if(!prepareOwner()||!value||!SERVICE_TYPES.includes(value.service))return null;
+        const saved=requestContext;requestContext={service:value.service,field:value.field,label:String(value.label||'')};
+        try{return content('template_berkas').entries.map(entry=>({title:entry.text,url:documentUrl(entry.sub),score:contextScore(entry)})).filter(item=>item.score>0&&item.url).sort((a,b)=>b.score-a.score)[0]||null;}
+        finally{requestContext=saved;}
+    }
+    window.IPCOSResources=Object.freeze({render,reset,context,clearContext,entries,reveal,bestTemplate});
     render();
 })();

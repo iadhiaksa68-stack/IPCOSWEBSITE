@@ -361,3 +361,21 @@
 
 .intl-editor-header,.intl-editor-footer{flex-shrink:0}
 .intl-editor-body,.content-editor-body{flex:1 1 auto}
+/* The missing-notes count opens those records; phones get one row per student. */
+.intl-stats > .intl-stat-link { display:flex; flex-direction:column; align-items:flex-start; gap:8px; width:auto; min-height:44px; margin:0; padding:20px; text-align:left; font:inherit; color:inherit; background:var(--card-bg); border:1px solid var(--umy-maroon); border-radius:16px; cursor:pointer; }
+.intl-mobile-records { display:none; list-style:none; margin:0 0 12px; padding:0; border:1px solid var(--card-border); border-radius:14px; background:var(--card-bg); }
+@media (max-width:767px) {
+  .intl-records-table { display:none; }
+  .intl-mobile-records { display:block; }
+  .intl-mobile-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; align-items:center; padding:12px 14px; border-top:1px solid var(--item-border); }
+  .intl-mobile-row:first-child { border-top:0; }
+  .intl-mobile-head { display:grid; gap:2px; min-width:0; }
+  .intl-mobile-head strong { overflow-wrap:anywhere; color:var(--heading-color); }
+  .intl-mobile-head span { font-size:13px; color:var(--text-muted); }
+  .intl-note-state[data-recorded="false"] { color:var(--umy-maroon); font-weight:700; }
+  .intl-mobile-row .intl-edit-button { width:auto; min-height:44px; margin:0; }
+  .intl-mobile-row details { grid-column:1 / -1; margin:0; background:none; border:0; }
+  .intl-mobile-row details > summary { min-height:44px; padding:0; font-size:13px; }
+  .intl-mobile-row dl { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; margin:4px 0 0; font-size:13px; }
+  .intl-mobile-row dd { margin:0; overflow-wrap:anywhere; }
+}

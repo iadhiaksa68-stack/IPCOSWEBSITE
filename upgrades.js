@@ -48,7 +48,7 @@
             + tile(s.doneToday, t('Selesai hari ini', 'Completed today'))
             + tile(avg, t('Rata-rata kirim → disetujui', 'Average send → approval'), s.durations ? t(`${s.durations} pengajuan · 30 hari · termasuk waktu perbaikan mahasiswa`, `${s.durations} requests · 30 days · includes student correction time`) : t('Belum ada data 30 hari', 'No data in 30 days'))
             + tile(s.overdue, t('Lewat target', 'Past target'), t(`dari ${s.waiting} menunggu`, `of ${s.waiting} waiting`), s.overdue ? 'alert' : '')
-            + `<button type="button" class="admin-today-tile${s.critical.length ? ' alert' : ''}" onclick="switchTab(null,'admin-dosen')"><strong>${s.critical.length}</strong><span>${t('Kuota dosen kritis', 'Supervisors near capacity')}</span><small>${s.critical.length ? escapeHtml(s.critical.slice(0, 2).map(row => String(row.Nama || row.nama || '').split(',')[0]).join(', ')) + (s.critical.length > 2 ? '…' : '') : t('Semua masih tersedia', 'All have capacity')}</small></button>`;
+            + `<button type="button" class="admin-today-tile${s.critical.length ? ' alert' : ''}" onclick="openCriticalSupervisors()"><strong>${s.critical.length}</strong><span>${t('Kuota dosen kritis', 'Supervisors near capacity')}</span><small>${s.critical.length ? escapeHtml(s.critical.slice(0, 2).map(row => String(row.Nama || row.nama || '').split(',')[0]).join(', ')) + (s.critical.length > 2 ? '…' : '') : t('Semua masih tersedia', 'All have capacity')}</small></button>`;
     }
 
     /* ---------- Student home: preparation first for early-stage students ---------- */

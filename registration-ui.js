@@ -67,6 +67,7 @@
     }
     function focusField(field){
         if(!field)return;
+        window.IPCOSUploads?.reveal?.(field);
         field.scrollIntoView({block:'center',behavior:'instant'});
         field.focus({preventScroll:true});
     }
@@ -103,6 +104,9 @@
         }
         if(step==='files'&&steps.indexOf(activeStep)<2&&!validData())return;
         reveal(step);
+        // Pendadaran: the shared limits and the first missing document's picker come into view together.
+        const first=step==='files'?window.IPCOSUploads?.enterFiles?.():null;
+        if(first){first.focus({preventScroll:true});requestAnimationFrame(()=>{if(activeStep==='files')el('pendadaran-upload-summary')?.scrollIntoView({block:'start',behavior:'instant'});});return;}
         focusField(step==='service'?el('reg-jenis-utama'):el((step==='data'?registrationTextSpecs(type):registrationSpecs(type))[0]?.[0]));
     }
     function next(){if(activeStep==='service')navigate('data');else if(activeStep==='data')navigate('files');}

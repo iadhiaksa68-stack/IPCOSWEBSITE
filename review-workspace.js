@@ -47,6 +47,7 @@
     function refresh(){
         const root=el('admin-workspace-tools');if(!root)return;
         root.hidden=!allowed();if(!allowed())return;
+        const details=el('case-details-toggle');if(details){details.textContent=t('Rincian','Details');details.setAttribute('aria-expanded',String(modal().dataset.caseDetails==='open'));}
         const toggle=el('admin-files-toggle');toggle.textContent=preference.filesCollapsed?t('Tampilkan Berkas','Show Files'):t('Ciutkan Berkas','Collapse Files');toggle.setAttribute('aria-expanded',String(!preference.filesCollapsed));
         el('admin-review-width-label').textContent=t('Lebar catatan','Notes width');el('admin-workspace-reset').textContent=t('Atur Ulang Tampilan','Reset Layout');
         el('admin-resize-help').textContent=t('Geser pemisah atau gunakan tombol panah kiri dan kanan untuk mengatur lebar. Home dan End memilih batas ukuran.','Drag the divider or use the left and right arrow keys to adjust the width. Home and End select the size limits.');
@@ -56,9 +57,13 @@
     }
     function opened(){
         stopDrag();observer?.disconnect();observer=null;workspace=null;
-        if(!allowed()){el('admin-workspace-tools')?.remove();return;}
+        if(!allowed()){el('admin-workspace-tools')?.remove();el('case-details-toggle')?.remove();return;}
         if(epoch!==sessionEpoch){preference=read();epoch=sessionEpoch;}
-        if(activeId!==selectedCaseId){listScroll=0;activeId=selectedCaseId;}
+        const changed=activeId!==selectedCaseId;if(changed){listScroll=0;activeId=selectedCaseId;}
+        // Single-pane review: previous/next and the long request reference wait behind one Details control.
+        const heading=modal().querySelector('.case-detail-heading');
+        if(heading&&!el('case-details-toggle')){const details=document.createElement('button');details.type='button';details.id='case-details-toggle';details.className='btn-secondary case-details-toggle';details.setAttribute('aria-controls','case-review-navigation');heading.querySelector('.case-close')?.before(details);}
+        if(changed||!modal().dataset.caseDetails)modal().dataset.caseDetails='closed';
         workspace=document.querySelector('#case-detail-content .admin-review-workspace');if(!workspace)return;
         let root=el('admin-workspace-tools');if(!root){
             root=document.createElement('div');root.id='admin-workspace-tools';root.className='admin-workspace-tools';
@@ -81,6 +86,7 @@
     document.addEventListener('input',event=>{if(event.target.id==='admin-review-width')setWidth(Number(event.target.value));});
     document.addEventListener('click',event=>{
         if(event.target.closest('#admin-files-toggle'))collapse(!preference.filesCollapsed);
+        if(event.target.closest('#case-details-toggle')&&allowed()){modal().dataset.caseDetails=modal().dataset.caseDetails==='open'?'closed':'open';refresh();}
         if(event.target.closest('#admin-workspace-reset')&&allowed()&&!busy()){preference=defaults();remember();refresh();const nav=workspace.querySelector('.admin-document-navigation');nav.scrollTop=listScroll;}
     });
     document.addEventListener('keydown',event=>{
@@ -98,7 +104,7 @@
     });
     ['pointerup','pointercancel','lostpointercapture'].forEach(name=>document.addEventListener(name,event=>{if(drag&&event.pointerId===drag.id)stopDrag();}));
     window.addEventListener('resize',()=>{if(!desktop())stopDrag();apply();});
-    function reset(){stopDrag();observer?.disconnect();observer=null;workspace=null;preference=defaults();epoch=-1;activeId='';listScroll=0;try{sessionStorage.removeItem(key);}catch(_){}el('admin-workspace-tools')?.remove();delete modal()?.dataset.filesCollapsed;}
+    function reset(){stopDrag();observer?.disconnect();observer=null;workspace=null;preference=defaults();epoch=-1;activeId='';listScroll=0;try{sessionStorage.removeItem(key);}catch(_){}el('admin-workspace-tools')?.remove();el('case-details-toggle')?.remove();delete modal()?.dataset.filesCollapsed;delete modal()?.dataset.caseDetails;}
     window.addEventListener('ipcos:logout',reset);
     window.IPCOSReviewWorkspace=Object.freeze({opened,refresh,reset,cancelDrag});
 })();

@@ -68,3 +68,22 @@
  .student-history-footer>button { flex:1 1 140px; }
  #student-request-empty { padding:30px 18px; }
 }
+/* Search and sort open on demand on phones; desktop keeps them in view. */
+.student-request-tools-toggle { display:none; }
+@media(max-width:700px) {
+  .student-request-summary { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
+  .student-request-summary button { flex:1 1 auto; min-height:44px; padding:8px 12px; gap:8px; }
+  .student-request-summary button>strong { font-size:16px; }
+  .student-request-tools-toggle { display:inline-flex; width:auto; min-height:44px; margin:0 0 10px; }
+  #student-status[data-tools="closed"] .student-request-toolbar { display:none; }
+  /* Request history as one list: service, status, last update and the result action in each row. */
+  #student-mobile-list { border:1px solid var(--card-border); border-radius:16px; background:var(--card-bg); overflow:hidden; }
+  #student-mobile-list .student-history-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:2px 12px; margin:0; padding:12px 16px; border:0; border-top:1px solid var(--item-border); border-radius:0; box-shadow:none; background:transparent; }
+  #student-mobile-list .student-history-card:first-child { border-top:0; }
+  #student-mobile-list .student-history-card > div:first-child,#student-mobile-list .student-history-card .request-state { grid-column:1; margin:0; padding:0; border:0; background:none; }
+  #student-mobile-list .student-history-card :is(.student-request-id,.student-request-excerpt,.request-state-next,.request-wait,.case-tracker,.request-state-details) { display:none; }
+  #student-mobile-list .student-history-footer { display:contents; }
+  #student-mobile-list .student-history-footer p { grid-column:1; margin:0; font-size:13px; color:var(--text-muted); }
+  #student-mobile-list .student-history-footer p span::after { content:' '; }
+  #student-mobile-list .student-history-footer button { grid-column:2; grid-row:1 / span 3; width:auto; min-height:44px; margin:0; }
+}

@@ -104,12 +104,14 @@
         if (!identity) { identity = document.createElement('div'); identity.id = 'case-review-identity'; identity.className = 'case-review-identity'; heading.append(identity); }
         identity.replaceChildren();
         const type = document.createElement('strong'); type.textContent = systemText(item.jenis || text('Pengajuan', 'Request'));
-        const detail = document.createElement('span');
-        detail.textContent = [isAdmin() ? [item.nama, item.nim].filter(Boolean).join(' · ') : '', `${text('Nomor', 'ID')} ${String(item.id)}`].filter(Boolean).join(' · ');
+        const detail = document.createElement('span'); detail.className = 'case-review-person';
+        detail.textContent = isAdmin() ? [item.nama, item.nim].filter(Boolean).join(' · ') : '';
+        const reference = document.createElement('span'); reference.className = 'case-review-reference';
+        reference.textContent = `${text('Nomor', 'ID')} ${String(item.id)}`;
         const keyboardIdentity = document.createElement('small');
         keyboardIdentity.className = 'case-review-keyboard-identity';
         keyboardIdentity.textContent = [isAdmin() ? String(item.nim || '') : '', `${text('Nomor', 'ID')} ${String(item.id)}`].filter(Boolean).join(' · ');
-        identity.append(type, detail, keyboardIdentity); renderNavigation();
+        identity.append(type, ...(detail.textContent ? [detail] : []), reference, keyboardIdentity); renderNavigation();
         if (changed && !options.languageRefresh) {
             modal().querySelector('.case-detail-card').scrollTop = 0;
             const content = document.getElementById('case-detail-content');

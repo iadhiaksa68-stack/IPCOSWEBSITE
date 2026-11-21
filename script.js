@@ -548,7 +548,11 @@ function applyDatabaseSnapshot(data) {
                     const annId = latest.Id || latest.id || latest.date || latest.Tanggal || latest.Pesan || latest.message;
                     const bannerText = document.getElementById('announcement-text');
                     if (bannerText) {
-                        bannerText.innerText = latest.Pesan || latest.message;
+                        // The banner names the notice (and its end date); the full text opens in the notice reader.
+                        const body = latest.Pesan || latest.message || '', notice = window.IPCOSNotifications?.notice, details = notice?.details(body);
+                        const subject = details?.subject || notice?.derived(body).subject || body;
+                        bannerText.innerText = details?.expires ? `${subject} · ${uxText('berlaku sampai', 'valid until')} ${formatDate(details.expires)}` : subject;
+                        document.getElementById('announcement-read')?.setAttribute('data-announcement-key', window.IPCOSNotifications?.keyForAnnouncement(latest) || '');
                         const banner = document.getElementById('announcement-banner');
                         banner.setAttribute('data-current-ann-id', annId);
                         banner.style.display = sessionStorage.getItem(announcementDismissalKey('banner', annId)) ? 'none' : 'flex';
@@ -1235,6 +1239,18 @@ function draftResumeStep(type, draft) {
     if (select?.value === type && registrationFilesTotal(type) <= REGISTRATION_TOTAL_LIMIT && registrationRequirements(type).every(item => item.ready)) return 'review';
     return 'files';
 }
+// The first required document that still needs a file, named on the home card.
+function draftNextDocument(type) {
+    const spec = registrationSpecs(type).find(([id]) => { if (registrationOptional(id)) return false; const input = document.getElementById(id), file = input?.files?.[0]; return !file || !!fileProblem(file, input.accept); });
+    return spec ? systemText(spec[1]) : '';
+}
+function draftProgressHtml(action) {
+    const required = registrationSpecs(action.type).filter(([id]) => !registrationOptional(id));
+    const ready = required.filter(([id]) => { const input = document.getElementById(id), file = input?.files?.[0]; return file && !fileProblem(file, input.accept); }).length;
+    const current = {data:1, files:2, review:3}[action.step] ?? 1;
+    const steps = [uxText('Layanan dipilih','Service chosen'), current > 1 ? uxText('Data tersimpan','Details saved') : uxText('Data pengajuan','Request details'), uxText(`Berkas wajib ${ready}/${required.length}`,`Required files ${ready}/${required.length}`), uxText('Periksa & kirim','Review & send')];
+    return `<ol class="student-request-progress" aria-label="${uxText('Tahap draf','Draft progress')}">${steps.map((step,index)=>`<li class="${index < current ? 'is-complete' : index === current ? 'is-current' : ''}" ${index === current ? 'aria-current="step"' : ''}><span aria-hidden="true">${index < current ? '✓' : index + 1}</span>${step}</li>`).join('')}</ol>`;
+}
 function continueStudentHome() {
     if (currentUser.role !== 'mhs' || !getSessionToken()) return false;
     // Keep any open case editor or submission intact; the home button is inert
@@ -1273,9 +1289,9 @@ function renderStudentHome(home, records) {
     const waiting = records.filter(item=>['pending','resubmitted'].includes(state(item))).length;
     const completed = records.filter(item=>state(item)==='accepted').length;
     const heading = action.kind==='revision' ? uxText('Ada perbaikan untuk Anda','Your corrections are needed') : action.kind==='draft' ? uxText(`Draf ${systemText(action.type)}`,`${systemText(action.type)} draft`) : action.kind==='case' ? uxText('Pengajuan Anda sedang diperiksa','Your request is under review') : uxText('Siap untuk langkah berikutnya?','Ready for your next step?');
-    const description = focus ? caseNextStep(focus) : action.kind==='draft' ? (action.step === 'data' ? uxText('Lengkapi isian yang belum ada, lalu pilih berkas.','Complete the missing details, then choose your files.') : action.step === 'review' ? uxText('Isian dan berkas sudah lengkap. Periksa ringkasan sebelum mengirim.','Details and files are complete. Check the summary before sending.') : uxText('Data sudah tersimpan. Berikutnya pilih berkas; berkas perlu dipilih ulang setelah halaman dimuat ulang.','Your details are saved. Next, choose your files; files must be selected again after a page reload.')) : uxText('Pilih layanan akademik dan siapkan berkas sebelum mengirim pengajuan.','Choose an academic service and prepare your files before submitting a request.');
+    const description = focus ? caseNextStep(focus) : action.kind==='draft' ? (action.step === 'data' ? uxText('Lengkapi isian yang belum ada, lalu pilih berkas.','Complete the missing details, then choose your files.') : action.step === 'review' ? uxText('Isian dan berkas sudah lengkap. Periksa ringkasan sebelum mengirim.','Details and files are complete. Check the summary before sending.') : (draftNextDocument(action.type) ? uxText(`Draf tersimpan. Berikutnya, pilih ${draftNextDocument(action.type)}.`,`Draft saved. Next, choose ${draftNextDocument(action.type)}.`) : uxText('Draf tersimpan. Berikutnya, periksa berkas Anda.','Draft saved. Next, check your files.'))) : uxText('Pilih layanan akademik dan siapkan berkas sebelum mengirim pengajuan.','Choose an academic service and prepare your files before submitting a request.');
     home.classList.add('student-dashboard');
-    home.innerHTML = `<section class="student-next-step" aria-labelledby="student-next-title"><div class="student-next-copy"><span class="student-eyebrow">${uxText('LANGKAH BERIKUTNYA','YOUR NEXT STEP')}</span><h2 id="student-next-title">${heading}</h2>${focus ? `<p class="student-focus-service">${escapeHtml(systemText(focus.jenis))}</p>` : ''}<p>${escapeHtml(description)}</p><button type="button" class="btn-primary" data-student-home-action onclick="continueStudentHome()">${action.label}<span aria-hidden="true"> →</span></button></div><div class="student-next-context">${focus ? studentProgressHtml(focus) : `<strong>${uxText('Satu tempat untuk progres Anda','One place for your progress')}</strong><p>${uxText('Pengajuan, berkas, dan catatan admin tetap terhubung.','Your requests, files, and admin notes stay connected.')}</p>`}</div></section>${records.length ? `
+    home.innerHTML = `<section class="student-next-step" aria-labelledby="student-next-title"><div class="student-next-copy"><span class="student-eyebrow">${uxText('LANGKAH BERIKUTNYA','YOUR NEXT STEP')}</span><h2 id="student-next-title">${heading}</h2>${focus ? `<p class="student-focus-service">${escapeHtml(systemText(focus.jenis))}</p>` : ''}<p>${escapeHtml(description)}</p><button type="button" class="btn-primary" data-student-home-action onclick="continueStudentHome()">${action.label}<span aria-hidden="true"> →</span></button></div><div class="student-next-context">${focus ? studentProgressHtml(focus) : action.kind === 'draft' ? draftProgressHtml(action) : `<strong>${uxText('Satu tempat untuk progres Anda','One place for your progress')}</strong><p>${uxText('Pengajuan, berkas, dan catatan admin tetap terhubung.','Your requests, files, and admin notes stay connected.')}</p>`}</div></section>${records.length ? `
     ${records.length<3?'':`<dl class="student-overview" aria-label="${uxText('Ringkasan pengajuan','Request overview')}">${[[revisions,uxText('Perlu perbaikan','Needs corrections')],[waiting,uxText('Dalam pemeriksaan','Under review')],[completed,uxText('Selesai diverifikasi','Verified')]].map(([count,label])=>`<div><dt>${label}</dt><dd>${count}</dd></div>`).join('')}</dl>`}
     <div class="student-section-heading"><h2>${uxText('Pengajuan Anda','Your requests')}</h2><button type="button" class="task-history" onclick="switchTab(null,'student-status')">${uxText('Lihat Semua','View All')} (${records.length})</button></div>
     <div class="task-home-list">${sorted.length ? sorted.slice(0,3).map(item=>`<article class="task-card student-request-card"><div><p class="student-request-date">${escapeHtml(formatDate(getCaseEventTime(item)))}</p><h3>${escapeHtml(systemText(item.jenis))}</h3>${studentRequestTitle(item) ? `<p class="student-request-title">${escapeHtml(studentRequestTitle(item))}</p>` : ''}${window.IPCOSReview?.statusHtml(item,{compact:true}) || getStatusBadge(item.status)}</div><button type="button" class="btn-secondary" data-case-id="${escapeHtml(item.id)}">${state(item)==='revision' ? uxText('Lihat Perbaikan','View Corrections') : state(item)==='accepted' ? uxText('Lihat Hasil','View Result') : uxText('Detail Pengajuan','Request Details')}</button></article>`).join('') : `<div class="student-empty"><h3>${uxText('Belum ada pengajuan','No requests yet')}</h3><p>${uxText('Pengajuan yang Anda kirim akan tampil di sini, bersama status dan tindak lanjutnya.','Your submitted requests will appear here with their status and next steps.')}</p></div>`}</div>` : ''}`;
@@ -1317,16 +1333,25 @@ function studentFileReviewHtml(item, url) {
     const label=review.status==='revision' ? uxText('Perlu Perbaikan','Needs Corrections') : review.status==='accepted' ? uxText('Sudah Sesuai','Meets Requirements') : uxText('Belum Diperiksa','Not Reviewed');
     return `<div class="student-file-review ${review.status==='revision'?'needs-correction':''}"><strong>${label}</strong>${review.note ? `<p class="preserve-lines">${escapeHtml(review.note)}</p>` : ''}${window.IPCOSPageNotes?.link(item,url,review.pageRef)||''}</div>`;
 }
-function caseFileListHtml(item) {
+// Current documents (newest version per document) and everything older, shared by the list and its count.
+function caseFileGroups(item) {
     const files = getCaseFiles(item);
     let logs=[]; try { logs=JSON.parse(item.note || '[]'); } catch (_) {}
     const metadata=Array.isArray(logs)?logs.flatMap(log=>Array.isArray(log.documents)?log.documents:[]):[];
     const seen=new Set();
     const rows=files.flatMap((file,index)=>{if(seen.has(file.url))return [];seen.add(file.url);const doc=metadata.slice().reverse().find(doc=>doc.url===file.url);return [{...file,index,document:doc}];});
     const latest=new Map(); rows.filter(row=>row.document).forEach(row=>{const old=latest.get(row.document.label); if(!old || Number(row.document.version)>Number(old.document.version)) latest.set(row.document.label,row);});
-    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${row.document&&latest.get(row.document.label)===row&&comparableCaseFiles(item,row.document.label).length>1?`<button type="button" class="btn-secondary" data-compare-label="${escapeHtml(row.document.label)}">${uxText('Bandingkan Revisi','Compare Revisions')}</button>`:''}${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div>${studentFileReviewHtml(item,row.url)}</div>`;
     const current=rows.filter(row=>row.document && latest.get(row.document.label)===row);
-    const old=rows.filter(row=>!current.includes(row));
+    return {files, rows, latest, current, old: rows.filter(row=>!current.includes(row))};
+}
+function caseFileCountText(item) {
+    const {rows, current, old} = caseFileGroups(item);
+    if (!current.length) return `${rows.length} ${uxText('berkas', rows.length === 1 ? 'file' : 'files')}`;
+    return uxText(`${current.length} dokumen terbaru`, `${current.length} latest ${current.length === 1 ? 'document' : 'documents'}`) + (old.length ? ' · ' + uxText(`${old.length} versi sebelumnya`, `${old.length} earlier ${old.length === 1 ? 'version' : 'versions'}`) : '');
+}
+function caseFileListHtml(item) {
+    const {files, rows, latest, current, old} = caseFileGroups(item);
+    const html=row=>`<div class="case-file-row"><div><strong>${escapeHtml(documentText(row.document?.label || row.label))}</strong>${row.document?`<small class="document-version">${uxText('Versi','Version')} ${Number(row.document.version)} · ${escapeHtml(row.document.fileName)}</small>`:''}</div><div class="button-row"><button type="button" class="btn-secondary" data-preview-index="${row.index}">${uxText('Pratinjau','Preview')}</button>${row.document&&latest.get(row.document.label)===row&&comparableCaseFiles(item,row.document.label).length>1?`<button type="button" class="btn-secondary" data-compare-label="${escapeHtml(row.document.label)}">${uxText('Bandingkan Revisi','Compare Revisions')}</button>`:''}${isPrivateDriveUrl(row.url)?`<button type="button" class="btn-secondary" data-document-index="${row.index}">${systemText('Unduh Berkas')}</button>`:`<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">${uxText('Buka Berkas','Open File')}</a>`}</div>${studentFileReviewHtml(item,row.url)}</div>`;
     if(!current.length) return files.length?(currentUser.role==='admin'?`<p class="field-helper">${systemText('Berkas lama belum memiliki penanda versi. Periksa tanggal dan nama berkas sebelum meninjau.')}</p>`:'')+rows.map(html).join(''):uxText('Belum ada berkas.','No files available.');
     return `<h4>${systemText('Versi terbaru')}</h4>`+current.map(html).join('')+(old.length?`<details class="case-history" data-case-history="files"><summary>${uxText('Versi sebelumnya dan berkas lama','Previous versions & older files')} (${old.length})</summary>`+old.map(html).join('')+'</details>':'');
 }
@@ -2352,7 +2377,7 @@ function openCaseDetail(id, languageRefresh = false) {
     const stateHtml = window.IPCOSReview?.statusHtml(item) || getStatusBadge(item.status)+`<p>${escapeHtml(caseNextStep(item))}</p>`;
     const fileCount = new Set(getCaseFiles(item).map(file=>file.url)).size;
     content.innerHTML = isAdmin ? `<div class="case-workspace admin-review-workspace">
-        <aside class="admin-document-navigation" aria-labelledby="admin-document-title"><div class="admin-pane-heading"><h3 id="admin-document-title">${uxText('Berkas Pengajuan','Request Documents')}</h3><p>${fileCount} ${uxText('berkas',fileCount === 1 ? 'file' : 'files')}</p></div><div class="case-content-block case-documents">${caseFileListHtml(item)}</div></aside>
+        <aside class="admin-document-navigation" aria-labelledby="admin-document-title"><div class="admin-pane-heading"><h3 id="admin-document-title">${uxText('Berkas Pengajuan','Request Documents')}</h3><p>${escapeHtml(caseFileCountText(item))}</p></div><div class="case-content-block case-documents">${caseFileListHtml(item)}</div></aside>
         <section class="case-document-column admin-document-stage" aria-labelledby="admin-preview-title"><h3 id="admin-preview-title">${uxText('Pratinjau Dokumen','Document Preview')}</h3><div class="admin-preview-placeholder"><h4>${fileCount ? uxText('Pilih berkas untuk diperiksa','Choose a file to review') : uxText('Pengajuan ini belum memiliki berkas','This request has no files')}</h4><p>${fileCount ? uxText('Gunakan Pratinjau pada daftar berkas. Dokumen dan catatan pemeriksaan dapat dibuka berdampingan.','Select Preview in the file list. View the document alongside your review notes.') : uxText('Detail dan riwayat pengajuan tetap dapat diperiksa pada bagian Pemeriksaan.','You can still review the request details and history in Review.')}</p></div>${previewHtml}</section>
         <aside class="case-action-column admin-review-rail" aria-label="${uxText('Pemeriksaan dan tindakan pengajuan','Request review and actions')}">
         ${stateHtml}${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
@@ -2361,7 +2386,7 @@ function openCaseDetail(id, languageRefresh = false) {
         <details class="admin-case-context"><summary>${uxText('Informasi Pengajuan','Request Information')}</summary><dl class="receipt-list"><dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd></dl>${detailsHtml}${historyHtml}<button type="button" class="text-link receipt-secondary" data-receipt-id="${escapeHtml(item.id)}">${systemText('Unduh Bukti PDF')}</button></details>
         <button type="button" class="text-link admin-journey-link" data-open-journey="${escapeHtml(item.nim)}">${uxText('Lihat Perjalanan Akademik', 'View Academic Journey')}</button></aside></div>`
         : `<section class="student-detail-overview" aria-label="${uxText('Status dan langkah berikutnya','Status and next step')}">${stateHtml}<dl class="student-detail-meta"><div><dt>${uxText('Dikirim','Submitted')}</dt><dd>${escapeHtml(formatDateTime(item.date).replace(/<[^>]*>/g, ' '))}</dd></div><div><dt>${uxText('Terakhir diperbarui','Last updated')}</dt><dd>${escapeHtml(formatDateTime(getCaseEventTime(item)).replace(/<[^>]*>/g, ' '))}</dd></div></dl></section>
-        <div class="case-workspace student-detail-workspace"><section class="case-document-column" aria-labelledby="student-files-title"><div class="student-section-heading"><h3 id="student-files-title">${uxText('Berkas Pengajuan','Request Documents')}</h3><span>${fileCount} ${uxText('berkas',fileCount === 1 ? 'file' : 'files')}</span></div><div class="case-content-block case-documents">${caseFileListHtml(item)}</div>${previewHtml}</section>
+        <div class="case-workspace student-detail-workspace"><section class="case-document-column" aria-labelledby="student-files-title"><div class="student-section-heading"><h3 id="student-files-title">${uxText('Berkas Pengajuan','Request Documents')}</h3><span>${escapeHtml(caseFileCountText(item))}</span></div><div class="case-content-block case-documents">${caseFileListHtml(item)}</div>${previewHtml}</section>
         <aside class="case-action-column" aria-label="${uxText('Tindak lanjut pengajuan','Request follow-up')}">${status === 'revision' || status === 'resubmitted' ? revisionInstructionsHtml(item) : ''}
         <div id="case-detail-actions" class="case-detail-actions">${actions || ''}</div><div id="case-action-panel" hidden></div>
         ${detailsHtml}${window.IPCOSAcademic?.caseHtml(item)||''}${historyHtml}
@@ -2936,6 +2961,7 @@ function switchTab(event, tabId) {
     if (tabId === 'notifications') window.IPCOSNotifications?.render();
     if (tabId === 'feedback') window.IPCOSHelp?.render();
     if (tabId === 'admin-master') window.loadNoticeAdmin?.();
+    if (tabId === 'admin-dosen' && !window.IPCOSSupervisors) window.loadSupervisors?.().catch(error => { if (error.message !== 'admin') showToast(error.message, 'error'); });
     if (tabId === 'student-files') window.IPCOSFileCenter?.render();
     rememberSectionFocus();
     window.IPCOSExperience?.beforeTab(tabId);
@@ -2947,8 +2973,11 @@ function switchTab(event, tabId) {
     if (target) {
         target.classList.remove('active'); void target.offsetWidth; target.classList.add('active');
     }
+    // A page chosen from the open phone drawer is a deliberate page change: focus lands on its heading.
+    const fromDrawer = document.getElementById('main-sidebar').classList.contains('active') && matchMedia('(max-width:850px)').matches;
     document.getElementById('main-sidebar').classList.remove('active');
     window.IPCOSExperience?.tabChanged(tabId);
+    if (fromDrawer) requestAnimationFrame(() => { const heading = target.classList.contains('active') && target.querySelector('h1'); if (heading) { if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); } });
     if (tabId === 'internationalization') window.IPCOSInternational?.open();
     if (tabId === 'sop-magang') window.IPCOSSop?.open('sop_magang');
     if (tabId === 'sop-tugas-akhir') window.IPCOSSop?.open('sop_tugas_akhir');

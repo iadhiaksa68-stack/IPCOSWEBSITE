@@ -29,7 +29,7 @@
         ['internationalization','Mahasiswa Internasional','International Students','admin bahasa internasional language international'],
         ['feedback','Pusat Bantuan','Help Center','kontak bantuan kendala whatsapp support help admin']
     ];
-    const groupLabels={menus:['Menu','Pages'],requests:['Pengajuan','Requests'],templates:['Template Berkas','Document Templates'],faq:['FAQ','FAQ'],references:['Referensi Akademik','Academic References'],calendar:['Kalender','Calendar'],sop:['SOP Terbit','Published SOPs']};
+    const groupLabels={services:['Layanan','Services'],menus:['Menu','Pages'],requests:['Pengajuan','Requests'],templates:['Template Berkas','Document Templates'],faq:['FAQ','FAQ'],references:['Referensi Akademik','Academic References'],calendar:['Kalender','Calendar'],sop:['SOP Terbit','Published SOPs']};
     const serviceEnglish={Outline:'Outline',Proposal:'Proposal Seminar',Pendadaran:'Thesis Defense','Skripsi Jurnal':'Journal Thesis','Pergantian Pembimbing':'Supervisor Change'};
     let owner='',query='',limit=24,renderedHtml='',generation=0,navigation=0,entries=new Map(),requestOrigin=null;
     function reset(){
@@ -44,6 +44,13 @@
     function index(){
         const list=[],used=new Map();
         const add=entry=>{const base=entry.key||entry.kind+'-'+hash(JSON.stringify(entry.identity));const count=used.get(base)||0;used.set(base,count+1);entry.key=base+(count?'-'+count:'');entry.search=searchable(entry.search||[entry.title,entry.description]);list.push(entry);};
+        // Services come first: their names and everyday short forms (sempro, sidang) lead to the service itself.
+        const aliases={Outline:'outline skripsi judul title',Proposal:'sempro seminar proposal ujian proposal',Pendadaran:'pendadaran sidang ujian akhir thesis defense','Skripsi Jurnal':'skripsi jurnal journal','Pergantian Pembimbing':'ganti dosen ganti pembimbing pergantian pembimbing supervisor change'};
+        const admin=currentUser.role==='admin',serviceTab=admin?'admin-data':'pendaftaran';
+        if(allowed(serviceTab))SERVICE_TYPES.forEach(type=>{
+            const active=!admin&&activeSameType(type),reason=admin?'':serviceAvailability(type);
+            add({key:'service-'+type,kind:'services',tab:serviceTab,title:systemText(type),description:admin?t('Buka antrean layanan ini','Open this service in the queue'):active?t('Sedang berjalan · buka pengajuan ini','In progress · open this request'):reason||t('Tersedia · mulai pengajuan','Available · start a request'),identity:{service:type},search:[type,systemText(type),serviceEnglish[type],aliases[type]]});
+        });
         menuDefinitions.filter(([tab])=>allowed(tab)).forEach(([tab,id,en,keywords])=>add({key:'menu-'+tab,kind:'menus',tab,title:t(id,en),description:'',identity:{tab},search:[id,en,keywords]}));
         const records=readStoredJSON(sessionStorage,'ipcos_registrations',[]);
         if(Array.isArray(records))records.filter(row=>row&&String(row.id??'').trim()&&(currentUser.role==='admin'||isStudentOwner(row))).sort((a,b)=>activity(b)-activity(a)).forEach(row=>{
@@ -99,6 +106,9 @@
         if(value!==undefined&&String(value)!==query){query=String(value);limit=24;}
         if(input.value!==query)input.value=query;
         const words=normalize(query).split(' ').filter(Boolean),all=index(),matches=words.length?all.filter(entry=>words.every(word=>entry.search.includes(word))):all.filter(entry=>entry.kind==='menus'&&(['dashboard','notifications','templates-faq','kalender','admin-data','admin-dosen','admin-master','student-status','pendaftaran'].includes(entry.tab)));
+        // An exact or whole-title match leads its group, ahead of incidental text matches.
+        const phrase=normalize(query),rank=entry=>{const title=normalize(entry.title);return !phrase?0:title===phrase?3:title.includes(phrase)?2:words.every(word=>title.includes(word))?1:0;};
+        if(phrase)matches.sort((a,b)=>rank(b)-rank(a));
         entries=new Map(matches.map(entry=>[entry.key,entry]));
         // Give each matching group an entry before one large category fills the result budget.
         const groups=Object.keys(groupLabels).map(kind=>matches.filter(entry=>entry.kind===kind)),visible=[];
@@ -148,6 +158,7 @@
         const sopEditor=el('modal-sop-editor');
         // A same-page SOP link still leaves the editor; switchTab only checks other pages.
         if(sopEditor?.getClientRects().length&&getComputedStyle(sopEditor).display!=='none'&&window.IPCOSSop?.cancel?.()===false)return false;
+        if(entry.kind==='services'){if(caseVisible&&!switchTab(null,entry.tab))return false;if(caseVisible)closeModal('modal-case-detail',true);closeModal('modal-global-search');return serviceAction(entry.identity.service);}
         if(!switchTab(null,entry.tab))return false;
         if(caseVisible)closeModal('modal-case-detail',true);
         if(entry.kind==='requests'&&openCaseDetail(entry.identity.id)===false)return false;
@@ -167,6 +178,16 @@
             if(!focusTarget(target))focusTarget(entry.kind==='sop'?el(entry.identity.type+'-view')?.querySelector('[role="status"],.sop-notice,h1'):el(entry.tab)?.querySelector('h1,h2'));
         }))),210);
         return true;
+    }
+    // A service result never discards an unsent draft: another service's draft stays, and the card explains availability.
+    function focusHeading(node){if(!node)return;node.tabIndex=-1;node.focus({preventScroll:true});}
+    function serviceAction(type){
+        if(currentUser.role==='admin'){if(!switchTab(null,'admin-data'))return false;const filter=el('admin-type-filter');if(filter){filter.value=type;currentAdminPage=1;filterAdminData();}focusHeading(el('admin-queue-title'));return true;}
+        const existing=activeSameType(type);
+        if(existing){if(!switchTab(null,'student-status'))return false;openCaseDetail(existing.id);return true;}
+        const select=el('reg-jenis-utama'),otherDraft=!!select?.value&&select.value!==type&&registrationDirty;
+        if(otherDraft||serviceAvailability(type)){if(!switchTab(null,'pendaftaran'))return false;requestAnimationFrame(()=>{const card=document.querySelector(`[data-service-card="${CSS.escape(type)}"]`);if(card?.getClientRects().length)card.focus({preventScroll:false});else focusHeading(el('pendaftaran')?.querySelector('h1'));});return true;}
+        openStageRegistration(type);return true;
     }
     document.addEventListener('input',event=>{if(event.target.id==='global-search-input')render(event.target.value);});
     document.addEventListener('click',event=>{const button=event.target.closest('#modal-global-search button');if(!button)return;if(button.dataset.searchKey){activate(button.dataset.searchKey);return;}if(button.id==='global-search-clear'){query='';limit=24;el('global-search-input').value='';render();el('global-search-input').focus();}if(button.id==='global-search-more'){const oldKeys=new Set([...el('global-search-results').querySelectorAll('[data-search-key]')].map(node=>node.dataset.searchKey));limit=Math.min(120,limit+24);render();const next=[...el('global-search-results').querySelectorAll('[data-search-key]')].find(node=>!oldKeys.has(node.dataset.searchKey));if(next){next.focus({preventScroll:true});next.scrollIntoView({block:'nearest',behavior:'instant'});}}});

@@ -170,6 +170,7 @@
         if(!switchTab(null,'pendaftaran'))return;
         const review=document.getElementById('registration-review');
         const target=!review.hidden?document.getElementById('review-heading'):document.getElementById(field);
+        if(target&&review.hidden)window.IPCOSUploads?.reveal?.(target);
         const destination=target?.getClientRects().length?target:document.getElementById('reg-jenis-utama');
         const epoch=sessionEpoch;
         const reveal=()=>{

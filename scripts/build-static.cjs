@@ -16,10 +16,17 @@ const measure = code => ({raw:Buffer.byteLength(code),gzip:gzipSync(code).length
 // HTML handlers and deferred scripts share globals. Preserve their names and
 // execution order; do not tree-shake or wrap the portal in a module/IIFE.
 const options = {target:'es2022',charset:'utf8',minifyWhitespace:true,minifySyntax:true,minifyIdentifiers:false,treeShaking:false,legalComments:'eof'};
-const manifest = {}, lazy = ['sop.js','admin-export.js','internationalization.js','content-studio.js','notice-admin.js'];
+const manifest = {}, lazy = ['sop.js','admin-export.js','internationalization.js','content-studio.js','notice-admin.js','supervisor-ui.js'];
 for (const name of lazy) {
     const code = transformSync(read(name),{...options,loader:'js'}).code;
     const emitted = name.replace('.js','-'+hash(code)+'.js'); manifest[name]=emitted;
+    writeFileSync(path.join(output,emitted),code);
+}
+// Admin-only stylesheets travel with their on-demand modules instead of the first download.
+const lazyStyles = ['supervisor-ui.css','content-studio.css'];
+for (const name of lazyStyles) {
+    const code = transformSync(read(name),{loader:'css',target:'es2022',minify:true,legalComments:'eof'}).code;
+    const emitted = name.replace('.css','-'+hash(code)+'.css'); manifest[name]=emitted;
     writeFileSync(path.join(output,emitted),code);
 }
 let source = scripts.map(read).join('\n;\n');
@@ -36,16 +43,16 @@ html = html.replace(/<script src="([^"]+)" defer><\/script>/g,()=>{if (!firstScr
 html = html.replace(/<link rel="stylesheet" href="([^"]+)">/g,()=>{if (!firstStyle) return ''; firstStyle=false; return `<link rel="stylesheet" href="${cssName}">`;});
 writeFileSync(path.join(output,'index.html'),html);
 for (const name of allowed) {
-    if (name==='index.html' || scripts.includes(name) || styles.includes(name) || lazy.includes(name)) continue;
+    if (name==='index.html' || scripts.includes(name) || styles.includes(name) || lazy.includes(name) || lazyStyles.includes(name)) continue;
     const target=path.join(output,name); mkdirSync(path.dirname(target),{recursive:true}); copyFileSync(path.join(root,name),target);
 }
 const report = {initialRequests:{before:scripts.length+styles.length,after:2},js:{before:measure(source),after:measure(js)},css:{before:measure(cssSource),after:measure(css)},manifest:{...manifest,js:jsName,css:cssName}};
 mkdirSync(path.join(root,'test-results'),{recursive:true});
 writeFileSync(path.join(root,'test-results/build-report.json'),JSON.stringify(report,null,2));
-// Release budget (UI/UX upgrade PRD, 20 Nov 2026): the published baseline is the cap. Initial first-party
-// JS+CSS may not exceed 211,203 bytes Brotli, and HTML+JS+CSS 229,647 bytes (Node's default brotliCompressSync).
-// Growth past either fails the build, so larger features move to on-demand modules instead of the first download.
-const INITIAL_BROTLI_BUDGET = 211203, PAGE_BROTLI_BUDGET = 229647;
+// Release budget (UI/UX upgrade PRD, 21 Nov 2026: weight-neutral visual release). Initial first-party JS+CSS may not
+// exceed 210,590 bytes Brotli, and HTML+JS+CSS 229,244 bytes (Node's default brotliCompressSync), the 21 Nov published
+// sizes. Growth past either fails the build, so larger features move to on-demand modules instead of the first download.
+const INITIAL_BROTLI_BUDGET = 210590, PAGE_BROTLI_BUDGET = 229244;
 const initialBrotli = report.js.after.brotli + report.css.after.brotli, pageBrotli = initialBrotli + brotliCompressSync(html).length;
 if (initialBrotli > INITIAL_BROTLI_BUDGET) { console.error(`FAIL Initial JS+CSS is ${initialBrotli} bytes Brotli, over the ${INITIAL_BROTLI_BUDGET}-byte release budget.`); process.exit(1); }
 if (pageBrotli > PAGE_BROTLI_BUDGET) { console.error(`FAIL HTML+JS+CSS is ${pageBrotli} bytes Brotli, over the ${PAGE_BROTLI_BUDGET}-byte release budget.`); process.exit(1); }

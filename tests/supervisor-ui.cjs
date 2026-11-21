@@ -39,7 +39,7 @@ async function login(page,role='admin',name='fixture'){
     if(page.url()==='about:blank')await page.goto(origin);
     if(role==='admin'){await page.click('#tab-admin');await page.fill('#input-admin-user',name);await page.fill('#input-admin-pass','fixture');await page.locator('#input-admin-pass').press('Enter');}
     else{await page.click('#tab-mhs');await page.fill('#input-nim',name);await page.locator('#input-nim').press('Enter');}
-    await page.waitForSelector('#welcome-modal',{state:'hidden'});await page.waitForFunction(()=>syncPhase==='success');await page.evaluate(role=>switchTab(null,role==='admin'?'admin-dosen':'dashboard'),role);
+    await page.waitForSelector('#welcome-modal',{state:'hidden'});await page.waitForFunction(()=>syncPhase==='success');await page.evaluate(role=>switchTab(null,role==='admin'?'admin-dosen':'dashboard'),role);if(role==='admin')await page.waitForFunction(()=>!!window.IPCOSSupervisors,null,{timeout:10000});
 }
 
 (async()=>{

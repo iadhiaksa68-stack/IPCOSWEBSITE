@@ -4,6 +4,8 @@
 .main-content { transition:none; }
 .workspace-toolbar { gap:12px; align-items:center; margin-bottom:24px!important; padding-bottom:16px; }
 .workspace-utilities { gap:10px!important; min-width:0; flex:0 0 auto; }
+.workspace-mark { display:none; width:36px; height:36px; align-items:center; justify-content:center; border-radius:10px; overflow:hidden; }
+.workspace-mark img { display:block; width:32px; height:32px; }
 .workspace-toolbar .sync-status { margin:0 auto 0 0; min-width:0; line-height:1.5; }
 .workspace-toolbar button { min-height:var(--control-size); }
 .workspace-toolbar button[aria-label] svg { width:20px; height:20px; }
@@ -86,8 +88,10 @@ button:active:not(:disabled) { filter:brightness(.96); }
     /* With the bottom bar, its Menu button opens the drawer; the top bar keeps search, alerts and the account. */
     body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .mobile-nav-toggle,
     body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-quick-toggles { display:none; }
-    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-toolbar { grid-template-columns:minmax(0,1fr); }
-    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-utilities { grid-column:1; }
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-toolbar { grid-template-columns:auto minmax(0,1fr); }
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-utilities { grid-column:2; }
+    /* The IPCOS mark from the sign-in screen fills the open left side of the phone header. */
+    body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .workspace-mark { display:flex; grid-column:1; grid-row:1; align-self:center; }
     body.workspace-authenticated:has(#student-bottom-nav:not([hidden]),#admin-bottom-nav:not([hidden])) .profile-preferences { display:grid; }
     #notif-dropdown { position:fixed!important; top:72px!important; right:16px!important; width:min(320px,calc(100vw - 32px))!important; }
 }

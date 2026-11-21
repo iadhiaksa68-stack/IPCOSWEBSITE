@@ -69,7 +69,7 @@
         setText(page.querySelector('.supervisor-heading p'),t('Atur kapasitas bimbingan dan periksa sisa kuota setiap dosen.','Manage supervision capacity and check each supervisor’s remaining places.'));
         [['total','Total Dosen','Total Supervisors'],['available','Masih Tersedia','Available'],['full','Kuota Penuh','At Capacity'],['review','Perlu Dicek','Needs Checking']].forEach(([key,id,en])=>setText(page.querySelector(`[data-supervisor-${key}]`)?.parentElement.querySelector('dt'),t(id,en)));
         [['supervisor-search','Cari Dosen','Find a Supervisor'],['supervisor-availability','Ketersediaan','Availability'],['add-dosen-nama','Nama Dosen *','Supervisor Name *'],['add-dosen-max','Kuota Maksimal *','Maximum Capacity *'],['edit-dosen-terpakai','Beban Terpakai *','Assigned Students *'],['edit-dosen-maksimal','Kuota Maksimal *','Maximum Capacity *']].forEach(([id,label,en])=>setText(document.querySelector(`label[for="${id}"]`),t(label,en)));
-        [['all','Semua Dosen','All Supervisors'],['available','Masih Tersedia','Available'],['near','Hampir Penuh','Nearly Full'],['full','Penuh / Melebihi Kuota','Full / Over Capacity'],['review','Data Perlu Dicek','Check Data']].forEach(([value,id,en])=>setText(el('supervisor-availability')?.querySelector(`option[value="${value}"]`),t(id,en)));
+        [['all','Semua Dosen','All Supervisors'],['available','Masih Tersedia','Available'],['near','Hampir Penuh','Nearly Full'],['full','Penuh / Melebihi Kuota','Full / Over Capacity'],['review','Data Perlu Dicek','Check Data'],['critical','Kuota Kritis (sisa 1 atau kurang)','Critical capacity (1 or fewer left)']].forEach(([value,id,en])=>setText(el('supervisor-availability')?.querySelector(`option[value="${value}"]`),t(id,en)));
         setText(el('supervisor-reset'),t('Reset Filter','Reset Filters'));setText(page.querySelector('#supervisor-list-panel caption'),t('Kapasitas bimbingan dosen','Supervisor capacity'));
         [['Dosen','Supervisor'],['Terpakai / Maksimal','Assigned / Maximum'],['Sisa Kuota','Remaining'],['Ketersediaan','Availability'],['Tindakan','Action']].forEach(([id,en],index)=>setText(page.querySelectorAll('#supervisor-list-panel th')[index],t(id,en)));
         setText(page.querySelector('.supervisor-add-panel h2'),t('Tambah Dosen','Add a Supervisor'));
@@ -144,7 +144,10 @@
     function render(){
         if(!el('supervisor-search')||!ensureOwner())return;
         localize();
-        const all=records(),filtered=all.filter(row=>normalize(row.name).includes(normalize(query))&&(availability==='all'||availability==='available'&&['available','near'].includes(row.state)||availability==='near'&&row.state==='near'||availability==='full'&&row.state==='full'||availability==='review'&&row.state==='review'));
+        const all=records(),filtered=all.filter(row=>normalize(row.name).includes(normalize(query))&&(availability==='all'||availability==='available'&&['available','near'].includes(row.state)||availability==='near'&&row.state==='near'||availability==='full'&&row.state==='full'||availability==='review'&&row.state==='review'||availability==='critical'&&critical(row)));
+        // The dashboard's critical-capacity tile opens exactly its own records, tightest capacity first.
+        if(availability==='critical')filtered.sort((a,b)=>(Number(a.raw.Maksimal)-Number(a.raw.Terpakai))-(Number(b.raw.Maksimal)-Number(b.raw.Terpakai))||normalize(a.name).localeCompare(normalize(b.name)));
+        const showAll=el('supervisor-show-all');if(showAll){showAll.hidden=availability!=='critical';setText(showAll,t(`Lihat Semua ${all.length} Dosen`,`View All ${all.length} Supervisors`));}
         [['total',all.length],['available',all.filter(row=>['available','near'].includes(row.state)).length],['full',all.filter(row=>row.state==='full').length],['review',all.filter(row=>row.state==='review').length]].forEach(([name,count])=>setText(document.querySelector(`[data-supervisor-${name}]`),String(count)));
         el('supervisor-search').placeholder=t('Cari nama dosen...','Search supervisor names...');el('supervisor-reset').hidden=!query&&availability==='all';
         setText(el('supervisor-result-count'),t(`${filtered.length} dari ${all.length} dosen ditampilkan`,`${filtered.length} of ${all.length} supervisors shown`));
@@ -167,7 +170,16 @@
         const kind=event.target.closest('#supervisor-add-form')?'add':event.target.closest('#supervisor-edit-form')?'edit':'';
         if(kind&&event.target.closest('form').querySelector('[aria-invalid="true"]'))Object.entries(errors(kind)).forEach(([id,message])=>fieldError(id,message));
     });
-    document.addEventListener('change',event=>{if(event.target.id==='supervisor-availability'&&authenticated()){availability=['all','available','near','full','review'].includes(event.target.value)?event.target.value:'all';render();}});
+    document.addEventListener('change',event=>{if(event.target.id==='supervisor-availability'&&authenticated()){availability=['all','available','near','full','review','critical'].includes(event.target.value)?event.target.value:'all';render();}});
+    // Same rule as the Beranda tile: a positive maximum with one or fewer places left (full and over capacity included).
+    function critical(row){const max=Number(row.raw.Maksimal),used=Number(row.raw.Terpakai);return Number.isFinite(max)&&max>0&&Number.isFinite(used)&&max-used<=1;}
+    function showCritical(){query='';availability='critical';if(el('supervisor-search'))el('supervisor-search').value='';if(el('supervisor-availability'))el('supervisor-availability').value='critical';render();}
+    document.addEventListener('click',event=>{
+        if(!authenticated())return;
+        if(event.target.closest('#supervisor-show-all')){availability='all';el('supervisor-availability').value='all';render();el('supervisor-availability').focus({preventScroll:true});}
+        // Ordinary entry from the menu shows every supervisor.
+        if(event.target.closest('.nav-item[data-nav-target="admin-dosen"]')&&availability==='critical'){availability='all';if(el('supervisor-availability'))el('supervisor-availability').value='all';render();}
+    },true);
     document.addEventListener('click',event=>{
         if(!authenticated())return;
         if(event.target.closest('#supervisor-reset')){query='';availability='all';el('supervisor-search').value='';el('supervisor-availability').value='all';render();el('supervisor-search').focus({preventScroll:true});}
@@ -176,6 +188,6 @@
         openEditDosen(row.name,row.used??'',row.max??'');
     });
     const modal=el('modal-edit-dosen');if(modal)new MutationObserver(modalChanged).observe(modal,{attributes:true,attributeFilter:['style','hidden']});
-    window.IPCOSSupervisors=Object.freeze({render,reset,validateAdd:()=>validate('add'),validateEdit:()=>validate('edit'),setBusy,feedback,opened,isBusy});
+    window.IPCOSSupervisors=Object.freeze({render,reset,showCritical,validateAdd:()=>validate('add'),validateEdit:()=>validate('edit'),setBusy,feedback,opened,isBusy});
     render();
 })();
