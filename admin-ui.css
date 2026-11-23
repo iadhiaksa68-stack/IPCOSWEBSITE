@@ -607,3 +607,8 @@
   #modal-case-detail.admin-review-mode:not(.case-keyboard-open) .case-review-action-footer { position:static; }
   #modal-case-detail.admin-review-mode:not(.case-keyboard-open) #case-file-preview:not(:fullscreen):not(.document-expanded) > .document-renderer { height:max(200px,calc(var(--review-viewport-height,100dvh) - 72px)); }
 }
+/* Phones: the search prompt keeps a full line; Filter & Urutkan sits on the next one. */
+@media(max-width:380px) {
+ #admin-data .queue-control-shell>.admin-table-controls { flex:1 0 100%; order:1; }
+ #admin-data .queue-control-shell>#queue-advanced { order:2; flex:1 0 100%; width:100%; }
+}

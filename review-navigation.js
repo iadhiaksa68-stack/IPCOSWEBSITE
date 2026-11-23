@@ -191,6 +191,24 @@
         document.addEventListener('focusout', () => requestAnimationFrame(updateKeyboardState));
     }
 
+    const shortLandscape = matchMedia('(max-width:900px) and (max-height:500px) and (orientation:landscape)');
+    shortLandscape.addEventListener('change', event => {
+        if (!event.matches) return;
+        requestAnimationFrame(() => {
+            const panel = modal();
+            if (!isAdmin() || !isOpen() || panel.dataset.workspaceView !== 'documents') return;
+            if (document.activeElement?.matches('input,textarea,select,[contenteditable="true"]')) return;
+            const viewer = panel.querySelector('#case-file-preview .pdf-canvas-viewer');
+            const toolbar = panel.querySelector('#case-file-preview .pdf-preview-toolbar');
+            if (!viewer?.getClientRects().length || !toolbar) return;
+            const card = panel.querySelector('.case-detail-card');
+            const top = card.getBoundingClientRect().top;
+            if (viewer.getBoundingClientRect().top > top + card.clientHeight / 2) {
+                card.scrollTop += toolbar.getBoundingClientRect().top - top - 8;
+            }
+        });
+    });
+
     function reset() {
         restoreActions();
         activeActionPanel = null; activePanelAction = '';

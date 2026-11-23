@@ -64,7 +64,7 @@
     function rowState(input){
         const file=input.files[0];
         // A rejected file (too large, wrong type) is cleared by the validator and leaves the field marked invalid.
-        if(!file&&input.getAttribute('aria-invalid')==='true')return ['error',t('Perlu diganti','Needs replacing')];
+        if(!file&&input.dataset.rejectedFile==='true')return ['error',t('Perlu diganti','Needs replacing')];
         if(!file)return registrationOptional(input.id)?['optional',t('Opsional','Optional')]:['missing',t('Belum dipilih','Not chosen')];
         if(fileProblem(file,input.accept))return ['error',t('Perlu diganti','Needs replacing')];
         return documentInspections.get(file)?.pending===false?['ready',t('Siap','Ready')]:['checking',t('Memeriksa…','Checking…')];
@@ -74,8 +74,12 @@
             const input=group.querySelector('input[type="file"]'),label=input&&group.querySelector(`label[for="${input.id}"]`);if(!input)continue;
             let head=group.querySelector(':scope > .upload-row-toggle');
             if(!head){head=document.createElement('button');head.type='button';head.className='upload-row-toggle';head.innerHTML='<span class="upload-row-name"></span><span class="upload-row-state"></span>';group.id=input.id+'-row';head.setAttribute('aria-controls',group.id);group.prepend(head);label?.classList.add('upload-row-label','sr-only');}
-            const [state,text]=rowState(input),open=rowOpen.get(input.id)===true||state==='error';
-            const name=(label?.textContent||'').replace(/\s*\*\s*$/,'').trim(),shown=open&&['missing','optional'].includes(state)?(registrationOptional(input.id)?t('Opsional','Optional'):t('Wajib','Required')):text;
+            const [state,text]=rowState(input);
+            if(state==='error'&&head.dataset.state!=='error')rowOpen.set(input.id,true);
+            const open=rowOpen.get(input.id)===true;
+            const name=(label?.textContent||'').replace(/\s*\*\s*$/,'').replace(/\s*\((?:opsional|optional)\)\s*$/i,'').trim();
+            const showRequirement=open&&input.getAttribute('aria-invalid')!=='true'&&['missing','optional'].includes(state);
+            const shown=showRequirement?(registrationOptional(input.id)?t('Opsional','Optional'):t('Wajib','Required')):text;
             const nameNode=head.querySelector('.upload-row-name'),stateNode=head.querySelector('.upload-row-state');
             if(nameNode.textContent!==name)nameNode.textContent=name;if(stateNode.textContent!==shown)stateNode.textContent=shown;
             head.dataset.state=state;head.setAttribute('aria-expanded',String(open));group.classList.toggle('is-collapsed',!open);

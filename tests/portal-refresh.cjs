@@ -68,6 +68,24 @@ const rect=(page,selector)=>page.locator(selector).first().evaluate(node=>node.g
   assert(await admin.locator('#case-detail-actions button').first().isVisible(),'Pemeriksaan shows the decision group');
   await admin.locator('#workspace-view-toggle [data-workspace-view="documents"]').click();
   assert.equal(await admin.locator('#case-file-preview .pdf-preview-toolbar').textContent(),pageBefore,'Returning keeps the same file and page');
+  if(width===390&&height===844){
+   const focusBeforeRotation=await admin.evaluateHandle(()=>document.activeElement);
+   await admin.setViewportSize({width:844,height:390});
+   await admin.waitForFunction(()=>document.querySelector('#case-file-preview canvas')?.getBoundingClientRect().width>570);
+   const painted=await admin.locator('#case-file-preview canvas').evaluate(canvas=>{
+    const page=canvas.getBoundingClientRect(),reader=canvas.parentElement.getBoundingClientRect();
+    const card=canvas.closest('.case-detail-card').getBoundingClientRect();
+    const top=Math.ceil(Math.max(0,page.top,reader.top,card.top)),bottom=Math.min(innerHeight,page.bottom,reader.bottom,card.bottom);
+    const x=(Math.max(0,page.left,reader.left)+Math.min(innerWidth,page.right,reader.right))/2;
+    let visible=0;
+    for(let y=top;y<bottom;y++)if(document.elementFromPoint(x,y)===canvas)visible++;
+    return visible;
+   });
+   assert(painted>=195,`Rotating a loaded PDF must leave at least half the screen readable; got ${painted}px`);
+   assert(await focusBeforeRotation.evaluate(node=>node===document.activeElement));
+   await focusBeforeRotation.dispose();
+   assert.equal(await admin.locator('#case-file-preview .pdf-preview-toolbar').textContent(),pageBefore);
+  }
   await admin.locator('#case-file-preview [data-change-file]').click();assert(await admin.locator('#admin-file-navigation').isVisible(),'Ganti Berkas brings the list back');
   assert.equal(calls.filter(call=>call.action==='update').length,0,'Opening, paging and switching panes never commit a decision');
   await admin.context().close();
@@ -94,10 +112,23 @@ const rect=(page,selector)=>page.locator(selector).first().evaluate(node=>node.g
  await student.locator('#file-pdd-blangko-guidance [data-guide="templates-faq"]').click();
  assert(await student.locator('#file-pdd-blangko-template').isVisible(),'The template opens in place with one activation');
  await student.locator('#file-pdd-blangko-template [data-template-close]').click();assert.equal(await student.evaluate(()=>document.activeElement.dataset.guide),'templates-faq');
+ await student.locator('#registration-readiness-jump').click();
+ assert.equal(await student.evaluate(()=>document.activeElement.id),'registration-files-title');
+ const reachable=await rect(student,'#file-pdd-blangko-selection .upload-choose');
+ assert(reachable.top>=0&&reachable.bottom<=await barTop(student),'The requirements shortcut reaches the file picker');
+ await student.locator('#btn-review-registration').click();
+ await student.waitForFunction(()=>document.querySelectorAll('#req-pendadaran input[aria-invalid="true"]').length===11);
+ assert.equal(await student.evaluate(()=>document.activeElement.id),'file-pdd-blangko');
+ assert.equal(await student.locator('#req-pendadaran .upload-row-toggle[data-state="error"]').count(),0,'Empty files have never been rejected');
+ assert.equal(await student.locator('#req-pendadaran .upload-row-toggle[aria-expanded="true"]').count(),1);
+ assert.equal(calls.filter(call=>call.action==='create').length,0);
  await student.locator('#file-pdd-kkn-row .upload-row-toggle').click();await student.setInputFiles('#file-pdd-kkn',{name:'kkn.pdf',mimeType:'application/pdf',buffer:pdf('kkn')});
  await student.setInputFiles('#file-pdd-bta',{name:'besar.pdf',mimeType:'application/pdf',buffer:Buffer.alloc(11*1024*1024,1)});
  await student.waitForFunction(()=>document.querySelector('#file-pdd-bta-row .upload-row-toggle')?.getAttribute('aria-expanded')==='true');
  assert.match(await student.locator('#file-pdd-bta-row .upload-row-toggle').textContent(),/Perlu diganti/i,'An oversized file opens its own row');
+ const invalidRow=student.locator('#file-pdd-bta-row .upload-row-toggle');
+ await invalidRow.click();assert.equal(await invalidRow.getAttribute('aria-expanded'),'false');
+ await invalidRow.click();assert.equal(await invalidRow.getAttribute('aria-expanded'),'true');
  await student.setInputFiles('#file-pdd-bta',{name:'bta.pdf',mimeType:'application/pdf',buffer:pdf('bta')});await student.waitForFunction(()=>/Siap/i.test(document.querySelector('#file-pdd-bta-row .upload-row-state')?.textContent||''));
  await student.waitForFunction(()=>/Berkas wajib: 2\/11/.test(document.getElementById('pendadaran-upload-total').textContent));
  const kept=await student.evaluate(()=>window.__keep=document.getElementById('file-pdd-kkn').files[0]);
@@ -136,6 +167,46 @@ const rect=(page,selector)=>page.locator(selector).first().evaluate(node=>node.g
  await admin.evaluate(()=>switchTab(null,'dashboard'));await admin.locator('#admin-today button.admin-today-tile').click();await admin.waitForFunction(()=>document.getElementById('supervisor-availability')?.value==='critical');
  await admin.locator('.nav-item[data-nav-target="admin-dosen"]').click();assert.equal(await admin.inputValue('#supervisor-availability'),'all','Ordinary entry from the menu shows every supervisor');
  pass('The critical-capacity tile opens only its four matching supervisors, tightest first, with a route to all; menu entry still shows everyone');
+
+ // 7. The capacity view belongs to its history entry: a reload keeps it, the menu and "Lihat Semua" reset it.
+ await admin.evaluate(()=>switchTab(null,'dashboard'));await admin.locator('#admin-today button.admin-today-tile').click();await admin.waitForFunction(()=>document.getElementById('supervisor-availability')?.value==='critical');
+ assert.equal(await admin.evaluate(()=>history.state?.ipcosSupervisorAvailability),'critical');
+ await admin.reload();await admin.waitForSelector('#welcome-modal',{state:'hidden'});await admin.waitForFunction(()=>document.querySelector('.tab-content.active')?.id==='admin-dosen'&&document.getElementById('supervisor-availability')?.value==='critical'&&document.querySelectorAll('#table-admin-dosen tr').length===4);
+ await admin.locator('#supervisor-show-all').click();assert.equal(await admin.evaluate(()=>history.state?.ipcosSupervisorAvailability||''),'','Lihat Semua clears the stored view');
+ await admin.reload();await admin.waitForSelector('#welcome-modal',{state:'hidden'});await admin.waitForFunction(()=>document.querySelector('.tab-content.active')?.id==='admin-dosen'&&document.querySelectorAll('#table-admin-dosen tr').length===7);
+ assert.equal(await admin.inputValue('#supervisor-availability'),'all');
+ pass('A reload restores the critical capacity list; Lihat Semua and the menu show everyone');
+ await admin.context().close();
+
+ // 8. The selected queue status is visible on arrival, search keeps a line at 320 px, and inbox actions have distinct names.
+ for(const width of [320,390]){
+  const phone=await context(browser,{width,height:800});await login(phone,'admin');
+  await phone.evaluate(()=>{switchTab(null,'admin-data');setAdminQueueFilter('ALL');});
+  await phone.waitForSelector('#admin-queue-summary [aria-pressed="true"]');
+  const view=await phone.evaluate(()=>{const strip=document.getElementById('admin-queue-summary').getBoundingClientRect(),tab=document.querySelector('#admin-queue-summary [aria-pressed="true"]').getBoundingClientRect(),search=document.getElementById('admin-search-input').getBoundingClientRect();return {tabLeft:tab.left-strip.left,tabRight:strip.right-tab.right,text:document.querySelector('#admin-queue-summary [aria-pressed="true"]').textContent,search:search.width,page:document.documentElement.scrollWidth<=innerWidth};});
+  assert(view.tabLeft>=-1&&view.tabRight>=-1,`Semua is fully visible at ${width}px (${JSON.stringify(view)})`);assert(view.page,'No page-level horizontal scroll');
+  if(width===320)assert(view.search>=240,`Search keeps a readable line at 320px, got ${view.search}`);
+  await phone.evaluate(()=>setAdminQueueFilter('ACTION_REQUIRED'));await phone.evaluate(()=>setAdminQueueFilter('ALL'));
+  const again=await phone.evaluate(()=>{const strip=document.getElementById('admin-queue-summary').getBoundingClientRect(),tab=document.querySelector('#admin-queue-summary [aria-pressed="true"]').getBoundingClientRect();return tab.left>=strip.left-1&&tab.right<=strip.right+1;});assert(again,'Re-selecting Semua keeps it visible');
+  if(width===390){
+   await phone.evaluate(()=>IPCOSNotifications.visit());await phone.waitForSelector('#notification-center-list .notification-subject');
+   const names=await phone.locator('#notification-center-list .notification-subject').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')||node.textContent));
+   assert.equal(new Set(names).size,names.length,'Same-service requests have distinct button names: '+names.join(' | '));
+   const menus=await phone.locator('#notification-center-list .notification-row-menu summary').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')));assert.equal(new Set(menus).size,menus.length,'Option menus are distinct too');
+   const row=phone.locator('#notification-center-list [data-notification-key]').filter({hasText:'Budi Santoso'}).first();assert(await row.locator('.notification-subject').getAttribute('aria-describedby'),'The supporting text is tied to the action');
+  }
+  await phone.context().close();
+ }
+ pass('The selected queue status is fully visible at 320 and 390 px, search keeps its line, and same-service inbox actions are named uniquely');
+
+ // 9. The font stylesheet never blocks the sign-in form.
+ const slow=await browser.newContext({viewport:{width:390,height:844}});let release;const gate=new Promise(resolve=>release=resolve);
+ await slow.route('**/*',async route=>{const url=route.request().url();if(url.includes('fonts.googleapis.com')){await gate;return route.fulfill({contentType:'text/css',body:''});}if(url.startsWith(origin))return route.continue();return route.abort();});
+ const first_=await slow.newPage();await first_.goto(origin,{waitUntil:'domcontentloaded'});await first_.waitForSelector('#input-nim',{state:'visible'});
+ await first_.fill('#input-nim','0123');assert.equal(await first_.inputValue('#input-nim'),'0123','Typing works while the font is pending');
+ assert.equal(await first_.evaluate(()=>document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis.com"]').media),'print','The font is non-blocking until it arrives');
+ release();await first_.waitForFunction(()=>document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis.com"]').media==='all');await slow.close();
+ pass('A delayed font stylesheet does not stop the NIM form from showing or accepting input');
 
  assert.deepEqual(errors,[]);
  fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync('test-results/portal-refresh-results.json',JSON.stringify({checks,errors},null,2));

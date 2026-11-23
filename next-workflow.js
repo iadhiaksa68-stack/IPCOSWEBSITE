@@ -111,7 +111,7 @@
         document.querySelectorAll('#registration-fields input[type="file"]').forEach(input=>{
             let row=document.getElementById(input.id+'-guidance');if(!row){row=document.createElement('div');row.id=input.id+'-guidance';row.className='upload-guidance';input.after(row);}
             // Defense documents show these links once, on the form slot, instead of twelve times.
-            const html=input.closest('#req-pendadaran')&&input.id!=='file-pdd-blangko'?'':`<button type="button" class="text-link" data-guide="templates-faq" data-guide-field="${input.id}">${text('Lihat Template','View Templates')}</button><button type="button" class="text-link" data-guide="sop-tugas-akhir" data-guide-field="${input.id}">${text('Baca SOP Tugas Akhir','Read Final Project SOP')}</button>`;
+            const html=input.closest('#req-pendadaran')&&input.id!=='file-pdd-blangko'?'':`<button type="button" class="text-link" data-guide="templates-faq" data-guide-field="${input.id}">${input.closest('#req-pendadaran')?text('Buka template blangko','Open the form template'):text('Lihat Template','View Templates')}</button><button type="button" class="text-link" data-guide="sop-tugas-akhir" data-guide-field="${input.id}">${text('Baca SOP Tugas Akhir','Read Final Project SOP')}</button>`;
             row.hidden=!html;
             if(row.innerHTML!==html)row.innerHTML=html;
         });

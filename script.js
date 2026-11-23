@@ -1,4 +1,8 @@
 // Link Web App Google Apps Script Terbaru (Pastikan URL sesuai dengan deploy Anda)
+
+// The history entry this page was reloaded on, kept before login rewrites it, so section views (such as supervisor availability) can come back.
+window.IPCOSInitialHistory = (() => { try { return history.state?.ipcosTab ? { ...history.state } : null; } catch (_) { return null; } })();
+document.addEventListener('click', event => { if (event.target.closest('.nav-item,[data-bottom-target],[data-nav-target]')) window.IPCOSInitialHistory = null; }, true);
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxzpIl1qKKLKVB-O6Jsv08OiK_zEztbGOkEIXUze1zsxL8gdC3-oZfQ2bJ6QaW-hoEE8Q/exec";
 
 function escapeHtml(value) {
@@ -903,11 +907,12 @@ function validateFile(input, labelId) {
     if (input.files && input.files.length > 0) {
         const file = input.files[0];
         const formattedSize = formatFileSize(file.size);
-        const isOverSize = !!fileProblem(file, input.accept);
-        setFieldError(input.id, fileProblem(file, input.accept));
+        const problem = fileProblem(file, input.accept);
+        setFieldError(input.id, problem);
 
-        if (isOverSize) {
-            showToast(fileProblem(file, input.accept), 'error');
+        if (problem) {
+            input.dataset.rejectedFile = 'true';
+            showToast(problem, 'error');
 
             // KOSONGKAN FILE SECARA HARD-RESET
             input.value = "";
@@ -1061,6 +1066,7 @@ function setFieldError(id, message) {
     if (!error) { error = document.createElement('p'); error.id = errorId; error.className = 'field-error'; input.insertAdjacentElement('afterend', error); }
     error.textContent = message;
     error.hidden = !message;
+    if (!message) delete input.dataset.rejectedFile;
     input.setAttribute('aria-invalid', message ? 'true' : 'false');
     const descriptions=[document.getElementById(id+'-hint')?id+'-hint':'',document.getElementById(id+'-format')?id+'-format':'',message?errorId:''].filter(Boolean);
     if(descriptions.length)input.setAttribute('aria-describedby',descriptions.join(' '));else input.removeAttribute('aria-describedby');
@@ -2502,9 +2508,14 @@ function filterAdminData() {
     if (summary) {
         summary.setAttribute('aria-label',uxText('Status antrean pengajuan','Request queue status'));
         const focusedStatus=summary.contains(document.activeElement)?document.activeElement.closest('[data-queue-status]')?.dataset.queueStatus:null;
+        const stripScroll=summary.scrollLeft;
         const tabs=[['ACTION_REQUIRED','Perlu Ditinjau','Needs Review',counts.pending+counts.resubmitted],['Resubmitted','Perbaikan Masuk','Corrections',counts.resubmitted],['Revision','Menunggu Mahasiswa','Awaiting Student',counts.revision],['ALL','Semua','All',matchingContext.length]];
         summary.innerHTML=tabs.map(([value,id,en,count])=>`<button type="button" class="queue-status-tab" data-queue-status="${value}" aria-pressed="${filterVal===value}" aria-label="${escapeHtml(uxText(id,en)+' · '+count+' '+uxText('pengajuan',count===1?'request':'requests'))}" onclick="setAdminQueueFilter('${value}')"><span>${uxText(id,en)}</span><strong class="queue-status-count">${count}</strong></button>`).join('');
         if(focusedStatus)[...summary.querySelectorAll('[data-queue-status]')].find(button=>button.dataset.queueStatus===focusedStatus)?.focus({preventScroll:true});
+        // Keep the strip where it was, then bring the selected status fully into view inside the strip itself (never the page).
+        summary.scrollLeft=stripScroll;
+        const selected=summary.querySelector('[aria-pressed="true"]');
+        if(selected){const box=summary.getBoundingClientRect(),tab=selected.getBoundingClientRect();if(tab.left<box.left)summary.scrollLeft+=tab.left-box.left-8;else if(tab.right>box.right)summary.scrollLeft+=tab.right-box.right+8;}
     }
 
     adminFilteredData = matchingContext.filter(item => {

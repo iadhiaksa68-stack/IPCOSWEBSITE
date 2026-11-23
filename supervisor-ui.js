@@ -8,6 +8,11 @@
     const ownerKey=()=>authenticated()?`${sessionEpoch}:${getSessionToken()}`:'';
     const operationKinds=['add','edit','delete'];
     let owner='',query='',availability='all',listKey='',editBaseline=null,returnOrigin=null,modalWasOpen=false;
+    // The availability view belongs to its browser history entry: Back and a reload restore it, a fresh menu entry starts at all.
+    const views=['all','available','near','full','review','critical'];
+    const saved=()=>{try{const states=[history.state,window.IPCOSInitialHistory].filter(state=>state?.ipcosTab==='admin-dosen'&&views.includes(state.ipcosSupervisorAvailability));return states[0]?.ipcosSupervisorAvailability||null;}catch(_){return null;}};
+    let pendingView=saved();
+    function remember(){try{if(history.state?.ipcosTab!=='admin-dosen')return;const next={...history.state};if(availability==='all')delete next.ipcosSupervisorAvailability;else next.ipcosSupervisorAvailability=availability;history.replaceState(next,'');}catch(_){}}
     const busy={add:false,edit:false,delete:false},messages={add:null,edit:null};
     const integer=(value,min)=>String(value??'').trim()!==''&&Number.isSafeInteger(Number(value))&&Number(value)>=min?Number(value):null;
     const setText=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
@@ -95,7 +100,12 @@
     function setBusy(kind,value){if(!operationKinds.includes(kind)||!authenticated())return;ensureOwner();busy[kind]=!!value;updateBusy();}
     function editSource(){
         if(!editBaseline)return;
-        const modal=el('modal-edit-dosen');let note=el('supervisor-edit-source-status');
+        window.addEventListener('popstate',event=>{
+        if(event.state?.ipcosTab!=='admin-dosen'||!authenticated())return;
+        const value=views.includes(event.state.ipcosSupervisorAvailability)?event.state.ipcosSupervisorAvailability:'all';
+        if(value===availability)return;availability=value;if(el('supervisor-availability'))el('supervisor-availability').value=value;render();
+    });
+    const modal=el('modal-edit-dosen');let note=el('supervisor-edit-source-status');
         if(!note){note=document.createElement('p');note.id='supervisor-edit-source-status';note.className='supervisor-source-status';note.setAttribute('role','status');el('edit-dosen-name-display')?.after(note);}
         const row=records().find(row=>row.name===editBaseline.name&&!row.duplicate),signature=row?JSON.stringify([row.used,row.max]):'';
         note.hidden=!!row&&signature===editBaseline.signature;
@@ -143,6 +153,7 @@
     function editButton(row){return `<button type="button" class="btn-secondary" data-supervisor-edit="${row.key}" data-supervisor-name="${escapeHtml(row.name)}" data-invalid="${!row.name.trim()||row.duplicate}" ${!row.name.trim()||row.duplicate?'disabled':''} aria-label="${escapeHtml(t('Ubah kuota','Edit capacity')+' · '+(row.name.trim()||t('Dosen tanpa nama','Unnamed supervisor')))}">${t('Ubah Kuota','Edit Capacity')}</button>`;}
     function render(){
         if(!el('supervisor-search')||!ensureOwner())return;
+        if(pendingView&&authenticated()){availability=pendingView;pendingView=null;if(el('supervisor-availability'))el('supervisor-availability').value=availability;remember();}
         localize();
         const all=records(),filtered=all.filter(row=>normalize(row.name).includes(normalize(query))&&(availability==='all'||availability==='available'&&['available','near'].includes(row.state)||availability==='near'&&row.state==='near'||availability==='full'&&row.state==='full'||availability==='review'&&row.state==='review'||availability==='critical'&&critical(row)));
         // The dashboard's critical-capacity tile opens exactly its own records, tightest capacity first.
@@ -170,19 +181,19 @@
         const kind=event.target.closest('#supervisor-add-form')?'add':event.target.closest('#supervisor-edit-form')?'edit':'';
         if(kind&&event.target.closest('form').querySelector('[aria-invalid="true"]'))Object.entries(errors(kind)).forEach(([id,message])=>fieldError(id,message));
     });
-    document.addEventListener('change',event=>{if(event.target.id==='supervisor-availability'&&authenticated()){availability=['all','available','near','full','review','critical'].includes(event.target.value)?event.target.value:'all';render();}});
+    document.addEventListener('change',event=>{if(event.target.id==='supervisor-availability'&&authenticated()){availability=views.includes(event.target.value)?event.target.value:'all';remember();render();}});
     // Same rule as the Beranda tile: a positive maximum with one or fewer places left (full and over capacity included).
     function critical(row){const max=Number(row.raw.Maksimal),used=Number(row.raw.Terpakai);return Number.isFinite(max)&&max>0&&Number.isFinite(used)&&max-used<=1;}
-    function showCritical(){query='';availability='critical';if(el('supervisor-search'))el('supervisor-search').value='';if(el('supervisor-availability'))el('supervisor-availability').value='critical';render();}
+    function showCritical(){query='';availability='critical';if(el('supervisor-search'))el('supervisor-search').value='';if(el('supervisor-availability'))el('supervisor-availability').value='critical';remember();render();}
     document.addEventListener('click',event=>{
         if(!authenticated())return;
-        if(event.target.closest('#supervisor-show-all')){availability='all';el('supervisor-availability').value='all';render();el('supervisor-availability').focus({preventScroll:true});}
+        if(event.target.closest('#supervisor-show-all')){availability='all';el('supervisor-availability').value='all';remember();render();el('supervisor-availability').focus({preventScroll:true});}
         // Ordinary entry from the menu shows every supervisor.
-        if(event.target.closest('.nav-item[data-nav-target="admin-dosen"]')&&availability==='critical'){availability='all';if(el('supervisor-availability'))el('supervisor-availability').value='all';render();}
+        if(event.target.closest('.nav-item[data-nav-target="admin-dosen"]')&&availability==='critical'){availability='all';if(el('supervisor-availability'))el('supervisor-availability').value='all';remember();render();}
     },true);
     document.addEventListener('click',event=>{
         if(!authenticated())return;
-        if(event.target.closest('#supervisor-reset')){query='';availability='all';el('supervisor-search').value='';el('supervisor-availability').value='all';render();el('supervisor-search').focus({preventScroll:true});}
+        if(event.target.closest('#supervisor-reset')){query='';availability='all';el('supervisor-search').value='';el('supervisor-availability').value='all';remember();render();el('supervisor-search').focus({preventScroll:true});}
         const button=event.target.closest('[data-supervisor-edit]');if(!button||button.disabled||isBusy())return;
         const row=records().find(item=>item.key===button.dataset.supervisorEdit);if(!row||!row.name.trim()||row.duplicate)return;
         openEditDosen(row.name,row.used??'',row.max??'');
