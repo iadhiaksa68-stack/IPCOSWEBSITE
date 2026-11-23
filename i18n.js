@@ -26,7 +26,7 @@ const interfaceEnglish = {
     'Isian perbaikan tidak valid.':'The corrected fields are invalid.',
     'Penyimpanan sedang diproses. Coba kembali.':'Another save is in progress. Please retry.',
     'SOP Magang':'Internship SOP', 'SOP Tugas Akhir':'Final Project SOP',
-    'ILMU KOMUNIKASI · UMY':'COMMUNICATION STUDIES · UMY',
+    'Ilmu Komunikasi · UMY':'Communication Studies · UMY',
     'Portal Akademik IPCOS UMY':'IPCOS UMY Academic Portal',
     'Ringkasan & layanan akademik':'Academic overview & services',
     'Detail Pengajuan':'Request details', 'Tutup':'Close', 'Batal':'Cancel',
